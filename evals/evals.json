@@ -1,0 +1,22 @@
+{
+  "skill_name": "pm-orchestrator",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我想做一个产品，让运维工程师能一站式申请服务器、IP、域名这些网络资源，现在他们要在好几个系统之间来回填信息，特别慢。帮我从需求分析开始梳理。",
+      "expected_output": "进入需求分析阶段，亮明产品合伙人身份，开始灵魂拷问六问中的 Q1，一次只问一个问题，不直接输出完整文档。",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "我手上已经有一个 Feature 文档，想把它拆成用户故事，还要带验收标准。怎么用你这个 skill 推进？",
+      "expected_output": "识别用户处于需求拆解阶段，引导用户选择或新建项目，读取对应阶段的 instruction，按 INVEST + GWT 方式拆分 Story，提示用户确认后落盘。",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "!status 看看我现在做到哪了",
+      "expected_output": "识别为快捷指令，读取 current-project.json 和对应项目的 progress.json + phase-summary.md，汇报当前阶段和进展，不进入新的产出流程。"
+    }
+  ]
+}

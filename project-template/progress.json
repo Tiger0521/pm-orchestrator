@@ -1,0 +1,24 @@
+{
+  "projectId": "{{PROJECT_ID}}",
+  "projectName": "{{PROJECT_NAME}}",
+  "description": "{{DESCRIPTION}}",
+  "currentPhase": "requirement-analysis",
+  "phases": {
+    "requirement-analysis": {
+      "status": "in_progress",
+      "startedAt": "{{TIMESTAMP}}",
+      "completedAt": null
+    },
+    "user-story-breakdown": {
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null
+    },
+    "detailed-design": {
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null
+    }
+  },
+  "lastUpdated": "{{TIMESTAMP}}"
+}
