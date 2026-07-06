@@ -67,9 +67,9 @@
 
 ## 记忆更新
 
-- [ ] `progress.json` 已更新阶段状态
 - [ ] `refs.json` 已注册所有新文档节点和引用边
 - [ ] `facts.json` 已记录已确认事实
 - [ ] `decision-log.md` 已记录方案选择及理由
 - [ ] `tracking-log.md` 已记录未验证假设/风险/未决问题
 - [ ] `phase-summary.md` 已追加本阶段摘要
+- [ ] `progress.json` 已更新文档列表和阶段内进度（注：`currentPhase` 由主调度器在校验通过后更新）

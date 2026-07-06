@@ -79,7 +79,13 @@
 4. **强制替代方案对比**：生成 2+ 个方案，让用户选择
 5. **输出文档**：需求卡片 + Epic + Feature
 6. **用户确认**：用户确认后落盘到项目目录
-7. **更新记忆**：更新 `progress.json`、`refs.json`、`facts.json`、`decision-log.md`、`tracking-log.md`、`phase-summary.md`
+7. **更新记忆**：更新项目记忆文件（但 **不包括** `progress.json.currentPhase`，阶段转换由主调度器控制）
+   - `refs.json`：注册所有新文档节点和引用边
+   - `facts.json`：记录已确认事实
+   - `decision-log.md`：记录方案选择及理由
+   - `tracking-log.md`：记录未验证假设/风险/未决问题
+   - `phase-summary.md`：追加本阶段摘要
+   - `progress.json`：仅更新文档列表和阶段内进度，**不得修改 currentPhase 字段**
 
 ---
 

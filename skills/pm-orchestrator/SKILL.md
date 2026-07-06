@@ -44,7 +44,7 @@ description: |
 1. 扫描工作区下的 `.claude/product-design-projects/` 目录
 2. 如果已有项目，列出项目并让用户选择：继续 / 新建
 3. 如果没有项目，进入新建项目流程
-4. 更新本 skill 目录的 `current-project.json`
+4. 更新用户工作区的 `.claude/product-design-projects/current-project.json`（注：指针文件放在用户工作区，而非插件包内部，避免权限问题）
 
 ### 新建项目流程
 
@@ -83,7 +83,7 @@ description: |
 
 ```yaml
 projectPath: "<.claude/product-design-projects/<project-id>>"
-skillPath: "<plugin-root>/skills/pm-orchestrator"
+skillPath: "<plugin-root-absolute-path>/skills/pm-orchestrator"  # 必须传递绝对路径，避免跨工作区调用时路径解析失败
 currentPhase: "requirement-analysis | user-story-breakdown | detailed-design"
 mode: "draft | persist | validate"
 upstreamDocs:
@@ -102,6 +102,33 @@ outputTargets:
 | `validate` | 检查当前阶段产出是否满足 checklist，不创建新产出 |
 
 默认使用 `draft`。只有用户明确确认草稿后，才使用 `persist`。
+
+### subagent 返回协议
+
+要求 subagent 始终按统一输出信封返回：
+
+```yaml
+status: "needs-input | draft-ready | persisted | validation-pass | validation-failed | blocked"
+summary: "<一句话结果>"
+filesRead:
+  - "<本轮读取的关键文件>"
+artifacts:
+  - "<草稿标题或写入文件路径>"
+blockers:
+  - "<缺失信息、质量问题或权限冲突>"
+nextAction: "<建议主调度器下一步动作>"
+```
+
+主调度器根据 `status` 决定下一步：
+
+| status | 主调度器动作 |
+|--------|--------------|
+| `needs-input` | 向用户补问，或补齐项目路径/上游文档后重新委派 |
+| `draft-ready` | 向用户展示草稿并请求确认，不落盘 |
+| `persisted` | 汇报写入文件，更新或检查阶段记忆 |
+| `validation-pass` | 请求用户确认是否推进阶段 |
+| `validation-failed` | 汇报缺失项，停留当前阶段 |
+| `blocked` | 停止推进，解释阻断原因并等待用户或项目状态变化 |
 
 ---
 

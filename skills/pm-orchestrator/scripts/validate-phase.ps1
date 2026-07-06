@@ -1,4 +1,4 @@
-#requires -version 5.1
+#requires -version 7.0
 <#
 .SYNOPSIS
     阶段转换校验脚本：检查项目目录下文档的存在性和 frontmatter 完整性。
@@ -74,9 +74,32 @@ function Get-Frontmatter {
     }
     $yaml = $matches[1]
     $fm = @{}
+    $currentKey = $null
+    $inArray = $false
+
     foreach ($line in ($yaml -split "`r?`n")) {
+        # Match single-line key: value
         if ($line -match '^\s*([A-Za-z_]+)\s*:\s*(.*)$') {
-            $fm[$matches[1]] = $matches[2].Trim()
+            $currentKey = $matches[1]
+            $value = $matches[2].Trim()
+
+            # If value is empty, might be start of multi-line array
+            if ([string]::IsNullOrWhiteSpace($value)) {
+                $fm[$currentKey] = @()
+                $inArray = $true
+            } else {
+                $fm[$currentKey] = $value
+                $inArray = $false
+            }
+        }
+        # Match array item (e.g., "  - value")
+        elseif ($inArray -and $line -match '^\s*-\s+(.+)$') {
+            if ($null -ne $currentKey) {
+                if ($fm[$currentKey] -isnot [array]) {
+                    $fm[$currentKey] = @()
+                }
+                $fm[$currentKey] += $matches[1].Trim()
+            }
         }
     }
     return $fm
@@ -109,7 +132,21 @@ foreach ($fileExpect in $expectation.Files) {
             continue
         }
         foreach ($field in $requiredFields) {
-            if (-not $fm.ContainsKey($field) -or [string]::IsNullOrWhiteSpace($fm[$field])) {
+            if (-not $fm.ContainsKey($field)) {
+                $issues += "[frontmatter] $($f.Name) : 缺少字段 $field"
+            }
+            elseif ($field -eq "refs") {
+                # refs can be array or string, just check it exists and is not empty
+                if ($fm[$field] -is [array]) {
+                    if ($fm[$field].Count -eq 0) {
+                        $issues += "[frontmatter] $($f.Name) : refs 数组为空"
+                    }
+                }
+                elseif ([string]::IsNullOrWhiteSpace($fm[$field])) {
+                    $issues += "[frontmatter] $($f.Name) : refs 字段为空"
+                }
+            }
+            elseif ([string]::IsNullOrWhiteSpace($fm[$field])) {
                 $issues += "[frontmatter] $($f.Name) : 缺少字段 $field"
             }
         }
