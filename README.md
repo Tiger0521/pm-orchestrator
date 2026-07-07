@@ -9,12 +9,70 @@
 
 ---
 
+## 安装
+
+```bash
+git clone https://github.com/Tiger0521/pm-orchestrator.git ~/.claude/skills/pm-orchestrator
+```
+
+在 Claude Code 中执行 `/reload-plugins`，插件自动加载，skill 和三个 named agent 立即可用。
+
+> **要求**：Claude Code v2.1+（plugin 功能需 2.1 以上版本）
+
+---
+
+## 用法
+
+### 快速开始
+
+安装后，在 Claude Code 中直接用自然语言触发即可：
+
+```
+帮我梳理一个产品需求，我想做一个 MCP Server 让 AI 编程助手用自然语言查询关系型数据库
+```
+
+或者显式调用 skill：
+
+```
+/pm-orchestrator 我想从零设计一个任务管理工具
+```
+
+主调度器会引导你完成以下流程：
+
+1. **选项目** — 新建或继续已有项目
+2. **需求分析** — `requirement-analyst` subagent 会追问你的真实痛点、目标用户、核心场景，产出需求卡片、Epic 和 Feature
+3. **需求拆解** — `story-breakdown-analyst` subagent 把 Feature 拆成 User Story + GWT 验收标准 + 溯源矩阵
+4. **详细设计** — `detailed-design-designer` subagent 产出结构流程、原型描述、交互契约、规则摘要和 Sprint 规划
+
+每个阶段都是**先出草稿、用户确认后再落盘**，不会偷偷写文件。
+
+### 快捷指令
+
+在对话中直接输入，主调度器立即处理：
+
+| 指令 | 作用 |
+|------|------|
+| `!status` | 查看当前项目进度、当前阶段、最近文档 |
+| `!list` | 列出所有产品设计项目 |
+| `!switch <project-id>` | 切换项目 |
+| `!doc <doc-id>` | 展示指定文档 |
+| `!next` | 校验并推进阶段 |
+| `!back` | 回退阶段 |
+| `!graph` | 展示文档引用关系 |
+
+### 跨会话恢复
+
+关掉终端再打开，输入 `!status` 即可恢复到上次进度。项目记忆保存在工作区的 `.claude/product-design-projects/` 下，不随插件分发。
+
+---
+
 ## 架构
 
 ```text
 pm-orchestrator/
 ├── .claude-plugin/
-│   └── plugin.json
+│   ├── plugin.json
+│   └── marketplace.json
 ├── agents/
 │   ├── requirement-analyst.md
 │   ├── story-breakdown-analyst.md
@@ -79,20 +137,6 @@ pm-orchestrator/
 - `docs/requirement/`
 - `docs/design/`
 - `docs/execution/`
-
-## 快捷指令
-
-快捷指令由主调度器直接处理，不触发 subagent：
-
-| 指令 | 作用 |
-|------|------|
-| `!status` | 查看当前项目进度、当前阶段、最近文档 |
-| `!list` | 列出所有产品设计项目 |
-| `!switch <project-id>` | 切换项目 |
-| `!doc <doc-id>` | 展示指定文档 |
-| `!next` | 校验并推进阶段 |
-| `!back` | 回退阶段 |
-| `!graph` | 展示文档引用关系 |
 
 ## 校验
 

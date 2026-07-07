@@ -1,0 +1,11 @@
+{
+  "name": "pm-orchestrator",
+  "owner": { "name": "Tiger0521" },
+  "plugins": [
+    {
+      "name": "pm-orchestrator",
+      "source": "./",
+      "description": "产品全流程设计插件。一个主调度 skill 编排三个独立 subagent（需求分析、需求拆解、详细设计），从模糊想法到可执行的产品设计资产。"
+    }
+  ]
+}
