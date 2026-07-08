@@ -14,7 +14,7 @@ description: |
 
 | 阶段 | currentPhase | 委派 agent | 产出 |
 |------|--------------|------------|------|
-| 需求分析 | `requirement-analysis` | `requirement-analyst` | 需求卡片、Epic、Feature |
+| 需求分析 | `requirement-analysis` | `requirement-analyst` | 内容充分的需求卡片、Epic、Feature |
 | 需求拆解 | `user-story-breakdown` | `story-breakdown-analyst` | User Story、GWT、溯源矩阵 |
 | 详细设计 | `detailed-design` | `detailed-design-designer` | 结构流程、原型、交互契约、规则摘要、Sprint |
 
@@ -46,10 +46,32 @@ description: |
 3. 如果没有项目，进入新建项目流程
 4. 更新用户工作区的 `.claude/product-design-projects/current-project.json`（注：指针文件放在用户工作区，而非插件包内部，避免权限问题）
 
+### 自然语言继续项目
+
+当用户说“接着 XX”“继续 XX”“打开 XX”“切到 XX”或误写成“借着 XX”时：
+
+1. 从 `.claude/product-design-projects/` 中按项目 ID、项目名称、一句话描述做模糊匹配。
+2. 如果只匹配到 1 个候选项目，先展示项目 ID、项目名称、当前阶段和上次进展摘要，并询问“是不是继续这个项目？”。
+3. 用户明确确认后，才更新 `current-project.json`，读取 `progress.json` 与 `phase-summary.md`，并按 `currentPhase` 委派对应 subagent。
+4. 如果匹配到多个候选项目，列出候选项让用户选择；不要自行猜测。
+5. 如果没有匹配结果，说明未找到项目，并提供“查看项目列表 / 新建项目 / 重新输入关键词”三个选项。
+
+确认话术示例：
+
+> 我找到一个可能匹配的项目：`network-resource-lifecycle-001`，当前阶段是 `requirement-analysis`，上次进展是“Q1 场景还原”。是不是继续这个项目？
+
 ### 新建项目流程
 
-1. 询问用户产品/项目名称、一句话描述和项目类型（`new | iteration | refactor`）
-2. 用 `project-template/` 骨架创建：
+1. 询问用户产品/项目名称、需求描述和项目类型（`new | iteration | refactor`）。
+2. 在让用户填写需求描述前，必须提醒：初始描述会成为后续需求分析、追问和项目记忆的锚点，请尽可能准确，不要只写口号或宽泛方向。
+3. 引导用户按以下要点填写需求描述；不要求很长，但要尽量具体：
+   - 要解决什么业务问题
+   - 谁在什么场景下遇到这个问题
+   - 现在怎么处理，哪里不够好
+   - 期望达成什么结果
+   - 已知约束或边界是什么
+4. 如果用户只给出模糊描述，先帮用户润色成“待确认的需求描述”，并请求用户确认或修正；确认前不要把模糊描述写入项目记忆。
+5. 用 `project-template/` 骨架创建：
 
    ```text
    .claude/product-design-projects/<project-id>/
@@ -60,24 +82,28 @@ description: |
    ├── tracking-log.md
    ├── phase-summary.md
    └── docs/
-       ├── strategic/
-       ├── requirement/
+       ├── requirement-analysis/
        ├── design/
        └── execution/
    ```
 
-3. 初始化 `progress.json`，设置 `projectType` 和 `currentPhase=requirement-analysis`
-4. 以 `mode=draft` 委派 `requirement-analyst`
+6. 初始化 `progress.json`，设置 `projectType` 和 `currentPhase=requirement-analysis`
+7. 以 `mode=draft` 委派 `requirement-analyst`
 
 ### 继续项目流程
 
-1. 读取该项目的 `progress.json` 和 `phase-summary.md`
-2. 简要汇报 `projectType`、当前阶段和上次进展
-3. 按 `currentPhase` 委派对应 subagent
+1. 确认用户选择的项目；如果项目来自模糊匹配或自然语言指代，必须先向用户确认。
+2. 用户确认后，读取该项目的 `progress.json` 和 `phase-summary.md`。
+3. 简要汇报 `projectType`、当前阶段和上次进展。
+4. 按 `currentPhase` 委派对应 subagent。
 
 ---
 
 ## Subagent 委派协议
+
+Claude Code 中“委派 subagent”通常表示启动一个后台 agent 任务，不等于把底部输入框的当前会话从 `main` 自动切换到该 subagent。判断是否委派成功，以界面中出现的后台 agent 条目为准，例如 `pm-orchestrator:requirement-analyst` 和 `Backgrounded agent`；底部仍选中 `main` 是正常现象。
+
+只在用户想直接查看、管理或追问某个后台 agent 时，提示用户按下箭头进入 agent 列表并选择对应 subagent。不要把“必须手动切到底部 subagent”写成继续流程的前置条件。
 
 委派 subagent 时，传递以下上下文：
 
@@ -92,6 +118,25 @@ upstreamDocs:
 userContext: "<用户本轮输入、已确认事实、待解决问题>"
 outputTargets:
   - "<允许产出的文档类型和目录>"
+interactionContract:
+  owner: "pm-orchestrator"
+  style: "markdown-choice"
+  firstUseReminder: "我会把阶段工作委派给后台 agent；底部仍显示 main 是正常的，看到后台 agent 条目即表示已启动；每个问题都可以多选、补充或跳过。"
+  questionPolicy:
+    oneMainQuestion: true
+    oneUserAnswerTargetPerTurn: true
+    noSecondaryQuestions: true
+    noBatchQuestions: true
+    deferNextQuestionToNextAction: true
+    choices: "3-5 个阶段生成选项 + 补充描述 + 强制跳过"
+    choiceLabels: "uppercase-letters"
+    requiredExtraChoice: true
+    requiredForceSkipChoice: true
+    multiSelect: true
+  receiptPolicy:
+    format: "short-plain-text"
+    noFencedYaml: true
+    hideAbsolutePathsByDefault: true
 ```
 
 ### mode 规则
@@ -106,19 +151,23 @@ outputTargets:
 
 ### subagent 返回协议
 
-要求 subagent 始终按统一输出信封返回：
+主调度器是交互展示的唯一规范来源。委派时必须传入 `interactionContract`，subagent 只负责按它包装输出，不在各自 prompt 或 reference 中重新定义 UI 规则。
 
-```yaml
-status: "needs-input | draft-ready | persisted | validation-pass | validation-failed | blocked"
-summary: "<一句话结果>"
-filesRead:
-  - "<本轮读取的关键文件>"
-artifacts:
-  - "<草稿标题或写入文件路径>"
-blockers:
-  - "<缺失信息、质量问题或权限冲突>"
-nextAction: "<建议主调度器下一步动作>"
-```
+`interactionContract` 的默认规则：
+
+- 首次进入阶段时提醒用户：主调度器会自动调用对应阶段 agent，用户不需要手动切换 agent。
+- 说明 Claude Code 的委派通常是后台运行：底部输入框仍停留在 `main` 不代表失败；看到后台 agent 条目才是委派成功信号。
+- 用户可见内容使用普通 Markdown，不输出完整 YAML 状态块。
+- 每轮只能有一个需要用户回答的问题或选择题；一个选择题可以有多个选项，但不能在同一轮再追加“同时/另外/请再描述...”等第二个问题。
+- 如果发现多个信息缺口，先按影响决策的程度选最关键的一个来问；其他问题放进短回执的 `nextAction`，等用户回答后再进入下一轮。
+- 候选项由阶段 subagent 根据业务生成，通常为 3-5 个。
+- 所有选项必须用大写英文字母编号：`A.`、`B.`、`C.`、`D.`；禁止使用数字编号、复选框或无编号列表。
+- 每个选择题必须在业务选项后继续提供两个固定选项，并同样使用大写英文字母顺延编号：`补充描述：我自己填写` 和 `强制跳过：这个问题暂时不回答，记录为待验证并继续`。
+- 允许多选，提示用户可直接回复 `A、C`，也可回复 `E：补充...` 或选择强制跳过。
+- 用户选择“跳过”时，记录为待验证并继续推进。
+- 调度回执只用一行短文本或短列表；默认不展示本机绝对路径、长文件清单和大段 `filesRead`/`blockers`。
+
+推荐的短回执形态：`调度回执：status=needs-input；summary=等待用户选择 Q1 选项；nextAction=继续 Q1`。
 
 主调度器根据 `status` 决定下一步：
 
@@ -139,7 +188,7 @@ nextAction: "<建议主调度器下一步动作>"
 
 | currentPhase | 委派 agent | subagent 应读取的 reference | 产出目录 |
 |--------------|------------|-----------------------------|----------|
-| `requirement-analysis` | `requirement-analyst` | `references/requirement-analysis/` | `docs/strategic/` + `docs/requirement/` |
+| `requirement-analysis` | `requirement-analyst` | `references/requirement-analysis/` | `docs/requirement-analysis/` |
 | `user-story-breakdown` | `story-breakdown-analyst` | `references/user-story-breakdown/` + `references/shared/traceability-model.md` | `docs/design/` |
 | `detailed-design` | `detailed-design-designer` | `references/detailed-design/` + `references/shared/traceability-model.md` | `docs/design/` + `docs/execution/` |
 
@@ -233,7 +282,7 @@ ID 前缀规则：
 
 | 转换 | 关键校验 |
 |------|---------|
-| 需求分析 -> 需求拆解 | 诊断报告含成熟度评分和需求转化记录；需求卡片含评估结果；Epic 含需求背景/产品目标/建设思路；Feature 含能力目标/业务场景/技术可行性/资源投入；用户已确认 |
+| 需求分析 -> 需求拆解 | 诊断报告含成熟度评分和需求转化记录；需求卡片含业务背景/现状流程/影响损失/评估结果；Epic 含端到端闭环/产品目标/建设思路/风险依赖；Feature 含用户任务/前后对比/业务流程/输入输出数据/异常分支/验收标准；标题自然且用户已确认 |
 | 需求拆解 -> 详细设计 | 每 Story 三段式；每 Story 3-8 条 GWT；覆盖正常和异常路径；用户已确认 |
 | 详细设计 -> 完成 | 核心页面原型完成；交互契约含状态机和规则表；Sprint 规划已输出；用户已确认 |
 
@@ -247,7 +296,7 @@ ID 前缀规则：
 |------|------|
 | `!status` | 查看当前项目进度、当前阶段、最近文档 |
 | `!list` | 列出 `product-design-projects/` 下所有项目 |
-| `!switch <project-id>` | 切换到指定项目 |
+| `!switch <project-id>` | 切换到指定项目；如果不是精确 ID 或存在歧义，先让用户确认 |
 | `!doc <doc-id>` | 读取并展示指定文档 |
 | `!next` | 校验并推进到下一阶段，需用户确认 |
 | `!back` | 回退上一阶段，需用户确认 |
@@ -263,3 +312,4 @@ ID 前缀规则：
 4. 主调度器只管理流程，不抢 subagent 的专业职责
 5. 只读取当前任务需要的 reference
 6. 每次阶段完成都更新 `phase-summary.md`
+7. 需求分析阶段允许多个真实问题同时成立；不要要求用户只选一个侧重点，而要要求 subagent 澄清产品闭环、范围边界、依赖关系和版本组织。

@@ -55,7 +55,7 @@ Sprint   ──contains─────▶ User Story
       "id": "epic-001",
       "type": "epic",
       "title": "...",
-      "path": "docs/strategic/epic-001.md",
+      "path": "docs/requirement-analysis/epic-001.md",
       "status": "approved"
     }
   ],

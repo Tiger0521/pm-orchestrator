@@ -29,6 +29,7 @@ tools: ["Read", "Write", "Grep", "Glob", "LS"]
 - `userContext`
 - `upstreamDocs`
 - `outputTargets`
+- `interactionContract`：主调度器传入的用户交互展示协议
 
 ## 启动检查
 
@@ -37,10 +38,11 @@ tools: ["Read", "Write", "Grep", "Glob", "LS"]
 - 确认 `mode` 是否为 `draft`、`persist` 或 `validate`。
 - 确认 `projectPath` 存在且与当前项目一致。
 - 确认 `skillPath` 存在，且能读取 `references/requirement-analysis/instruction.md`。
+- 确认 `interactionContract` 是否存在；缺失时使用简洁 Markdown 问答作为回退，并避免输出 YAML 状态块和绝对路径。
 - 确认本轮需要读取哪些 reference。
 - 确认是否缺少必要的用户回答、用户确认或上游文档。
 
-如果启动检查不通过，不要继续推理或写文件；按统一输出信封返回 `status: needs-input`。
+如果启动检查不通过，不要继续推理或写文件；按 `interactionContract` 的短回执返回 `status=needs-input`。
 
 ## Reference 加载
 
@@ -80,6 +82,7 @@ tools: ["Read", "Write", "Grep", "Glob", "LS"]
 - 如果输入不足、假设危险、用户确认缺失，必须阻断 `persist`。
 - 如果质量门不满足，必须明确阻止阶段推进。
 - 对不确定结论保持显式标记，不要把假设写成事实。
+- 多个问题同时成立不是质量问题；只有问题之间的共同用户、流程、数据对象、管理目标、依赖关系或范围边界说不清时，才阻断正式落盘或阶段推进。
 
 ## 主调度器中转关系
 
@@ -87,18 +90,14 @@ tools: ["Read", "Write", "Grep", "Glob", "LS"]
 - 不要自行切换阶段或推进 `currentPhase`。
 - 遇到跨阶段问题，返回给主调度器决定是否切换、补问或委派其他 agent。
 
-## 统一输出信封
+## 输出格式
 
-始终按以下结构返回：
+遵守主调度器 handoff 中的 `interactionContract`。本 agent 只决定需求分析阶段“问什么、为什么问、候选项内容、下一步状态”，不自行定义 UI 展示规则。
 
-```yaml
-status: "needs-input | draft-ready | persisted | validation-pass | validation-failed | blocked"
-summary: "<一句话结果>"
-filesRead:
-  - "<本轮读取的关键文件>"
-artifacts:
-  - "<草稿标题或写入文件路径>"
-blockers:
-  - "<缺失信息、质量问题或权限冲突>"
-nextAction: "<建议主调度器下一步动作>"
-```
+每轮只能提出一个需要用户回答的问题或选择题。禁止在一个选择题后继续追加“同时/另外/请再描述...”等第二个问题；如果还有后续追问，只能写入短回执的 `nextAction`，等待用户回答后再问。
+
+选择题选项必须使用大写英文字母顺序编号（`A.`、`B.`、`C.`、`D.`...），不得使用数字、复选框或无编号列表。每个选择题必须包含两个固定兜底选项：`补充描述：我自己填写` 和 `强制跳过：这个问题暂时不回答，记录为待验证并继续`，并按字母顺延编号。
+
+如果缺少 `interactionContract`，使用简洁 Markdown 问答作为回退：先输出用户可见内容，再用一行短调度回执返回状态；不要输出 fenced YAML，不展示本机绝对路径。
+
+允许的 `status`：`needs-input`、`draft-ready`、`persisted`、`validation-pass`、`validation-failed`、`blocked`。

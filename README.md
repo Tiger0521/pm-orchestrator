@@ -40,7 +40,7 @@ git clone https://github.com/Tiger0521/pm-orchestrator.git ~/.claude/skills/pm-o
 主调度器会引导你完成以下流程：
 
 1. **选项目** — 新建或继续已有项目
-2. **需求分析** — `requirement-analyst` subagent 会追问你的真实痛点、目标用户、核心场景，产出需求卡片、Epic 和 Feature
+2. **需求分析** — `requirement-analyst` subagent 会追问你的真实痛点、目标用户、核心场景，产出内容充分的需求卡片、Epic 和 Feature
 3. **需求拆解** — `story-breakdown-analyst` subagent 把 Feature 拆成 User Story + GWT 验收标准 + 溯源矩阵
 4. **详细设计** — `detailed-design-designer` subagent 产出结构流程、原型描述、交互契约、规则摘要和 Sprint 规划
 
@@ -125,12 +125,9 @@ pm-orchestrator/
 │       │   ├── phase-summary.md
 │       │   │   # 阶段摘要模板：用于跨会话恢复时快速理解上一阶段进展。
 │       │   └── docs/
-│       │       ├── strategic/
+│       │       ├── requirement-analysis/
 │       │       │   └── .gitkeep
-│       │       │       # 战略层文档目录占位：需求卡片、Epic 写入这里。
-│       │       ├── requirement/
-│       │       │   └── .gitkeep
-│       │       │       # 需求层文档目录占位：Feature 写入这里。
+│       │       │       # 需求分析阶段统一目录：诊断报告（如保留）、内容充分的需求卡片、Epic、Feature 都写入这里。
 │       │       ├── design/
 │       │       │   └── .gitkeep
 │       │       │       # 设计层文档目录占位：User Story、溯源矩阵、结构流程、原型、交互契约写入这里。
@@ -143,20 +140,20 @@ pm-orchestrator/
 │       │   │   ├── instruction.md
 │       │   │   │   # 需求分析阶段主指令：角色三件套、硬闸门、七问路由、8 步工作流、数据校验和记忆更新规则。
 │       │   │   ├── question-bank.md
-│       │   │   │   # 需求分析问题库：七问四列结构、Q1 精准化三问、Q7 商业验证、反谄媚、追问决策树。
+│       │   │   │   # 需求分析问题库：七问四列结构、Q1 精准化三问、边界异常、非功能基线、验收优先级风险、反谄媚、追问决策树。
 │       │   │   ├── checklist.md
-│       │   │   │   # 需求分析质量门：校验诊断报告、需求成熟度、需求卡片、Epic、Feature、数据来源和自审评分。
+│       │   │   │   # 需求分析质量门：校验诊断报告、需求成熟度、卡片内容厚度、标题质量、数据来源和自审评分。
 │       │   │   ├── templates/
 │       │   │   │   ├── diagnostic-report.md
 │       │   │   │   │   # 诊断报告模板：用于正式文档前的问题本质还原、需求转化、成熟度评分和待验证事项。
 │       │   │   │   ├── alternative-options.md
 │       │   │   │   │   # 替代方案对比模板：用于比较至少两个方案的成本、时间、风险、ROI 和适用条件。
 │       │   │   │   ├── requirement-card.md
-│       │   │   │   │   # 需求卡片模板：记录问题本质、目标用户、替代方案、需求评估结果和待验证事项。
+│       │   │   │   │   # 需求卡片模板：记录业务背景、问题本质、当前流程、影响损失、目标用户、评估结果和待验证事项。
 │       │   │   │   ├── epic.md
-│       │   │   │   │   # Epic 模板：记录需求背景、产品名称、产品目标、建设思路、边界和成功指标。
+│       │   │   │   │   # Epic 模板：记录需求背景、端到端业务闭环、产品目标、建设思路、边界、风险和成功指标。
 │       │   │   │   └── feature.md
-│       │   │   │       # Feature 模板：记录能力目标、用户角色、业务场景、技术可行性、资源投入和验收标准。
+│       │   │   │       # Feature 模板：记录能力目标、用户任务、前后对比、流程、输入输出、异常分支、资源投入和验收标准。
 │       │   │   └── examples/
 │       │   │       └── network-resource-mgmt.md
 │       │   │           # 网络资源管理示例：展示升级后需求分析产物的质量标杆和字段填写方式。
@@ -220,7 +217,7 @@ pm-orchestrator/
 | 组件 | 职责 |
 |------|------|
 | `skills/pm-orchestrator/SKILL.md` | 主入口。负责项目选择、状态机、阶段路由、快捷指令、阶段转换和用户确认 |
-| `agents/requirement-analyst.md` | 需求分析专家。通过追问和诊断产出需求卡片、Epic、Feature |
+| `agents/requirement-analyst.md` | 需求分析专家。通过追问和诊断产出内容充分的需求卡片、Epic、Feature |
 | `agents/story-breakdown-analyst.md` | 需求拆解专家。把 Feature 拆成 User Story、GWT 验收标准和溯源矩阵 |
 | `agents/detailed-design-designer.md` | 详细设计专家。产出结构流程、原型、交互契约、规则摘要和 Sprint 规划 |
 | `skills/pm-orchestrator/references/` | 各阶段 instruction、checklist、模板、示例和追溯模型 |
@@ -241,7 +238,7 @@ pm-orchestrator/
 
 | currentPhase | Subagent | Reference | 主要产出 |
 |--------------|----------|-----------|----------|
-| `requirement-analysis` | `requirement-analyst` | `references/requirement-analysis/` | 需求卡片、Epic、Feature |
+| `requirement-analysis` | `requirement-analyst` | `references/requirement-analysis/` | 内容充分的需求卡片、Epic、Feature |
 | `user-story-breakdown` | `story-breakdown-analyst` | `references/user-story-breakdown/` | User Story、GWT、溯源矩阵 |
 | `detailed-design` | `detailed-design-designer` | `references/detailed-design/` | 结构流程、原型、交互契约、规则摘要、Sprint |
 
@@ -260,8 +257,7 @@ pm-orchestrator/
 
 正式产出写入项目的 `docs/`：
 
-- `docs/strategic/`
-- `docs/requirement/`
+- `docs/requirement-analysis/`：需求分析阶段统一目录，包含诊断报告（如保留）、内容充分的需求卡片、Epic、Feature
 - `docs/design/`
 - `docs/execution/`
 

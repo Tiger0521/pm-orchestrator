@@ -2,14 +2,14 @@
 id: "epic-001"
 type: "epic"
 projectId: "{{PROJECT_ID}}"
-title: "{{TITLE}}"
+title: "{{HUMAN_READABLE_TITLE}}"
 status: "draft"
 refs:
   - id: "req-001"
     relation: "derived-from"
 ---
 
-# {{TITLE}}
+# {{HUMAN_READABLE_TITLE}}
 
 ## 需求背景
 
@@ -27,9 +27,31 @@ refs:
 
 {{PRODUCT_GOAL}}
 
+## 端到端业务闭环
+
+```text
+{{LOOP_STEP_1}} → {{LOOP_STEP_2}} → {{LOOP_STEP_3}} → {{LOOP_STEP_4}} → {{LOOP_STEP_5}}
+```
+
+| 环节 | 责任角色 | 关键动作 | 产出/数据 | 当前问题 | 系统要改善的结果 |
+| --- | --- | --- | --- | --- | --- |
+| {{LOOP_NODE_1}} | {{OWNER_1}} | {{ACTION_1}} | {{OUTPUT_1}} | {{CURRENT_ISSUE_1}} | {{TARGET_RESULT_1}} |
+| {{LOOP_NODE_2}} | {{OWNER_2}} | {{ACTION_2}} | {{OUTPUT_2}} | {{CURRENT_ISSUE_2}} | {{TARGET_RESULT_2}} |
+
+## 产品闭环
+
+- **同时解决的问题**：{{PROBLEMS_SOLVED_TOGETHER}}
+- **共同用户/流程/数据对象/管理目标**：{{COMMON_LOOP_BASIS}}
+- **关键依赖**：{{KEY_DEPENDENCIES}}
+- **版本组织**：{{VERSION_ORGANIZATION}}
+
 ## 战略价值
 
 {{STRATEGIC_VALUE}}
+
+## 为什么现在做
+
+{{WHY_NOW}}
 
 ## 目标用户 / 角色
 
@@ -73,3 +95,10 @@ refs:
 1. {{SUCCESS_METRIC_1}}
 2. {{SUCCESS_METRIC_2}}
 3. {{SUCCESS_METRIC_3}}
+
+## 主要风险与依赖
+
+| 风险/依赖 | 影响 | 应对或验证方式 |
+| --- | --- | --- |
+| {{RISK_1}} | {{RISK_IMPACT_1}} | {{RISK_RESPONSE_1}} |
+| {{RISK_2}} | {{RISK_IMPACT_2}} | {{RISK_RESPONSE_2}} |

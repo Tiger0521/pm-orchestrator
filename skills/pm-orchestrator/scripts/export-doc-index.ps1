@@ -55,7 +55,7 @@ function Get-Frontmatter {
     return $fm
 }
 
-$layerOrder = @{ "strategic" = 1; "requirement" = 2; "design" = 3; "execution" = 4 }
+$layerOrder = @{ "requirement-analysis" = 1; "design" = 2; "execution" = 3; "strategic" = 9; "requirement" = 9 }
 $docs = Get-ChildItem -Path $docsPath -Recurse -Filter "*.md" -File -ErrorAction SilentlyContinue
 
 $entries = @()

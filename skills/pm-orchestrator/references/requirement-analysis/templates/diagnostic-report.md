@@ -12,6 +12,15 @@
 | --- | --- | --- | --- |
 | {{RAW_STATEMENT}} | {{IDENTIFIED_ISSUE}} | {{CONVERTED_NEED}} | {{CONVERSION_BASIS}} |
 
+## 多问题关系与产品闭环
+
+- **范围内问题**：{{IN_SCOPE_PROBLEMS}}
+- **问题关系**：{{PROBLEM_RELATIONSHIP}}
+- **共同用户/流程/数据对象/管理目标**：{{COMMON_LOOP_BASIS}}
+- **依赖关系**：{{DEPENDENCIES}}
+- **版本组织**：{{VERSION_ORGANIZATION}}
+- **范围外或暂缓问题**：{{OUT_OF_SCOPE_OR_DEFERRED}}
+
 ## 目标用户画像
 
 - **核心用户**：{{CORE_USER}}

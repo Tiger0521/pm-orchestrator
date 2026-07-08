@@ -44,9 +44,9 @@ $requiredFields = @("id", "type", "projectId", "title", "status", "refs")
 $phaseExpectations = @{
     "requirement-analysis" = @{
         Files = @(
-            @{ Pattern = "strategic/req-*.md";     Desc = "需求卡片" },
-            @{ Pattern = "strategic/epic-*.md";     Desc = "Epic 文档" },
-            @{ Pattern = "requirement/feature-*.md"; Desc = "Feature 文档" }
+            @{ Pattern = "requirement-analysis/req-*.md";     Desc = "需求卡片" },
+            @{ Pattern = "requirement-analysis/epic-*.md";     Desc = "Epic 文档" },
+            @{ Pattern = "requirement-analysis/feature-*.md"; Desc = "Feature 文档" }
         )
     }
     "user-story-breakdown" = @{
@@ -153,6 +153,22 @@ foreach ($fileExpect in $expectation.Files) {
             elseif ([string]::IsNullOrWhiteSpace($fm[$field])) {
                 $issues += "[frontmatter] $($f.Name) : 缺少字段 $field"
             }
+        }
+    }
+}
+
+if ($phase -eq "requirement-analysis") {
+    $legacyRequirementPatterns = @(
+        @{ Pattern = "strategic/req-*.md"; Desc = "旧目录需求卡片" },
+        @{ Pattern = "strategic/epic-*.md"; Desc = "旧目录 Epic 文档" },
+        @{ Pattern = "requirement/feature-*.md"; Desc = "旧目录 Feature 文档" }
+    )
+
+    foreach ($legacy in $legacyRequirementPatterns) {
+        $legacyPattern = Join-Path $docsPath $legacy.Pattern
+        $legacyFound = Get-ChildItem -Path $legacyPattern -File -ErrorAction SilentlyContinue
+        if ($legacyFound -and $legacyFound.Count -gt 0) {
+            $issues += "[目录] $($legacy.Desc) : 需求分析正式产物应统一放在 docs/requirement-analysis/"
         }
     }
 }
