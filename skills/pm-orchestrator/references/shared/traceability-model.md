@@ -34,8 +34,9 @@
 标准追溯链：
 
 ```
-需求卡片 ──derived-from──▶ Epic
-Feature  ──belongs-to────▶ Epic
+Epic ──derived-from──▶ 需求卡片
+Feature ──belongs-to────▶ Epic
+Feature ──references────▶ 需求卡片
 User Story ──implements──▶ Feature
 原型/契约 ──implements──▶ User Story
 Sprint   ──contains─────▶ User Story
@@ -86,6 +87,8 @@ refs:
     relation: "<relation-type>"
 ---
 ```
+
+需求卡片是追溯链起点，允许 `refs: []`。Epic 必须通过 `derived-from` 引用需求卡片；Feature 必须通过 `belongs-to` 引用 Epic，并可通过 `references` 回引需求卡片。
 
 正文中引用其他文档使用 `[@doc-id]` 语法，例如：
 

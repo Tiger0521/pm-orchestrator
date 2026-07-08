@@ -68,24 +68,151 @@ git clone https://github.com/Tiger0521/pm-orchestrator.git ~/.claude/skills/pm-o
 
 ## 架构
 
+`pm-orchestrator` 是一个 Claude Code plugin，外层负责插件安装与 named agent 暴露，内层 `skills/pm-orchestrator/` 才是真正的主调度 skill 包。整体分为 5 层：
+
+| 层级 | 目录 | 作用 |
+|------|------|------|
+| 插件元数据层 | `.claude-plugin/` | 告诉 Claude Code 这是一个可加载 plugin，并提供 marketplace 展示信息 |
+| Subagent 层 | `agents/` | 定义三个阶段专家 agent 的角色、权限和委派协议 |
+| 主 Skill 层 | `skills/pm-orchestrator/SKILL.md` | 负责项目管理、阶段路由、确认机制和快捷指令 |
+| Reference 层 | `skills/pm-orchestrator/references/` | 存放各阶段的工作方法、质量门、模板、示例和共享模型 |
+| 项目骨架与工具层 | `project-template/`、`scripts/`、`evals/` | 提供新项目模板、机械校验脚本和评测样例 |
+
+### 注释版目录树
+
 ```text
 pm-orchestrator/
+├── .claude/
+│   └── settings.local.json
+│       # 本地 Claude Code 设置文件，只影响当前机器，不是插件能力本体。
+│
 ├── .claude-plugin/
 │   ├── plugin.json
+│   │   # 插件清单：定义插件名称、描述、版本和作者，供 Claude Code 加载插件。
 │   └── marketplace.json
+│       # 个人 marketplace 展示配置：声明本插件的展示名称、来源路径和描述。
+│
 ├── agents/
 │   ├── requirement-analyst.md
+│   │   # 需求分析 subagent 启动壳：定义委派协议、加载顺序和执行边界；具体角色与方法见 requirement-analysis/instruction.md。
 │   ├── story-breakdown-analyst.md
+│   │   # 需求拆解 subagent：执行 user-story-breakdown 阶段，把 Feature 拆成 User Story、GWT 验收标准和溯源矩阵。
 │   └── detailed-design-designer.md
+│       # 详细设计 subagent：执行 detailed-design 阶段，产出结构流程、原型、交互契约、规则摘要和 Sprint 规划。
+│
 ├── skills/
 │   └── pm-orchestrator/
 │       ├── SKILL.md
+│       │   # 主调度 skill 入口：处理项目选择/新建/恢复、阶段路由、用户确认、快捷指令和阶段转换。
 │       ├── current-project.json
-│       ├── references/
-│       ├── scripts/
+│       │   # 插件内默认项目指针样例；真实运行时主指针应放在用户工作区，避免污染插件包。
+│       │
+│       ├── evals/
+│       │   └── evals.json
+│       │       # 评测样例：描述典型触发请求和期望调度行为，用于回归检查 skill 行为。
+│       │
 │       ├── project-template/
-│       └── evals/
+│       │   ├── progress.json
+│       │   │   # 新项目进度模板：记录 projectId、projectType、currentPhase、各阶段状态和更新时间。
+│       │   ├── refs.json
+│       │   │   # 文档引用图谱模板：记录文档节点和 derived-from/belongs-to 等引用边。
+│       │   ├── facts.json
+│       │   │   # 已确认事实模板：存放用户确认过的结构化事实及其来源。
+│       │   ├── decision-log.md
+│       │   │   # 决策日志模板：记录方案选择、理由和被否定方案。
+│       │   ├── tracking-log.md
+│       │   │   # 跟踪日志模板：记录未验证假设、风险、未决问题和补充调研计划。
+│       │   ├── phase-summary.md
+│       │   │   # 阶段摘要模板：用于跨会话恢复时快速理解上一阶段进展。
+│       │   └── docs/
+│       │       ├── strategic/
+│       │       │   └── .gitkeep
+│       │       │       # 战略层文档目录占位：需求卡片、Epic 写入这里。
+│       │       ├── requirement/
+│       │       │   └── .gitkeep
+│       │       │       # 需求层文档目录占位：Feature 写入这里。
+│       │       ├── design/
+│       │       │   └── .gitkeep
+│       │       │       # 设计层文档目录占位：User Story、溯源矩阵、结构流程、原型、交互契约写入这里。
+│       │       └── execution/
+│       │           └── .gitkeep
+│       │               # 执行层文档目录占位：规则摘要、Sprint 规划写入这里。
+│       │
+│       ├── references/
+│       │   ├── requirement-analysis/
+│       │   │   ├── instruction.md
+│       │   │   │   # 需求分析阶段主指令：角色三件套、硬闸门、七问路由、8 步工作流、数据校验和记忆更新规则。
+│       │   │   ├── question-bank.md
+│       │   │   │   # 需求分析问题库：七问四列结构、Q1 精准化三问、Q7 商业验证、反谄媚、追问决策树。
+│       │   │   ├── checklist.md
+│       │   │   │   # 需求分析质量门：校验诊断报告、需求成熟度、需求卡片、Epic、Feature、数据来源和自审评分。
+│       │   │   ├── templates/
+│       │   │   │   ├── diagnostic-report.md
+│       │   │   │   │   # 诊断报告模板：用于正式文档前的问题本质还原、需求转化、成熟度评分和待验证事项。
+│       │   │   │   ├── alternative-options.md
+│       │   │   │   │   # 替代方案对比模板：用于比较至少两个方案的成本、时间、风险、ROI 和适用条件。
+│       │   │   │   ├── requirement-card.md
+│       │   │   │   │   # 需求卡片模板：记录问题本质、目标用户、替代方案、需求评估结果和待验证事项。
+│       │   │   │   ├── epic.md
+│       │   │   │   │   # Epic 模板：记录需求背景、产品名称、产品目标、建设思路、边界和成功指标。
+│       │   │   │   └── feature.md
+│       │   │   │       # Feature 模板：记录能力目标、用户角色、业务场景、技术可行性、资源投入和验收标准。
+│       │   │   └── examples/
+│       │   │       └── network-resource-mgmt.md
+│       │   │           # 网络资源管理示例：展示升级后需求分析产物的质量标杆和字段填写方式。
+│       │   │
+│       │   ├── user-story-breakdown/
+│       │   │   ├── instruction.md
+│       │   │   │   # 需求拆解阶段主指令：定义如何把 Feature 拆成 Story、GWT 和溯源矩阵。
+│       │   │   ├── checklist.md
+│       │   │   │   # 需求拆解质量门：校验 Story 结构、GWT 完整性、覆盖度和用户确认。
+│       │   │   ├── templates/
+│       │   │   │   ├── user-story.md
+│       │   │   │   │   # User Story 模板：用于输出角色-目标-价值三段式用户故事和验收标准。
+│       │   │   │   └── traceability-matrix.md
+│       │   │   │       # 溯源矩阵模板：记录 Story 到 Feature 的覆盖关系。
+│       │   │   └── examples/
+│       │   │       └── model-config-stories.md
+│       │   │           # 需求拆解示例：展示 Feature 拆 Story 的参考写法。
+│       │   │
+│       │   ├── detailed-design/
+│       │   │   ├── instruction.md
+│       │   │   │   # 详细设计阶段主指令：定义结构流程、原型、交互契约、规则摘要和 Sprint 的产出流程。
+│       │   │   ├── checklist.md
+│       │   │   │   # 详细设计质量门：校验流程、原型、交互状态、规则和 Sprint 规划是否完整。
+│       │   │   ├── templates/
+│       │   │   │   ├── structure-flow.md
+│       │   │   │   │   # 结构流程模板：描述信息架构、页面结构和关键业务流程。
+│       │   │   │   ├── prototype.md
+│       │   │   │   │   # 原型模板：描述页面布局、组件、状态和关键交互。
+│       │   │   │   ├── interaction-contract.md
+│       │   │   │   │   # 交互契约模板：定义前后端交互、状态机、输入输出和异常规则。
+│       │   │   │   ├── rules-summary.md
+│       │   │   │   │   # 规则摘要模板：汇总业务规则、校验规则和边界条件。
+│       │   │   │   └── sprint.md
+│       │   │   │       # Sprint 规划模板：把设计资产整理成可执行迭代计划。
+│       │   │   └── examples/
+│       │   │       └── model-config-design.md
+│       │   │           # 详细设计示例：展示模型配置类产品的设计产物参考。
+│       │   │
+│       │   └── shared/
+│       │       ├── traceability-model.md
+│       │       │   # 共享追溯模型：定义文档类型、ID 前缀、引用关系和 refs.json 结构。
+│       │       └── domain-knowledge.md
+│       │           # 共享领域知识：沉淀联通网络资源管理的资源类型、生命周期、数据治理和核心痛点。
+│       │
+│       └── scripts/
+│           ├── validate-phase.ps1
+│           │   # 阶段机械校验脚本：检查项目产物是否存在、frontmatter 是否完整、refs.json 是否注册。
+│           ├── export-doc-index.ps1
+│           │   # 文档索引导出脚本：扫描项目文档并导出索引，便于查看项目资产。
+│           └── convert-document.py
+│               # 文档转换脚本：用 Python markitdown 将 PDF/Office/HTML/CSV/TXT 转成 Markdown，供需求分析抽取事实。
+│
+├── .gitignore
+│   # Git 忽略规则：排除本地设置和系统临时文件。
 └── README.md
+    # 插件说明文档：解释安装、用法、目录架构、工作流、项目记忆和校验方式。
 ```
 
 ## 职责分工
@@ -150,6 +277,18 @@ pm-orchestrator/
 
 ```powershell
 .\skills\pm-orchestrator\scripts\export-doc-index.ps1 -projectPath "<项目路径>"
+```
+
+将用户提供的 PDF、Word、PPT、Excel、HTML、CSV 或 TXT 转成 Markdown：
+
+```powershell
+python .\skills\pm-orchestrator\scripts\convert-document.py "<输入文件路径>" -o "<输出.md>" --metadata-output "<metadata.json>"
+```
+
+该脚本不联网、不自动安装依赖、不写项目记忆文件。它依赖真实可用的 Python 3 环境和 Python 包 `markitdown`；如环境未安装，先运行：
+
+```powershell
+python -m pip install markitdown
 ```
 
 ## 设计原则

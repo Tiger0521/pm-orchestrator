@@ -11,9 +11,21 @@ refs:
 
 # {{TITLE}}
 
+## 需求背景
+
+本 Epic 派生自 [@req-001]：{{REQUIREMENT_BACKGROUND}}
+
+## 产品名称
+
+{{PRODUCT_NAME}}
+
 ## 产品定位
 
 {{ONE_SENTENCE_POSITIONING}}
+
+## 产品目标
+
+{{PRODUCT_GOAL}}
 
 ## 战略价值
 
@@ -22,7 +34,7 @@ refs:
 ## 目标用户 / 角色
 
 | 角色 | 描述 | 核心诉求 |
-|------|------|---------|
+| --- | --- | --- |
 | {{ROLE_1}} | {{ROLE_DESC_1}} | {{ROLE_NEED_1}} |
 | {{ROLE_2}} | {{ROLE_DESC_2}} | {{ROLE_NEED_2}} |
 
@@ -48,11 +60,16 @@ refs:
 - {{OUT_OF_SCOPE_1}}
 - {{OUT_OF_SCOPE_2}}
 
+## 建设思路
+
+| 阶段 | 建设内容 | 验证目标 |
+| --- | --- | --- |
+| 一期 | {{PHASE_1_SCOPE}} | {{PHASE_1_GOAL}} |
+| 二期 | {{PHASE_2_SCOPE}} | {{PHASE_2_GOAL}} |
+| 三期 | {{PHASE_3_SCOPE}} | {{PHASE_3_GOAL}} |
+
 ## 成功指标
 
 1. {{SUCCESS_METRIC_1}}
 2. {{SUCCESS_METRIC_2}}
-
-## 关联需求卡片
-
-本 Epic 派生自 [@req-001]。
+3. {{SUCCESS_METRIC_3}}

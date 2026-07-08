@@ -136,13 +136,17 @@ foreach ($fileExpect in $expectation.Files) {
                 $issues += "[frontmatter] $($f.Name) : 缺少字段 $field"
             }
             elseif ($field -eq "refs") {
-                # refs can be array or string, just check it exists and is not empty
+                # requirement-card is the traceability root and may use refs: [].
+                $docType = ""
+                if ($fm.ContainsKey("type")) {
+                    $docType = ([string]$fm["type"]).Trim().Trim('"').Trim("'")
+                }
                 if ($fm[$field] -is [array]) {
-                    if ($fm[$field].Count -eq 0) {
+                    if ($fm[$field].Count -eq 0 -and $docType -ne "requirement-card") {
                         $issues += "[frontmatter] $($f.Name) : refs 数组为空"
                     }
                 }
-                elseif ([string]::IsNullOrWhiteSpace($fm[$field])) {
+                elseif ([string]::IsNullOrWhiteSpace($fm[$field]) -and $docType -ne "requirement-card") {
                     $issues += "[frontmatter] $($f.Name) : refs 字段为空"
                 }
             }

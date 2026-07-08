@@ -5,7 +5,7 @@
     {
       "id": 1,
       "prompt": "我想做一个产品，让运维工程师能一站式申请服务器、IP、域名这些网络资源，现在他们要在好几个系统之间来回填信息，特别慢。帮我从需求分析开始梳理。",
-      "expected_output": "主 skill 先进入项目选择或新建流程，初始化 currentPhase=requirement-analysis 后，以 draft 模式委派 requirement-analyst。requirement-analyst 亮明需求分析专家身份，开始灵魂拷问六问中的 Q1，一次只问一个问题，不直接落盘完整文档。",
+      "expected_output": "主 skill 先进入项目选择或新建流程，初始化 projectType 与 currentPhase=requirement-analysis 后，以 draft 模式委派 requirement-analyst。requirement-analyst 亮明需求分析专家身份，根据 projectType 和需求来源进入七问路由，从 Q1 或对应问题开始，一次只问一个问题，不直接落盘完整文档。",
       "files": []
     },
     {

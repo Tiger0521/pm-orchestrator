@@ -48,7 +48,7 @@ description: |
 
 ### 新建项目流程
 
-1. 询问用户产品/项目名称和一句话描述
+1. 询问用户产品/项目名称、一句话描述和项目类型（`new | iteration | refactor`）
 2. 用 `project-template/` 骨架创建：
 
    ```text
@@ -66,13 +66,13 @@ description: |
        └── execution/
    ```
 
-3. 初始化 `progress.json`，设置 `currentPhase` 为 `requirement-analysis`
+3. 初始化 `progress.json`，设置 `projectType` 和 `currentPhase=requirement-analysis`
 4. 以 `mode=draft` 委派 `requirement-analyst`
 
 ### 继续项目流程
 
 1. 读取该项目的 `progress.json` 和 `phase-summary.md`
-2. 简要汇报当前阶段和上次进展
+2. 简要汇报 `projectType`、当前阶段和上次进展
 3. 按 `currentPhase` 委派对应 subagent
 
 ---
@@ -85,6 +85,7 @@ description: |
 projectPath: "<.claude/product-design-projects/<project-id>>"
 skillPath: "<plugin-root-absolute-path>/skills/pm-orchestrator"  # 必须传递绝对路径，避免跨工作区调用时路径解析失败
 currentPhase: "requirement-analysis | user-story-breakdown | detailed-design"
+projectType: "new | iteration | refactor"
 mode: "draft | persist | validate"
 upstreamDocs:
   - "<doc-id-or-relative-path>"
@@ -188,7 +189,7 @@ ID 前缀规则：
 
 | 文件 | 职责 |
 |------|------|
-| `progress.json` | 当前阶段、阶段状态、时间戳 |
+| `progress.json` | 项目类型、当前阶段、阶段状态、时间戳 |
 | `refs.json` | 文档节点索引和引用关系图谱 |
 | `facts.json` | 已确认结构化事实 |
 | `decision-log.md` | 决策结论、理由、被否定的备选方案 |
@@ -201,6 +202,18 @@ ID 前缀规则：
 - 阶段产出：让 subagent 读取 `refs.json` 查上游文档
 - 阶段转换：读取对应 `checklist.md`
 - 不一次性加载所有记忆文件
+
+---
+
+## 辅助脚本
+
+| 脚本 | 作用 | 典型使用时机 |
+|------|------|--------------|
+| `scripts/convert-document.py` | 使用 Python `markitdown` 将 PDF、Word、PPT、Excel、HTML、CSV、TXT 等用户文件转成 Markdown，并可输出提取 metadata | 需求分析阶段收到用户提供的文档材料，需要作为 `file-extract` 来源处理时 |
+| `scripts/validate-phase.ps1` | 检查阶段产物文件存在性、frontmatter 完整性和 `refs.json` 注册情况 | 阶段转换前 |
+| `scripts/export-doc-index.ps1` | 扫描项目 `docs/` 并导出文档索引 | 用户查看项目资产或处理 `!doc`、`!graph` 类场景时 |
+
+`convert-document.py` 不联网、不自动安装依赖、不写项目记忆文件；提取出的 Markdown 仍需由对应 subagent 按 reference 做数据校验和用户确认。
 
 ---
 
@@ -220,7 +233,7 @@ ID 前缀规则：
 
 | 转换 | 关键校验 |
 |------|---------|
-| 需求分析 -> 需求拆解 | Epic 含定位/指标/角色/场景/边界；Feature 含描述/流程/规则/优先级；用户已确认 |
+| 需求分析 -> 需求拆解 | 诊断报告含成熟度评分和需求转化记录；需求卡片含评估结果；Epic 含需求背景/产品目标/建设思路；Feature 含能力目标/业务场景/技术可行性/资源投入；用户已确认 |
 | 需求拆解 -> 详细设计 | 每 Story 三段式；每 Story 3-8 条 GWT；覆盖正常和异常路径；用户已确认 |
 | 详细设计 -> 完成 | 核心页面原型完成；交互契约含状态机和规则表；Sprint 规划已输出；用户已确认 |
 
