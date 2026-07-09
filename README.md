@@ -11,106 +11,64 @@
 
 ## 安装
 
-### 推荐安装方式：完整插件安装
+仓库地址：[github.com/Tiger0521/pm-orchestrator](https://github.com/Tiger0521/pm-orchestrator)
 
-这个仓库是 **Claude Code plugin**，不是单个 skill 文件夹。请先把仓库注册为 marketplace，再安装其中的插件，这样主 skill 和三个 named agent 才会一起可用。
-
-#### Windows PowerShell
-
-```powershell
-claude plugin marketplace add Tiger0521/pm-orchestrator
-claude plugin install pm-orchestrator@pm-orchestrator
-```
-
-#### macOS / Linux
-
-```bash
-claude plugin marketplace add Tiger0521/pm-orchestrator
-claude plugin install pm-orchestrator@pm-orchestrator
-```
-
-安装后重启 Claude Code，或在插件管理界面确认 `pm-orchestrator@pm-orchestrator` 已启用。
-
-> **要求**：Claude Code v2.1+（plugin 功能需 2.1 以上版本）
-
-### 如果已经装到了 skills 目录
-
-如果你执行过下面这种命令：
-
-```powershell
-git clone https://github.com/Tiger0521/pm-orchestrator.git "$env:USERPROFILE\.claude\skills\pm-orchestrator"
-```
-
-Claude Code 会把 `~/.claude/skills/pm-orchestrator` 当成单个 skill 包来扫描，但这个仓库根目录没有 `SKILL.md`，真正的 skill 在 `skills/pm-orchestrator/SKILL.md`，所以会出现“安装完是空的”的情况。
-
-确认该目录里没有你自己的文件后，删除错误安装目录，再按上面的“完整插件安装”重新安装：
-
-```powershell
-Remove-Item -Recurse -Force "$env:USERPROFILE\.claude\skills\pm-orchestrator"
-```
-
-### 仅安装主 skill（不推荐）
-
-如果你只复制内层 `skills/pm-orchestrator` 到 `~/.claude/skills/pm-orchestrator`，主 skill 可以被识别，但仓库里的三个 named agent 不会按插件方式完整暴露。因此除非你明确只需要单 skill，否则建议使用完整插件安装。
-
-### marketplace 添加失败时
-
-如果出现类似错误：
+本项目直接托管在 GitHub，不需要上传到 Anthropic。请将完整仓库放到 Claude Code
+的用户级 Skill 目录：
 
 ```text
-fatal: unable to access 'https://github.com/Tiger0521/pm-orchestrator.git/': OpenSSL SSL_read: SSL_ERROR_SYSCALL, errno 0
-fatal: unable to access 'https://github.com/Tiger0521/pm-orchestrator.git/': OpenSSL SSL_connect: SSL_ERROR_SYSCALL in connection to github.com:443
+~/.claude/skills/pm-orchestrator/
 ```
 
-这通常是本机到 GitHub 的 HTTPS/SSL 连接被网络、代理、公司网关或 Git 证书配置中断，不是插件代码问题。Windows 下优先确认网络和 Git 代理；如需手工 clone 用于本地开发，clone 后通过本地路径注册：
+安装后，主 Skill 和三个 agents 会在下一次 Claude Code 会话中自动加载。
 
-1. 先确认是否能连上 GitHub：
+### Windows PowerShell
 
-   ```powershell
-   Test-NetConnection github.com -Port 443
-   ```
+复制并执行：
 
-   如果 `TcpTestSucceeded` 是 `True`，说明网络能连通 GitHub，继续执行第 2 步。
+```powershell
+mkdir "$HOME\.claude\skills" -Force
+git clone https://github.com/Tiger0521/pm-orchestrator.git "$HOME\.claude\skills\pm-orchestrator"
+```
 
-   如果 `TcpTestSucceeded` 不是 `True`，说明当前网络无法直连 GitHub，需要切换网络或开启可访问 GitHub 的代理。
+### macOS / Linux
 
-2. 让 Git 使用 Windows 系统证书后重新 clone 并注册：
+复制并执行：
 
-   ```powershell
-   git config --global http.sslBackend schannel
-   git clone https://github.com/Tiger0521/pm-orchestrator.git "$env:USERPROFILE\pm-orchestrator"
-   claude plugin marketplace add "$env:USERPROFILE\pm-orchestrator"
-   claude plugin install pm-orchestrator@pm-orchestrator
-   ```
+```bash
+mkdir -p "$HOME/.claude/skills"
+git clone https://github.com/Tiger0521/pm-orchestrator.git "$HOME/.claude/skills/pm-orchestrator"
+```
 
-3. 如果你使用本地代理，先把 Git 代理配置成实际端口，例如：
+安装完成后直接启动 Claude Code 即可，不需要执行 `/reload-plugins`。如果安装时
+Claude Code 已经打开，关闭后重新进入一次。
 
-   ```powershell
-   git config --global http.proxy http://127.0.0.1:7890
-   git config --global https.proxy http://127.0.0.1:7890
-   git clone https://github.com/Tiger0521/pm-orchestrator.git "$env:USERPROFILE\pm-orchestrator"
-   claude plugin marketplace add "$env:USERPROFILE\pm-orchestrator"
-   claude plugin install pm-orchestrator@pm-orchestrator
-   ```
+### 确认目录
 
-   端口 `7890` 只是示例，请替换成你本机代理软件的真实 HTTP 代理端口。
+安装后的目录应当是：
 
-4. 使用 SSH 方式克隆（需要已经配置 GitHub SSH key）：
+```text
+~/.claude/skills/pm-orchestrator/
+├── .claude-plugin/
+├── agents/
+├── skills/
+└── README.md
+```
 
-   ```powershell
-   git clone git@github.com:Tiger0521/pm-orchestrator.git "$env:USERPROFILE\pm-orchestrator"
-   claude plugin marketplace add "$env:USERPROFILE\pm-orchestrator"
-   claude plugin install pm-orchestrator@pm-orchestrator
-   ```
+不要只复制内层 `skills/pm-orchestrator/`，否则三个 agents 不会随完整插件一起加载。
+如果仓库已经下载到了其他位置，请将整个 `pm-orchestrator` 文件夹移动到
+`~/.claude/skills/` 下。
 
-5. 完全不用 `git clone`：在 GitHub 页面点击 `Code -> Download ZIP`，解压后注册该本地目录：
+### 调用方式
 
-   ```text
-   claude plugin marketplace add "C:\path\to\pm-orchestrator"
-   claude plugin install pm-orchestrator@pm-orchestrator
-   ```
+安装完成后重新打开 Claude Code，直接输入：
 
-6. 已经有同名目录但安装失败时，先确认目录里没有需要保留的文件，再删除该目录后重新 clone 或重新解压 ZIP。
+```text
+/pm-orchestrator 我想从需求分析开始设计一个产品
+```
+
+用户只需要使用主 Skill。需求分析、需求拆解和详细设计 agents 会根据项目阶段自动
+调用，不需要用户手动选择或切换。
 
 ---
 
@@ -167,7 +125,7 @@ fatal: unable to access 'https://github.com/Tiger0521/pm-orchestrator.git/': Ope
 
 | 层级 | 目录 | 作用 |
 |------|------|------|
-| 插件元数据层 | `.claude-plugin/` | 告诉 Claude Code 这是一个可加载 plugin，并提供 marketplace 展示信息 |
+| 插件元数据层 | `.claude-plugin/` | `plugin.json` 声明插件信息，供 Claude Code 从用户 Skill 目录自动加载 |
 | Subagent 层 | `agents/` | 定义三个阶段专家 agent 的角色、权限和委派协议 |
 | 主 Skill 层 | `skills/pm-orchestrator/SKILL.md` | 负责项目管理、阶段路由、确认机制和快捷指令 |
 | Reference 层 | `skills/pm-orchestrator/references/` | 存放各阶段的工作方法、质量门、模板、示例和共享模型 |
@@ -185,7 +143,7 @@ pm-orchestrator/
 │   ├── plugin.json
 │   │   # 插件清单：定义插件名称、描述、版本和作者，供 Claude Code 加载插件。
 │   └── marketplace.json
-│       # 个人 marketplace 展示配置：声明本插件的展示名称、来源路径和描述。
+│       # 可选的分发清单；普通用户通过 GitHub clone 安装时不需要操作此文件。
 │
 ├── agents/
 │   ├── requirement-analyst.md
