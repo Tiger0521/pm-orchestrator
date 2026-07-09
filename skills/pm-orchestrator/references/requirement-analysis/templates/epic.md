@@ -1,11 +1,11 @@
 ---
-id: "epic-001"
+id: "{{EPIC_ID}}"
 type: "epic"
 projectId: "{{PROJECT_ID}}"
 title: "{{HUMAN_READABLE_TITLE}}"
 status: "draft"
 refs:
-  - id: "req-001"
+  - id: "{{REQUIREMENT_ID}}"
     relation: "derived-from"
 ---
 
@@ -13,7 +13,7 @@ refs:
 
 ## 需求背景
 
-本 Epic 派生自 [@req-001]：{{REQUIREMENT_BACKGROUND}}
+本 Epic 派生自 [@{{REQUIREMENT_ID}}]：{{REQUIREMENT_BACKGROUND}}
 
 ## 产品名称
 

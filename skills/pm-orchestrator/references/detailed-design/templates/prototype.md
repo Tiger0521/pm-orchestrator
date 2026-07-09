@@ -1,11 +1,11 @@
 ---
-id: "proto-001"
+id: "{{PROTOTYPE_ID}}"
 type: "prototype"
 projectId: "{{PROJECT_ID}}"
 title: "原型文档"
 status: "draft"
 refs:
-  - id: "flow-001"
+  - id: "{{FLOW_ID}}"
     relation: "references"
 ---
 

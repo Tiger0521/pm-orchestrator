@@ -1,11 +1,11 @@
 ---
-id: "rules-001"
+id: "{{RULES_ID}}"
 type: "rules-summary"
 projectId: "{{PROJECT_ID}}"
 title: "规则摘要"
 status: "draft"
 refs:
-  - id: "contract-001"
+  - id: "{{CONTRACT_ID}}"
     relation: "references"
 ---
 

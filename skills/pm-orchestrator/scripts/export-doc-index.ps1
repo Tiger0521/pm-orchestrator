@@ -1,26 +1,19 @@
 #requires -version 5.1
 <#
 .SYNOPSIS
-    导出项目文档索引：扫描项目 docs/ 目录，生成文档索引清单。
-
-.DESCRIPTION
-    pm-orchestrator 调用本脚本，扫描项目 docs/ 目录下所有 .md 文档，
-    提取 frontmatter 的 id/type/title/status，生成索引清单并输出。
-    便于用户快速查看项目产出全貌，也可作为 !list / !doc 快捷指令的底层数据。
-
-.PARAMETER projectPath
-    项目目录路径（.claude/product-design-projects/<project-id>）
-
-.PARAMETER outputPath
-    可选。索引清单输出路径，默认输出到 stdout。
-
-.EXAMPLE
-    .\export-doc-index.ps1 -projectPath "C:\Users\me\.claude\product-design-projects\net-res-mgmt"
+    Export a formal document index or a Mermaid traceability graph.
 #>
 
 param(
     [Parameter(Mandatory = $true)]
+    [string]$projectRoot,
+
+    [Parameter(Mandatory = $true)]
     [string]$projectPath,
+
+    [Parameter(Mandatory = $false)]
+    [ValidateSet("index", "graph")]
+    [string]$format = "index",
 
     [Parameter(Mandatory = $false)]
     [string]$outputPath
@@ -28,69 +21,114 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-if (-not (Test-Path $projectPath)) {
-    Write-Error "项目目录不存在: $projectPath"
-    exit 1
+function Get-CanonicalPath {
+    param([string]$Path)
+    return [System.IO.Path]::GetFullPath((Resolve-Path -LiteralPath $Path).Path).TrimEnd('\', '/')
 }
 
-$docsPath = Join-Path $projectPath "docs"
-if (-not (Test-Path $docsPath)) {
-    Write-Host "项目 docs/ 目录不存在，尚无文档产出。" -ForegroundColor Yellow
-    exit 0
+function Remove-YamlQuotes {
+    param([string]$Value)
+    if ($null -eq $Value) { return $null }
+    return $Value.Trim().Trim('"').Trim("'")
 }
 
 function Get-Frontmatter {
-    param([string]$filePath)
-    $content = Get-Content $filePath -Raw -Encoding UTF8
-    if ($content -notmatch '(?s)^---\r?\n(.*?)\r?\n---') {
-        return $null
-    }
-    $yaml = $matches[1]
-    $fm = @{}
-    foreach ($line in ($yaml -split "`r?`n")) {
-        if ($line -match '^\s*([A-Za-z_]+)\s*:\s*(.*)$') {
-            $fm[$matches[1]] = $matches[2].Trim().Trim('"').Trim("'")
+    param([string]$FilePath)
+    $content = Get-Content -LiteralPath $FilePath -Raw -Encoding UTF8
+    if ($content -notmatch '(?s)\A---\r?\n(.*?)\r?\n---(?:\r?\n|\z)') { return $null }
+    $values = @{}
+    foreach ($line in ($matches[1] -split "`r?`n")) {
+        if ($line -match '^([A-Za-z][A-Za-z0-9_-]*)\s*:\s*(.*)$') {
+            $values[$matches[1]] = Remove-YamlQuotes $matches[2]
         }
     }
-    return $fm
+    return $values
 }
 
-$layerOrder = @{ "requirement-analysis" = 1; "design" = 2; "execution" = 3; "strategic" = 9; "requirement" = 9 }
-$docs = Get-ChildItem -Path $docsPath -Recurse -Filter "*.md" -File -ErrorAction SilentlyContinue
+if (-not (Test-Path -LiteralPath $projectRoot -PathType Container)) {
+    throw "Project root does not exist: $projectRoot"
+}
+if (-not (Test-Path -LiteralPath $projectPath -PathType Container)) {
+    throw "Project path does not exist: $projectPath"
+}
 
-$entries = @()
-foreach ($doc in $docs) {
-    $relPath = $doc.FullName.Substring($projectPath.Length).TrimStart('\', '/')
-    $layer = ($relPath -split '[\\/]')[1]
-    $fm = Get-Frontmatter -filePath $doc.FullName
-    $entries += [PSCustomObject]@{
-        Layer    = $layer
-        LayerOrder = $layerOrder[$layer]
-        Id       = if ($fm) { $fm.id } else { "(无)" }
-        Type     = if ($fm) { $fm.type } else { "(无)" }
-        Title    = if ($fm -and $fm.title) { $fm.title } else { $doc.BaseName }
-        Status   = if ($fm) { $fm.status } else { "(无)" }
-        Path     = $relPath
+$root = Get-CanonicalPath $projectRoot
+$project = Get-CanonicalPath $projectPath
+if ([System.IO.Path]::GetDirectoryName($project) -ne $root) {
+    throw "Project path must be a direct child of project root."
+}
+if ((Get-Item -LiteralPath $project).Attributes -band [IO.FileAttributes]::ReparsePoint) {
+    throw "Project path must not be a reparse point."
+}
+
+if ($format -eq "graph") {
+    $refsPath = Join-Path $project "refs.json"
+    if (-not (Test-Path -LiteralPath $refsPath -PathType Leaf)) {
+        throw "Missing refs.json."
     }
+    $refs = Get-Content -LiteralPath $refsPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $lines = @("graph TD")
+    foreach ($node in @($refs.nodes)) {
+        $safeId = ([string]$node.id) -replace '[^A-Za-z0-9_]', '_'
+        $safeLabel = (([string]$node.title) -replace '"', "'")
+        $lines += "  $safeId[`"$($node.id): $safeLabel`"]"
+    }
+    foreach ($edge in @($refs.edges)) {
+        $from = ([string]$edge.from) -replace '[^A-Za-z0-9_]', '_'
+        $to = ([string]$edge.to) -replace '[^A-Za-z0-9_]', '_'
+        $relation = ([string]$edge.relation) -replace '"', "'"
+        $lines += "  $from -->|$relation| $to"
+    }
+    $output = $lines -join [Environment]::NewLine
+} else {
+    $docsPath = Join-Path $project "docs"
+    $formalLayers = @("requirement-analysis", "design", "execution")
+    $layerOrder = @{ "requirement-analysis" = 1; "design" = 2; "execution" = 3 }
+    $entries = @()
+
+    foreach ($layer in $formalLayers) {
+        $layerPath = Join-Path $docsPath $layer
+        if (-not (Test-Path -LiteralPath $layerPath -PathType Container)) { continue }
+        foreach ($doc in (Get-ChildItem -LiteralPath $layerPath -Recurse -Filter "*.md" -File)) {
+            $frontmatter = Get-Frontmatter $doc.FullName
+            if ($null -eq $frontmatter) { continue }
+            $entries += [PSCustomObject]@{
+                Layer = $layer
+                LayerOrder = $layerOrder[$layer]
+                Id = $frontmatter.id
+                Type = $frontmatter.type
+                Title = $frontmatter.title
+                Status = $frontmatter.status
+                Path = $doc.FullName.Substring($project.Length).TrimStart('\', '/').Replace('\', '/')
+            }
+        }
+    }
+
+    $entries = $entries | Sort-Object LayerOrder, Id
+    $rows = $entries | ForEach-Object {
+        "| $($_.Layer) | $($_.Id) | $($_.Type) | $($_.Title) | $($_.Status) | $($_.Path) |"
+    }
+    $output = @(
+        "# Document Index",
+        "",
+        "Project: $project",
+        "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')",
+        "Documents: $($entries.Count)",
+        "",
+        "| Layer | ID | Type | Title | Status | Path |",
+        "|---|---|---|---|---|---|",
+        $rows
+    ) -join [Environment]::NewLine
 }
-
-$entries = $entries | Sort-Object LayerOrder, Id
-
-$output = @"
-# 文档索引
-
-项目: $projectPath
-生成时间: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
-文档总数: $($entries.Count)
-
-| 层级 | ID | 类型 | 标题 | 状态 | 路径 |
-|------|-----|------|------|------|------|
-$($entries | ForEach-Object { "| $($_.Layer) | $($_.Id) | $($_.Type) | $($_.Title) | $($_.Status) | $($_.Path) |" })
-"@
 
 if ($outputPath) {
-    $output | Out-File -FilePath $outputPath -Encoding UTF8
-    Write-Host "文档索引已导出到: $outputPath" -ForegroundColor Green
+    $target = [System.IO.Path]::GetFullPath($outputPath)
+    $projectPrefix = $project + [System.IO.Path]::DirectorySeparatorChar
+    if (-not $target.StartsWith($projectPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Output path must be inside the project directory."
+    }
+    $output | Out-File -LiteralPath $target -Encoding UTF8
+    Write-Host "Exported: $target" -ForegroundColor Green
 } else {
-    Write-Host $output
+    Write-Output $output
 }

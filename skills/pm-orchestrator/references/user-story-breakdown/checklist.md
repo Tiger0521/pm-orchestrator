@@ -7,7 +7,7 @@
 ## 文件存在性
 
 - [ ] 至少一个 `docs/design/story-*.md` 存在
-- [ ] `docs/design/matrix-001.md` 存在
+- [ ] 至少一个 `docs/design/matrix-*.md` 存在
 
 ---
 
@@ -74,4 +74,4 @@
 - [ ] `decision-log.md` 已记录拆分决策
 - [ ] `tracking-log.md` 已记录新发现的风险/假设/未决问题
 - [ ] `phase-summary.md` 已追加本阶段摘要
-- [ ] `progress.json` 已更新文档列表和阶段内进度（注：`currentPhase` 由主调度器在校验通过后更新）
+- [ ] `progress.json` 已更新当前阶段和顶层 `lastUpdated`（注：`currentPhase` 和阶段状态由主调度器在校验通过后更新）

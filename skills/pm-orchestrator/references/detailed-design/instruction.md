@@ -79,7 +79,7 @@
    - `decision-log.md`：记录设计决策
    - `tracking-log.md`：记录新发现的风险/假设/未决问题
    - `phase-summary.md`：追加本阶段摘要
-   - `progress.json`：仅更新文档列表和阶段内进度，**不得修改 currentPhase 字段**
+   - `progress.json`：仅更新当前阶段和顶层 `lastUpdated`，**不得修改 currentPhase、顶层 status 或阶段转换字段**；文档节点统一记录在 `refs.json`
 
 ---
 

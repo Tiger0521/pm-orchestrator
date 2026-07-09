@@ -1,5 +1,6 @@
 {
   "name": "pm-orchestrator",
+  "description": "Product design workflow plugins maintained by Tiger0521.",
   "owner": { "name": "Tiger0521" },
   "plugins": [
     {

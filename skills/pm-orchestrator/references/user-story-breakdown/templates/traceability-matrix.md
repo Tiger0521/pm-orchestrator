@@ -1,11 +1,11 @@
 ---
-id: "matrix-001"
+id: "{{MATRIX_ID}}"
 type: "traceability-matrix"
 projectId: "{{PROJECT_ID}}"
 title: "Story-Feature 溯源矩阵"
 status: "draft"
 refs:
-  - id: "feature-001"
+  - id: "{{FEATURE_ID}}"
     relation: "references"
 ---
 

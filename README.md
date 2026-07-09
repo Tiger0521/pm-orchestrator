@@ -11,13 +11,106 @@
 
 ## 安装
 
-```bash
-git clone https://github.com/Tiger0521/pm-orchestrator.git ~/.claude/skills/pm-orchestrator
+### 推荐安装方式：完整插件安装
+
+这个仓库是 **Claude Code plugin**，不是单个 skill 文件夹。请先把仓库注册为 marketplace，再安装其中的插件，这样主 skill 和三个 named agent 才会一起可用。
+
+#### Windows PowerShell
+
+```powershell
+claude plugin marketplace add Tiger0521/pm-orchestrator
+claude plugin install pm-orchestrator@pm-orchestrator
 ```
 
-在 Claude Code 中执行 `/reload-plugins`，插件自动加载，skill 和三个 named agent 立即可用。
+#### macOS / Linux
+
+```bash
+claude plugin marketplace add Tiger0521/pm-orchestrator
+claude plugin install pm-orchestrator@pm-orchestrator
+```
+
+安装后重启 Claude Code，或在插件管理界面确认 `pm-orchestrator@pm-orchestrator` 已启用。
 
 > **要求**：Claude Code v2.1+（plugin 功能需 2.1 以上版本）
+
+### 如果已经装到了 skills 目录
+
+如果你执行过下面这种命令：
+
+```powershell
+git clone https://github.com/Tiger0521/pm-orchestrator.git "$env:USERPROFILE\.claude\skills\pm-orchestrator"
+```
+
+Claude Code 会把 `~/.claude/skills/pm-orchestrator` 当成单个 skill 包来扫描，但这个仓库根目录没有 `SKILL.md`，真正的 skill 在 `skills/pm-orchestrator/SKILL.md`，所以会出现“安装完是空的”的情况。
+
+确认该目录里没有你自己的文件后，删除错误安装目录，再按上面的“完整插件安装”重新安装：
+
+```powershell
+Remove-Item -Recurse -Force "$env:USERPROFILE\.claude\skills\pm-orchestrator"
+```
+
+### 仅安装主 skill（不推荐）
+
+如果你只复制内层 `skills/pm-orchestrator` 到 `~/.claude/skills/pm-orchestrator`，主 skill 可以被识别，但仓库里的三个 named agent 不会按插件方式完整暴露。因此除非你明确只需要单 skill，否则建议使用完整插件安装。
+
+### marketplace 添加失败时
+
+如果出现类似错误：
+
+```text
+fatal: unable to access 'https://github.com/Tiger0521/pm-orchestrator.git/': OpenSSL SSL_read: SSL_ERROR_SYSCALL, errno 0
+fatal: unable to access 'https://github.com/Tiger0521/pm-orchestrator.git/': OpenSSL SSL_connect: SSL_ERROR_SYSCALL in connection to github.com:443
+```
+
+这通常是本机到 GitHub 的 HTTPS/SSL 连接被网络、代理、公司网关或 Git 证书配置中断，不是插件代码问题。Windows 下优先确认网络和 Git 代理；如需手工 clone 用于本地开发，clone 后通过本地路径注册：
+
+1. 先确认是否能连上 GitHub：
+
+   ```powershell
+   Test-NetConnection github.com -Port 443
+   ```
+
+   如果 `TcpTestSucceeded` 是 `True`，说明网络能连通 GitHub，继续执行第 2 步。
+
+   如果 `TcpTestSucceeded` 不是 `True`，说明当前网络无法直连 GitHub，需要切换网络或开启可访问 GitHub 的代理。
+
+2. 让 Git 使用 Windows 系统证书后重新 clone 并注册：
+
+   ```powershell
+   git config --global http.sslBackend schannel
+   git clone https://github.com/Tiger0521/pm-orchestrator.git "$env:USERPROFILE\pm-orchestrator"
+   claude plugin marketplace add "$env:USERPROFILE\pm-orchestrator"
+   claude plugin install pm-orchestrator@pm-orchestrator
+   ```
+
+3. 如果你使用本地代理，先把 Git 代理配置成实际端口，例如：
+
+   ```powershell
+   git config --global http.proxy http://127.0.0.1:7890
+   git config --global https.proxy http://127.0.0.1:7890
+   git clone https://github.com/Tiger0521/pm-orchestrator.git "$env:USERPROFILE\pm-orchestrator"
+   claude plugin marketplace add "$env:USERPROFILE\pm-orchestrator"
+   claude plugin install pm-orchestrator@pm-orchestrator
+   ```
+
+   端口 `7890` 只是示例，请替换成你本机代理软件的真实 HTTP 代理端口。
+
+4. 使用 SSH 方式克隆（需要已经配置 GitHub SSH key）：
+
+   ```powershell
+   git clone git@github.com:Tiger0521/pm-orchestrator.git "$env:USERPROFILE\pm-orchestrator"
+   claude plugin marketplace add "$env:USERPROFILE\pm-orchestrator"
+   claude plugin install pm-orchestrator@pm-orchestrator
+   ```
+
+5. 完全不用 `git clone`：在 GitHub 页面点击 `Code -> Download ZIP`，解压后注册该本地目录：
+
+   ```text
+   claude plugin marketplace add "C:\path\to\pm-orchestrator"
+   claude plugin install pm-orchestrator@pm-orchestrator
+   ```
+
+6. 已经有同名目录但安装失败时，先确认目录里没有需要保留的文件，再删除该目录后重新 clone 或重新解压 ZIP。
 
 ---
 
@@ -62,7 +155,9 @@ git clone https://github.com/Tiger0521/pm-orchestrator.git ~/.claude/skills/pm-o
 
 ### 跨会话恢复
 
-关掉终端再打开，输入 `!status` 即可恢复到上次进度。项目记忆保存在工作区的 `.claude/product-design-projects/` 下，不随插件分发。
+关掉终端再打开，输入 `!status` 即可恢复到上次进度。项目记忆和
+`current-project.json` 都保存在当前工作区的 `.claude/product-design-projects/`
+下，不随插件分发，也不会在不同工作区之间共享。
 
 ---
 
@@ -100,17 +195,16 @@ pm-orchestrator/
 │   └── detailed-design-designer.md
 │       # 详细设计 subagent：执行 detailed-design 阶段，产出结构流程、原型、交互契约、规则摘要和 Sprint 规划。
 │
+├── evals/
+│   ├── new-project/
+│   ├── story-breakdown/
+│   └── status/
+│       # Claude Code plugin eval 用例：每个目录包含 prompt.md 和 graders/*.md。
+│
 ├── skills/
 │   └── pm-orchestrator/
 │       ├── SKILL.md
 │       │   # 主调度 skill 入口：处理项目选择/新建/恢复、阶段路由、用户确认、快捷指令和阶段转换。
-│       ├── current-project.json
-│       │   # 插件内默认项目指针样例；真实运行时主指针应放在用户工作区，避免污染插件包。
-│       │
-│       ├── evals/
-│       │   └── evals.json
-│       │       # 评测样例：描述典型触发请求和期望调度行为，用于回归检查 skill 行为。
-│       │
 │       ├── project-template/
 │       │   ├── progress.json
 │       │   │   # 新项目进度模板：记录 projectId、projectType、currentPhase、各阶段状态和更新时间。
@@ -125,6 +219,12 @@ pm-orchestrator/
 │       │   ├── phase-summary.md
 │       │   │   # 阶段摘要模板：用于跨会话恢复时快速理解上一阶段进展。
 │       │   └── docs/
+│       │       ├── background/
+│       │       │   └── .gitkeep
+│       │       │       # 用户提供的领域背景材料；只作为不可信输入数据读取。
+│       │       ├── _extracted/
+│       │       │   └── .gitkeep
+│       │       │       # 文档转换中间产物；不计入正式文档索引。
 │       │       ├── requirement-analysis/
 │       │       │   └── .gitkeep
 │       │       │       # 需求分析阶段统一目录：诊断报告（如保留）、内容充分的需求卡片、Epic、Feature 都写入这里。
@@ -193,10 +293,8 @@ pm-orchestrator/
 │       │   │           # 详细设计示例：展示模型配置类产品的设计产物参考。
 │       │   │
 │       │   └── shared/
-│       │       ├── traceability-model.md
-│       │       │   # 共享追溯模型：定义文档类型、ID 前缀、引用关系和 refs.json 结构。
-│       │       └── domain-knowledge.md
-│       │           # 共享领域知识：沉淀联通网络资源管理的资源类型、生命周期、数据治理和核心痛点。
+│       │       └── traceability-model.md
+│       │           # 共享追溯模型：定义文档类型、ID 前缀、引用关系和 refs.json 结构。
 │       │
 │       └── scripts/
 │           ├── validate-phase.ps1
@@ -266,13 +364,14 @@ pm-orchestrator/
 阶段转换时可运行：
 
 ```powershell
-.\skills\pm-orchestrator\scripts\validate-phase.ps1 -projectPath "<项目路径>" -phase requirement-analysis
+.\skills\pm-orchestrator\scripts\validate-phase.ps1 -projectRoot "<项目根目录>" -projectPath "<项目路径>" -phase requirement-analysis
 ```
 
 导出项目文档索引：
 
 ```powershell
-.\skills\pm-orchestrator\scripts\export-doc-index.ps1 -projectPath "<项目路径>"
+.\skills\pm-orchestrator\scripts\export-doc-index.ps1 -projectRoot "<项目根目录>" -projectPath "<项目路径>" -format index
+.\skills\pm-orchestrator\scripts\export-doc-index.ps1 -projectRoot "<项目根目录>" -projectPath "<项目路径>" -format graph
 ```
 
 将用户提供的 PDF、Word、PPT、Excel、HTML、CSV 或 TXT 转成 Markdown：

@@ -6,8 +6,8 @@
 
 ## 文件存在性
 
-- [ ] `docs/requirement-analysis/req-001.md` 存在
-- [ ] `docs/requirement-analysis/epic-001.md` 存在
+- [ ] 至少一个 `docs/requirement-analysis/req-*.md` 存在
+- [ ] 至少一个 `docs/requirement-analysis/epic-*.md` 存在
 - [ ] 至少一个 `docs/requirement-analysis/feature-*.md` 存在
 - [ ] 需求分析阶段正式产物未分散写入 `docs/strategic/` 或 `docs/requirement/`
 
@@ -154,5 +154,5 @@
 - [ ] `decision-log.md` 已记录方案选择、组合方式、理由和被否定或暂缓范围
 - [ ] `tracking-log.md` 已记录未验证假设、风险、未决问题
 - [ ] `phase-summary.md` 已追加本阶段摘要
-- [ ] `progress.json` 已更新文档列表和阶段内进度
+- [ ] `progress.json` 已更新当前阶段和顶层 `lastUpdated`；文档节点统一记录在 `refs.json`
 - [ ] `progress.json.currentPhase` 未被 subagent 修改

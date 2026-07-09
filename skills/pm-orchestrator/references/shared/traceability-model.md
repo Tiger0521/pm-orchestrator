@@ -9,6 +9,7 @@
 | 类型 | 说明 | 典型 ID 前缀 |
 |------|------|-------------|
 | `requirement-card` | 需求卡片：问题本质 + 方案定位 | `req-` |
+| `diagnostic-report` | 诊断报告：四个核心判断 + 证据缺口 + 成熟度 | `diagnostic-` |
 | `epic` | Epic：战略层能力单元 | `epic-` |
 | `feature` | Feature：需求层能力单元 | `feature-` |
 | `user-story` | User Story：用户价值单元 | `story-` |
@@ -90,6 +91,16 @@ refs:
 
 需求卡片是追溯链起点，允许 `refs: []`。Epic 必须通过 `derived-from` 引用需求卡片；Feature 必须通过 `belongs-to` 引用 Epic，并可通过 `references` 回引需求卡片。
 
+## ID 分配规则
+
+1. 模板中的 ID 都是占位符，不是固定值。
+2. 落盘前同时扫描 `refs.json.nodes` 和目标目录中的 frontmatter ID。
+3. 按文档类型取已使用的最大三位序号再加一，例如已有 `feature-001` 和
+   `feature-003` 时，下一个是 `feature-004`。
+4. ID 一经分配不得复用；更新现有文档时沿用原 ID。
+5. 写入前再次检查 ID、目标路径和 `refs.json` 节点均无冲突；发现冲突时停止写入并重新分配。
+6. 文件名必须与 ID 一致，例如 `feature-004` 写入 `feature-004.md`。
+
 正文中引用其他文档使用 `[@doc-id]` 语法，例如：
 
 ```markdown
@@ -105,3 +116,5 @@ refs:
 1. 添加/更新节点（id、type、title、path、status）
 2. 添加/更新 edges（from、to、relation）
 3. 更新 `lastUpdated`
+4. 校验节点 ID 唯一、节点路径唯一、边的两端节点存在，且 frontmatter `refs`
+   与 `edges` 一致

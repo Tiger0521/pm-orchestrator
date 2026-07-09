@@ -82,4 +82,4 @@
 - [ ] `decision-log.md` 已记录设计决策
 - [ ] `tracking-log.md` 已记录新发现的风险/假设/未决问题
 - [ ] `phase-summary.md` 已追加本阶段摘要
-- [ ] `progress.json` 已更新文档列表和阶段内进度（注：`currentPhase` 由主调度器在校验通过后更新为 `completed`）
+- [ ] `progress.json` 已更新当前阶段和顶层 `lastUpdated`（注：主调度器在校验通过后设置顶层 `status=completed`、`currentPhase=completed`，并完成阶段状态与时间戳）

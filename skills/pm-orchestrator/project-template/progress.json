@@ -1,24 +1,29 @@
 {
+  "schemaVersion": 1,
   "projectId": "{{PROJECT_ID}}",
   "projectName": "{{PROJECT_NAME}}",
   "projectType": "new",
   "description": "{{DESCRIPTION}}",
+  "status": "active",
   "currentPhase": "requirement-analysis",
   "phases": {
     "requirement-analysis": {
       "status": "in_progress",
       "startedAt": "{{TIMESTAMP}}",
-      "completedAt": null
+      "completedAt": null,
+      "lastUpdated": "{{TIMESTAMP}}"
     },
     "user-story-breakdown": {
       "status": "pending",
       "startedAt": null,
-      "completedAt": null
+      "completedAt": null,
+      "lastUpdated": null
     },
     "detailed-design": {
       "status": "pending",
       "startedAt": null,
-      "completedAt": null
+      "completedAt": null,
+      "lastUpdated": null
     }
   },
   "lastUpdated": "{{TIMESTAMP}}"

@@ -1,5 +1,5 @@
 ---
-id: "req-001"
+id: "{{REQUIREMENT_ID}}"
 type: "requirement-card"
 projectId: "{{PROJECT_ID}}"
 title: "{{HUMAN_READABLE_TITLE}}"

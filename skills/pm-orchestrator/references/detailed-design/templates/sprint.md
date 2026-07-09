@@ -1,11 +1,11 @@
 ---
-id: "sprint-001"
+id: "{{SPRINT_ID}}"
 type: "sprint"
 projectId: "{{PROJECT_ID}}"
 title: "Sprint 规划"
 status: "draft"
 refs:
-  - id: "story-001"
+  - id: "{{STORY_ID}}"
     relation: "contains"
 ---
 

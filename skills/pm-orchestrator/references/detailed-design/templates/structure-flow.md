@@ -1,11 +1,11 @@
 ---
-id: "flow-001"
+id: "{{FLOW_ID}}"
 type: "structure-flow"
 projectId: "{{PROJECT_ID}}"
 title: "结构与流程图"
 status: "draft"
 refs:
-  - id: "story-001"
+  - id: "{{STORY_ID}}"
     relation: "references"
 ---
 

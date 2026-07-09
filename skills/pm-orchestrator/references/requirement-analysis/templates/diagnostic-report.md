@@ -1,6 +1,24 @@
+---
+id: "{{DIAGNOSTIC_ID}}"
+type: "diagnostic-report"
+projectId: "{{PROJECT_ID}}"
+title: "{{HUMAN_READABLE_TITLE}}"
+status: "draft"
+refs: []
+---
+
 # 诊断报告模板
 
 > 诊断报告只用于诊断阶段，不是正式需求卡片、Epic 或 Feature。用户确认本报告后，才能进入正式文档草稿产出。
+
+## 四个核心判断
+
+| 核心判断 | 当前结论 | 证据/来源 | 待验证缺口 |
+| --- | --- | --- | --- |
+| 给谁做 | {{WHO_CONCLUSION}} | {{WHO_EVIDENCE}} | {{WHO_GAP}} |
+| 为什么做 | {{WHY_CONCLUSION}} | {{WHY_EVIDENCE}} | {{WHY_GAP}} |
+| 值不值得做 | {{VALUE_CONCLUSION}} | {{VALUE_EVIDENCE}} | {{VALUE_GAP}} |
+| 需要哪些产品/能力 | {{CAPABILITY_CONCLUSION}} | {{CAPABILITY_EVIDENCE}} | {{CAPABILITY_GAP}} |
 
 ## 问题本质还原
 

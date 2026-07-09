@@ -1,11 +1,11 @@
 ---
-id: "story-001"
+id: "{{STORY_ID}}"
 type: "user-story"
 projectId: "{{PROJECT_ID}}"
 title: "{{TITLE}}"
 status: "draft"
 refs:
-  - id: "feature-001"
+  - id: "{{FEATURE_ID}}"
     relation: "implements"
 ---
 
@@ -51,4 +51,4 @@ Then {{EXPECTED_RESULT_3}}
 
 ## 关联 Feature
 
-本 Story 实现 [@feature-001]。
+本 Story 实现 [@{{FEATURE_ID}}]。

@@ -1,13 +1,13 @@
 ---
-id: "feature-001"
+id: "{{FEATURE_ID}}"
 type: "feature"
 projectId: "{{PROJECT_ID}}"
 title: "{{HUMAN_READABLE_TITLE}}"
 status: "draft"
 refs:
-  - id: "epic-001"
+  - id: "{{EPIC_ID}}"
     relation: "belongs-to"
-  - id: "req-001"
+  - id: "{{REQUIREMENT_ID}}"
     relation: "references"
 ---
 
@@ -15,7 +15,7 @@ refs:
 
 ## 需求背景
 
-本 Feature 回应 [@req-001] 中的需求：{{REQUIREMENT_BACKGROUND}}
+本 Feature 回应 [@{{REQUIREMENT_ID}}] 中的需求：{{REQUIREMENT_BACKGROUND}}
 
 ## 能力名称
 
@@ -35,7 +35,7 @@ refs:
 
 ## 用户角色
 
-引用 [@epic-001] 中的角色：{{USER_ROLES}}
+引用 [@{{EPIC_ID}}] 中的角色：{{USER_ROLES}}
 
 ## 业务场景
 

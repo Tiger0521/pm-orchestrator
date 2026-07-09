@@ -1,11 +1,11 @@
 ---
-id: "contract-001"
+id: "{{CONTRACT_ID}}"
 type: "interaction-contract"
 projectId: "{{PROJECT_ID}}"
 title: "交互契约"
 status: "draft"
 refs:
-  - id: "proto-001"
+  - id: "{{PROTOTYPE_ID}}"
     relation: "references"
 ---
 
