@@ -9,16 +9,16 @@ refs: []
 
 # 诊断报告模板
 
-> 诊断报告只用于诊断阶段，不是正式需求卡片、Epic 或 Feature。用户确认本报告后，才能进入正式文档草稿产出。
+> 诊断报告为可选辅助材料，不是正式需求卡片、Epic 或 Feature。用户未要求保留时，不必落盘。
 
-## 四个核心判断
+## 四个判断
 
 | 核心判断 | 当前结论 | 证据/来源 | 待验证缺口 |
 | --- | --- | --- | --- |
 | 给谁做 | {{WHO_CONCLUSION}} | {{WHO_EVIDENCE}} | {{WHO_GAP}} |
 | 为什么做 | {{WHY_CONCLUSION}} | {{WHY_EVIDENCE}} | {{WHY_GAP}} |
 | 值不值得做 | {{VALUE_CONCLUSION}} | {{VALUE_EVIDENCE}} | {{VALUE_GAP}} |
-| 需要哪些产品/能力 | {{CAPABILITY_CONCLUSION}} | {{CAPABILITY_EVIDENCE}} | {{CAPABILITY_GAP}} |
+| 准备怎么做 | {{APPROACH_CONCLUSION}} | {{APPROACH_EVIDENCE}} | {{APPROACH_GAP}} |
 
 ## 问题本质还原
 
@@ -69,7 +69,7 @@ refs: []
 
 - **projectType**：{{PROJECT_TYPE}}
 - **判断依据**：{{PROJECT_TYPE_REASON}}
-- **七问路由**：{{QUESTION_ROUTE}}
+- **提问重点**：{{QUESTION_ROUTE}}
 
 ## 需求成熟度评分
 

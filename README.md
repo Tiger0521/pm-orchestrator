@@ -255,12 +255,18 @@ pm-orchestrator/
 │       │           # 共享追溯模型：定义文档类型、ID 前缀、引用关系和 refs.json 结构。
 │       │
 │       └── scripts/
-│           ├── validate-phase.ps1
+│           ├── init-project.sh
+│           │   # 新项目初始化脚本：复制模板、清理示例背景文件，并生成 progress/refs/facts 记忆文件。
+│           ├── validate-phase.sh
 │           │   # 阶段机械校验脚本：检查项目产物是否存在、frontmatter 是否完整、refs.json 是否注册。
-│           ├── export-doc-index.ps1
-│           │   # 文档索引导出脚本：扫描项目文档并导出索引，便于查看项目资产。
-│           └── convert-document.py
-│               # 文档转换脚本：用 Python markitdown 将 PDF/Office/HTML/CSV/TXT 转成 Markdown，供需求分析抽取事实。
+│           ├── export-doc-index.sh
+│           │   # 文档索引导出脚本：扫描项目文档并导出索引，或生成 Mermaid 引用图。
+│           ├── convert-document.py
+│               # 可选文档转换脚本：本机已有 Python/markitdown 时，将 PDF/Office/HTML/CSV/TXT 转成 Markdown。
+│           ├── validate-phase.ps1
+│           │   # Windows PowerShell 兼容入口；跨平台场景优先使用 validate-phase.sh。
+│           └── export-doc-index.ps1
+│               # Windows PowerShell 兼容入口；跨平台场景优先使用 export-doc-index.sh。
 │
 ├── .gitignore
 │   # Git 忽略规则：排除本地设置和系统临时文件。
@@ -321,26 +327,36 @@ pm-orchestrator/
 
 阶段转换时可运行：
 
-```powershell
-.\skills\pm-orchestrator\scripts\validate-phase.ps1 -projectRoot "<项目根目录>" -projectPath "<项目路径>" -phase requirement-analysis
+```bash
+bash skills/pm-orchestrator/scripts/validate-phase.sh \
+  --project-root "<项目根目录>" \
+  --project-path "<项目路径>" \
+  --phase requirement-analysis
 ```
 
 导出项目文档索引：
 
-```powershell
-.\skills\pm-orchestrator\scripts\export-doc-index.ps1 -projectRoot "<项目根目录>" -projectPath "<项目路径>" -format index
-.\skills\pm-orchestrator\scripts\export-doc-index.ps1 -projectRoot "<项目根目录>" -projectPath "<项目路径>" -format graph
+```bash
+bash skills/pm-orchestrator/scripts/export-doc-index.sh \
+  --project-root "<项目根目录>" \
+  --project-path "<项目路径>" \
+  --format index
+
+bash skills/pm-orchestrator/scripts/export-doc-index.sh \
+  --project-root "<项目根目录>" \
+  --project-path "<项目路径>" \
+  --format graph
 ```
 
-将用户提供的 PDF、Word、PPT、Excel、HTML、CSV 或 TXT 转成 Markdown：
+可选：将用户提供的 PDF、Word、PPT、Excel、HTML、CSV 或 TXT 转成 Markdown：
 
-```powershell
-python .\skills\pm-orchestrator\scripts\convert-document.py "<输入文件路径>" -o "<输出.md>" --metadata-output "<metadata.json>"
+```bash
+python skills/pm-orchestrator/scripts/convert-document.py "<输入文件路径>" -o "<输出.md>" --metadata-output "<metadata.json>"
 ```
 
-该脚本不联网、不自动安装依赖、不写项目记忆文件。它依赖真实可用的 Python 3 环境和 Python 包 `markitdown`；如环境未安装，先运行：
+该脚本不联网、不自动安装依赖、不写项目记忆文件。它依赖真实可用的 Python 3 环境和 Python 包 `markitdown`；没有 Python 时不影响新建项目、阶段校验、文档索引和引用图，只需让用户提供已转 Markdown、文本摘录或直接粘贴关键内容。如环境需要安装依赖，先运行：
 
-```powershell
+```bash
 python -m pip install markitdown
 ```
 
