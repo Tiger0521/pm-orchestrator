@@ -290,6 +290,7 @@ pm-orchestrator/
 
 1. 用户触发 `pm-orchestrator` skill。
 2. 主调度器扫描 `.claude/product-design-projects/`，让用户选择继续或新建项目。
+   新建项目目录创建完成后，会先停在 `docs/background/` 材料确认点；用户回复放好、跳过或继续后，才会启动需求分析 agent。
 3. 主调度器读取项目 `progress.json` 和 `phase-summary.md`。
 4. 主调度器根据 `currentPhase` 委派对应 subagent。
 5. Subagent 以 `draft` 模式输出问题、诊断或文档草稿。
