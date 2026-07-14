@@ -43,7 +43,7 @@ description: |
 
 1. 扫描工作区下的 `.claude/product-design-projects/` 目录
 2. 如果已有项目，列出项目并让用户选择：继续 / 新建
-3. 如果没有项目，进入新建项目流程
+3. 如果没有项目，直接进入新建项目流程。此时不要扫描全局背景库，也不要提及"没有背景库"——项目目录尚未创建，背景文件无处可放是正常的。全局背景库的扫描在新建项目流程的第 5 步才执行。
 4. 更新工作区 `.claude/product-design-projects/current-project.json`
 
 项目指针属于工作区运行态，禁止写入插件安装目录。扫描项目时忽略
@@ -148,11 +148,19 @@ keywords:
    `currentPhase=requirement-analysis` 及各阶段 `startedAt`/`lastUpdated` 时间戳。
    主调度器无需再单独写入这些字段。脚本返回非 0 时按其错误信息修正后重试，不要
    回退到逐个 Write。
-10. 提醒用户：如果有自己新增的行业背景、调研、竞品、政策或业务流程材料，应放入
-   当前项目的 `docs/background/`。该目录用于项目专属背景，不用于存放通用大背景库。
-   - 如果该目录存在用户背景文件，委派前必须全部读取，充分理解当前项目背景。
-   - 没有项目背景文件时，继续使用已确认的项目描述、全局背景匹配结果和 `userContext`。
-   - 不得因项目背景目录为空阻断分析。
+10. 项目目录创建完成后，**暂停并等待用户确认**：告知用户项目目录已就绪，并询问是否有行业背景、调研、竞品、政策或业务流程材料需要放入 `docs/background/` 目录。该目录用于项目专属背景，不用于存放通用大背景库。
+    - 明确告知用户支持的格式和放入方式：
+      - **Markdown（`.md`）**：直接放入，系统自动扫描读取。
+      - **PDF**：直接放入，AI 可原生读取（每份最多 20 页/次，超大 PDF 建议拆分或提取关键章节）。
+      - **图片（PNG/JPG 等）**：直接放入，AI 可原生读取。
+      - **HTML / CSV / TXT**：直接放入，AI 可原生读取纯文本。
+      - **Word（`.docx`）/ Excel（`.xlsx`）/ PPT（`.pptx`）**：AI 无法直接读取。如果本机有 Python 和 `markitdown`，可用 `scripts/convert-document.py` 转换；否则请用户手动导出为 Markdown 或直接粘贴关键内容。
+      - 用户也可以跳过文件，直接在对话中描述或粘贴背景信息。
+    - **必须等待用户明确回复后才能进入下一步**，不得跳过此暂停直接委派 subagent。
+    - 用户确认继续后：
+      - 如果 `docs/background/` 存在 `*.md` 背景文件，委派前必须全部读取，充分理解当前项目背景。
+      - 没有项目背景文件时，继续使用已确认的项目描述、全局背景匹配结果和 `userContext`。
+      - 不得因项目背景目录为空阻断分析。
 11. 以 `mode=draft` 委派 `requirement-analyst`。
 
 ### 继续项目流程
@@ -357,11 +365,11 @@ ID 前缀规则：
 |------|------|--------------|
 | `scripts/init-project.sh` | 复制项目模板、清理背景示例文件，并初始化 `progress.json`/`refs.json`/`facts.json` | 新建项目时 |
 | `scripts/render-doc.sh` | 从 JSON 字段文件渲染 Markdown 文档并写入项目目录 | 落盘（`mode=persist`）时，生成需求卡片/Epic/Feature 文件 |
-| `scripts/convert-document.py` | 可选：在本机已有 Python 与 `markitdown` 时，将 PDF、Word、PPT、Excel、HTML、CSV、TXT 等用户文件转成 Markdown，并可输出提取 metadata | 需求分析阶段收到用户提供的文档材料，且环境具备 Python/markitdown 时 |
+| `scripts/convert-document.py` | 可选：在本机已有 Python 与 `markitdown` 时，将 Word、PPT、Excel 等 AI 无法直接读取的二进制格式转成 Markdown，并可输出提取 metadata。PDF、图片、HTML、CSV、TXT 等 AI 可直接读取，无需转换 | 需求分析阶段收到用户提供的 Word/PPT/Excel 文档，且环境具备 Python/markitdown 时 |
 | `scripts/validate-phase.sh` | 检查阶段产物文件存在性、frontmatter 完整性和 `refs.json` 注册情况 | 阶段转换前 |
 | `scripts/export-doc-index.sh` | 扫描正式产物目录并导出文档索引，或从 `refs.json` 生成 Mermaid 引用图 | 用户查看项目资产或处理 `!doc`、`!graph` 类场景时 |
 
-优先使用 `.sh` 脚本以保证 Windows Git Bash/macOS/Linux 行为一致；仓库中的 `.ps1` 仅作为既有 Windows PowerShell 兼容入口。核心流程不得依赖 Python。`convert-document.py` 只在用户需要转换 PDF/Office 等文件且本机已有 Python/markitdown 时使用；如果环境没有 Python，要求用户提供已转 Markdown、文本摘录或直接粘贴关键内容，不要因此阻断需求分析。提取出的 Markdown 仍需由对应 subagent 按 reference 做数据校验和用户确认。
+优先使用 `.sh` 脚本以保证 Windows Git Bash/macOS/Linux 行为一致；仓库中的 `.ps1` 仅作为既有 Windows PowerShell 兼容入口。核心流程不得依赖 Python。`convert-document.py` 只在用户需要转换 Word/PPT/Excel 等 AI 无法直接读取的二进制格式且本机已有 Python/markitdown 时使用；PDF、图片、HTML、CSV、TXT 等 AI 可直接读取，无需转换。如果环境没有 Python，要求用户提供已转 Markdown、文本摘录或直接粘贴关键内容，不要因此阻断需求分析。提取出的 Markdown 仍需由对应 subagent 按 reference 做数据校验和用户确认。
 
 ---
 
