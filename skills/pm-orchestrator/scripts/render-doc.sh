@@ -28,6 +28,7 @@ mkdir -p "$output_dir"
 # ---- JSON 值提取 ----
 # 从 AI 生成的 JSON 中提取指定 key 的字符串值。
 # 处理 \n \t \" \\ 转义。
+# 注意：JSON 中最终润色值在 qa_log 之前，head -1 确保只取最终润色值，不误读 qa_log。
 json_val() {
   local key="$1"
   local val
@@ -138,7 +139,7 @@ render_requirement_card() {
 render_epic() {
   local req_id requirement_bg product_name positioning product_goals
   local user_roles core_scenarios product_value in_scope out_of_scope
-  local p0_scope p0_reason p1_scope p1_reason deferred_scope deferred_reason
+  local build_approach
 
   req_id=$(json_val "req_id")
   requirement_bg=$(json_val "requirement_bg")
@@ -150,12 +151,7 @@ render_epic() {
   product_value=$(json_val "product_value")
   in_scope=$(json_val "in_scope")
   out_of_scope=$(json_val "out_of_scope")
-  p0_scope=$(json_val "p0_scope")
-  p0_reason=$(json_val "p0_reason")
-  p1_scope=$(json_val "p1_scope")
-  p1_reason=$(json_val "p1_reason")
-  deferred_scope=$(json_val "deferred_scope")
-  deferred_reason=$(json_val "deferred_reason")
+  build_approach=$(json_val "build_approach")
 
   printf '%s\n' \
     '---' \
@@ -228,11 +224,7 @@ render_epic() {
     '' \
     '## 建设思路' \
     '' \
-    '| 优先级 | 建设内容 | 排序依据 |' \
-    '| --- | --- | --- |' \
-    "| P0 | $p0_scope | $p0_reason |" \
-    "| P1 | $p1_scope | $p1_reason |" \
-    "| P2/暂缓 | $deferred_scope | $deferred_reason |" \
+    "$build_approach" \
     > "$output_file"
 }
 

@@ -58,9 +58,11 @@ tools: ["Read", "Write", "Grep", "Glob", "LS"]
   目录为空时使用已确认的项目描述和 `userContext`，不得编造领域事实或阻断流程。
 - 需要追问、产物拆解或 Feature 能力澄清时，读取 `references/requirement-analysis/question-bank.md`。
 - 需要落盘时，读取 `references/requirement-analysis/templates/` 和 `references/shared/traceability-model.md`。
+- 生成需求卡片草稿前，读取 `references/requirement-analysis/writing-paradigm/general-rules.md` 和 `writing-paradigm/requirement-card.md`。
+- 生成 Epic 草稿前，读取 `references/requirement-analysis/writing-paradigm/general-rules.md` 和 `writing-paradigm/epic.md`。
+- 生成 Feature 草稿前，读取 `references/requirement-analysis/writing-paradigm/general-rules.md` 和 `writing-paradigm/feature.md`。
 - 用户明确要求诊断报告或替代方案对比时，可读取 `references/requirement-analysis/templates/diagnostic-report.md` 和 `references/requirement-analysis/templates/alternative-options.md`。
 - 需要校验时，读取 `references/requirement-analysis/checklist.md`。
-- 质量不确定或需要示例标杆时，读取 `references/requirement-analysis/examples/network-resource-mgmt.md`。
 - 需要处理用户提供的 PDF、Office、HTML、CSV 或 TXT 文件时，只有在环境已有 Python/markitdown 时才可调用 `scripts/convert-document.py` 先转成 Markdown；否则请用户提供已转 Markdown、文本摘录或直接粘贴关键内容。提取结果仍须按 reference 的数据校验规则处理。
 
 ## 方法来源边界
@@ -80,7 +82,7 @@ tools: ["Read", "Write", "Grep", "Glob", "LS"]
 
 ## 执行边界
 
-- `draft` 模式：必须持续写入和更新 `docs/requirement-analysis/fields-*.json` 字段 JSON；只返回问题、待验证项、字段确认回执或完整落盘预览；不得返回摘要版草稿；不得写正式 Markdown、不得更新 `refs.json`/`facts.json`/`decision-log.md`/`phase-summary.md`。
+- `draft` 模式：必须持续写入和更新 `docs/_extracted/.fields/fields-*.json` 字段 JSON（包含 `qa_log` Q&A 素材和按范式撰写的最终润色值）；只返回问题、待验证项、字段确认回执或完整落盘预览；字段正文必须按 `writing-paradigm/` 对应范式撰写；不得返回摘要版草稿；不得写正式 Markdown、不得更新 `refs.json`/`facts.json`/`decision-log.md`/`phase-summary.md`。
 - `persist` 模式：必须有明确的用户确认信号；校验字段 JSON 与用户确认的完整落盘预览一致，调用渲染脚本写入允许的 Markdown `outputTargets`，并按 reference 要求更新项目记忆或索引文件。
 - 任一路径越界、链接越界或输出目标不明确时，禁止写入并返回 `blocked`。
 - `validate` 模式：禁止创建新产出，只检查现有产物并报告通过/不通过。
@@ -109,7 +111,7 @@ tools: ["Read", "Write", "Grep", "Glob", "LS"]
 
 字段确认回执不是字段覆盖清单。输出需求卡片、Epic 或 Feature 前，必须逐字段列出字段名、已收集到的完整内容、状态（已确认/待验证/缺失）和必要来源；如果只能写出字段名或信息组名称，说明回执不合格，必须继续补齐或把具体内容标为 `[待验证]`，不得让用户确认摘要。
 
-`draft-ready` 的草稿必须是完整落盘预览：严格使用 `templates/requirement-card.md`、`templates/epic.md` 或 `templates/feature.md` 的章节、表格和字段，并与 `render-doc.sh` 渲染结果同结构、同字段、同正文内容。不得输出压缩版、摘要版或自造字段版草稿；若无法生成完整预览，返回 `needs-input`。
+`draft-ready` 的草稿必须是完整落盘预览：严格使用 `templates/requirement-card.md`、`templates/epic.md` 或 `templates/feature.md` 的章节、表格和字段，字段正文必须按 `writing-paradigm/` 对应范式撰写，并与 `render-doc.sh` 渲染结果同结构、同字段、同正文内容。不得输出压缩版、摘要版或自造字段版草稿；若无法生成完整预览，返回 `needs-input`。
 
 所有需求分析字段必须以字段 JSON 为单一过程状态源：每轮用户回答后立即写入对应 `fields-*.json`，再基于 JSON 生成字段确认回执和完整落盘预览。不得只在对话中暂存字段。
 

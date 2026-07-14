@@ -68,8 +68,4 @@ refs:
 
 ## 建设思路
 
-| 优先级 | 建设内容 | 排序依据 |
-| --- | --- | --- |
-| P0 | {{P0_SCOPE}} | {{P0_REASON}} |
-| P1 | {{P1_SCOPE}} | {{P1_REASON}} |
-| P2/暂缓 | {{DEFERRED_SCOPE}} | {{DEFERRED_REASON}} |
+{{BUILD_APPROACH}}
