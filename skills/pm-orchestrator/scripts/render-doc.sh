@@ -346,3 +346,19 @@ case "$doc_type" in
 esac
 
 echo "OK: $output_file"
+
+# ---- 范式校验（渲染后自动执行） ----
+# 定位 validate-paradigm.sh（与本脚本同目录）
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+validator="$script_dir/validate-paradigm.sh"
+
+if [ -f "$validator" ]; then
+  echo "--- 范式校验 ---"
+  bash "$validator" "$output_file"
+  validate_exit=$?
+  if [ "$validate_exit" -ne 0 ]; then
+    echo "--- 警告: 存在范式不合规项，必须修复字段 JSON 并重新渲染后才能确认落盘 ---"
+  fi
+else
+  echo "WARN: validate-paradigm.sh not found, skipping paradigm validation" >&2
+fi

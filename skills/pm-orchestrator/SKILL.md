@@ -367,6 +367,8 @@ ID 前缀规则：
 |------|------|--------------|
 | `scripts/init-project.sh` | 复制项目模板、清理背景示例文件，并初始化 `progress.json`/`refs.json`/`facts.json` | 新建项目时 |
 | `scripts/render-doc.sh` | 从 JSON 字段文件渲染 Markdown 文档并写入项目目录 | 落盘（`mode=persist`）时，生成需求卡片/Epic/Feature 文件 |
+| `scripts/quick-persist.sh` | 从字段目录（独立 .md 文件）快速渲染 Markdown 文档，绕过 JSON 中间层，无转义问题 | 落盘（`mode=persist`）时的快速替代方案，AI 并行写多个字段 .md 文件后一键渲染 |
+| `scripts/validate-paradigm.sh` | 校验渲染后的 Markdown 是否符合 `writing-paradigm/` 范式要求（加粗领条、表格、流程图、blockquote 等） | 草稿输出前或落盘后，做范式机械校验 |
 | `scripts/convert-document.py` | 可选：在本机已有 Python 与 `markitdown` 时，将 Word、PPT、Excel 等 AI 无法直接读取的二进制格式转成 Markdown，并可输出提取 metadata。PDF、图片、HTML、CSV、TXT 等 AI 可直接读取，无需转换 | 需求分析阶段收到用户提供的 Word/PPT/Excel 文档，且环境具备 Python/markitdown 时 |
 | `scripts/validate-phase.sh` | 检查阶段产物文件存在性、frontmatter 完整性和 `refs.json` 注册情况 | 阶段转换前 |
 | `scripts/export-doc-index.sh` | 扫描正式产物目录并导出文档索引，或从 `refs.json` 生成 Mermaid 引用图 | 用户查看项目资产或处理 `!doc`、`!graph` 类场景时 |

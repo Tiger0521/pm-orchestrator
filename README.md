@@ -4,6 +4,8 @@
 
 - 一个主调度 skill：负责项目选择、跨会话恢复、阶段路由、用户确认和质量门
 - 三个独立 subagent：分别负责需求分析、需求拆解、详细设计
+- 一套写作范式体系：6 条通用规律 + 6 种语言范式（A-F），逐字段定义每个文档字段的写法和好差对比
+- 一组机械校验脚本：从 JSON 字段渲染 Markdown、校验范式合规、校验阶段产物完整性
 
 目标是让用户从「模糊想法」一路走到「可开发执行」的产品设计资产，同时保留项目记忆和文档追溯关系。
 
@@ -91,7 +93,7 @@ Claude Code 已经打开，关闭后重新进入一次。
 主调度器会引导你完成以下流程：
 
 1. **选项目** — 新建或继续已有项目
-2. **需求分析** — `requirement-analyst` subagent 会追问你的真实痛点、目标用户、核心场景，产出内容充分的需求卡片、Epic 和 Feature
+2. **需求分析** — `requirement-analyst` subagent 通过逐字段追问（需求卡片 5 字段 / Epic 9 字段 / Feature 12 字段），产出按写作范式结构化的需求卡片、Epic 和 Feature
 3. **需求拆解** — `story-breakdown-analyst` subagent 把 Feature 拆成 User Story + GWT 验收标准 + 溯源矩阵
 4. **详细设计** — `detailed-design-designer` subagent 产出结构流程、原型描述、交互契约、规则摘要和 Sprint 规划
 
@@ -128,17 +130,13 @@ Claude Code 已经打开，关闭后重新进入一次。
 | 插件元数据层 | `.claude-plugin/` | `plugin.json` 声明插件信息，供 Claude Code 从用户 Skill 目录自动加载 |
 | Subagent 层 | `agents/` | 定义三个阶段专家 agent 的角色、权限和委派协议 |
 | 主 Skill 层 | `skills/pm-orchestrator/SKILL.md` | 负责项目管理、阶段路由、确认机制和快捷指令 |
-| Reference 层 | `skills/pm-orchestrator/references/` | 存放各阶段的工作方法、质量门、模板、示例和共享模型 |
-| 项目骨架与工具层 | `project-template/`、`scripts/`、`evals/` | 提供新项目模板、机械校验脚本和评测样例 |
+| Reference 层 | `skills/pm-orchestrator/references/` | 存放各阶段的工作方法、写作范式、质量门、模板、示例和共享模型 |
+| 项目骨架与工具层 | `project-template/`、`scripts/`、`background/`、`evals/` | 提供新项目模板、机械校验脚本、全局大背景库和评测样例 |
 
 ### 注释版目录树
 
 ```text
 pm-orchestrator/
-├── .claude/
-│   └── settings.local.json
-│       # 本地 Claude Code 设置文件，只影响当前机器，不是插件能力本体。
-│
 ├── .claude-plugin/
 │   ├── plugin.json
 │   │   # 插件清单：定义插件名称、描述、版本和作者，供 Claude Code 加载插件。
@@ -163,6 +161,11 @@ pm-orchestrator/
 │   └── pm-orchestrator/
 │       ├── SKILL.md
 │       │   # 主调度 skill 入口：处理项目选择/新建/恢复、阶段路由、用户确认、快捷指令和阶段转换。
+│       │
+│       ├── background/
+│       │   └── 大资源项目-部门与产品背景.md
+│       │       # 全局大背景库：存放跨项目复用的领域背景材料。每个文件开头提供 summary + keywords 元信息，按项目需求按需匹配读取。
+│       │
 │       ├── project-template/
 │       │   ├── progress.json
 │       │   │   # 新项目进度模板：记录 projectId、projectType、currentPhase、各阶段状态和更新时间。
@@ -179,13 +182,14 @@ pm-orchestrator/
 │       │   └── docs/
 │       │       ├── background/
 │       │       │   └── .gitkeep
-│       │       │       # 用户提供的领域背景材料；只作为不可信输入数据读取。
+│       │       │       # 项目专属背景材料；只作为不可信输入数据读取。
 │       │       ├── _extracted/
-│       │       │   └── .gitkeep
-│       │       │       # 文档转换中间产物；不计入正式文档索引。
+│       │       │   └── .fields/
+│       │       │       └── .gitkeep
+│       │       │       # 字段 JSON 中间文件（fields-*.json）和文档转换中间产物；不计入正式文档索引。
 │       │       ├── requirement-analysis/
 │       │       │   └── .gitkeep
-│       │       │       # 需求分析阶段统一目录：诊断报告（如保留）、内容充分的需求卡片、Epic、Feature 都写入这里。
+│       │       │       # 需求分析阶段统一目录：需求卡片、Epic、Feature 都写入这里。
 │       │       ├── design/
 │       │       │   └── .gitkeep
 │       │       │       # 设计层文档目录占位：User Story、溯源矩阵、结构流程、原型、交互契约写入这里。
@@ -196,25 +200,31 @@ pm-orchestrator/
 │       ├── references/
 │       │   ├── requirement-analysis/
 │       │   │   ├── instruction.md
-│       │   │   │   # 需求分析阶段主指令：角色三件套、硬闸门、七问路由、8 步工作流、数据校验和记忆更新规则。
+│       │   │   │   # 需求分析阶段主指令：角色三件套、状态口径（draft/persist/validate）、10 步工作流、字段 JSON 机制、落盘渲染和记忆更新规则。
 │       │   │   ├── question-bank.md
-│       │   │   │   # 需求分析问题库：七问四列结构、Q1 精准化三问、边界异常、非功能基线、验收优先级风险、反谄媚、追问决策树。
+│       │   │   │   # 需求分析问题库：广度优先问题库（角色/场景/问题簇/能力候选/范围确认）、需求卡片 5 字段逐字段追问、Epic 9 字段逐字段追问、Feature 12 字段逐字段追问、反谄媚禁用词表、前提挑战模式、复杂度路由。
 │       │   │   ├── checklist.md
-│       │   │   │   # 需求分析质量门：校验诊断报告、需求成熟度、卡片内容厚度、标题质量、数据来源和自审评分。
-│       │   │   ├── templates/
-│       │   │   │   ├── diagnostic-report.md
-│       │   │   │   │   # 诊断报告模板：用于正式文档前的问题本质还原、需求转化、成熟度评分和待验证事项。
-│       │   │   │   ├── alternative-options.md
-│       │   │   │   │   # 替代方案对比模板：用于比较至少两个方案的成本、时间、风险、ROI 和适用条件。
+│       │   │   │   # 需求分析质量门：文件存在性、frontmatter 完整性、范式合规（通用六条 + 需求卡片/Epic/Feature 逐字段范式检查）、先验质量、数据校验、对抗性自审评分。
+│       │   │   ├── writing-paradigm/
+│       │   │   │   ├── general-rules.md
+│       │   │   │   │   # 写作范式总则：6 条通用规律（总结先行/加粗关键词领条/具名细节/结论跟为什么/诚实标注/视觉结构匹配内容）+ 6 种语言范式定义（A 总结开头+分条列点 / B blockquote 核心论断+分要点 / C 开头定位+表格 / D 开头定位+流程图+关键特征 / E 分层结构+每层表格 / F 段落论证）。
 │       │   │   │   ├── requirement-card.md
-│       │   │   │   │   # 需求卡片模板：记录业务背景、问题本质、当前流程、影响损失、目标用户、评估结果和待验证事项。
+│       │   │   │   │   # 需求卡片字段范式：逐字段定义范式（基本信息 C / 现状描述 D / 痛点 A / 问题本质 F / 评估结果 C）+ 好差对比。
 │       │   │   │   ├── epic.md
-│       │   │   │   │   # Epic 模板：记录需求背景、端到端业务闭环、产品目标、建设思路、边界、风险和成功指标。
+│       │   │   │   │   # Epic 字段范式：逐字段定义范式（定位 B / 目标 A / 角色 C / 场景 D / 价值 A / 范围边界 A / 建设思路 设计理念范式）+ 好差对比。
 │       │   │   │   └── feature.md
-│       │   │   │       # Feature 模板：记录能力目标、用户任务、前后对比、流程、输入输出、异常分支、资源投入和验收标准。
-│       │   │   └── examples/
-│       │   │       └── network-resource-mgmt.md
-│       │   │           # 网络资源管理示例：展示升级后需求分析产物的质量标杆和字段填写方式。
+│       │   │   │       # Feature 字段范式：逐字段定义范式（描述 F / 目标 A / 价值 A / 场景 A / 流程 D / 规则 C / 可行性 F / 资源 C）+ 好差对比。
+│       │   │   └── templates/
+│       │   │       ├── requirement-card.md
+│       │   │       │   # 需求卡片模板：5 个字段（需求基本信息、现状描述、痛点、问题本质还原、需求评估结果）。
+│       │   │       ├── epic.md
+│       │   │       │   # Epic 模板：9 个字段（需求背景、产品名称、产品定位、产品目标、用户角色、核心场景、产品价值、产品范围与边界、建设思路）。
+│       │   │       ├── feature.md
+│       │   │       │   # Feature 模板：12 个字段（需求背景、能力名称、能力描述、能力目标、用户角色、业务价值、业务场景、业务流程、业务规则、技术可行性、资源投入、优先级）。
+│       │   │       ├── diagnostic-report.md
+│       │   │       │   # 诊断报告模板：用于正式文档前的问题本质还原、需求转化、成熟度评分和待验证事项。
+│       │   │       └── alternative-options.md
+│       │   │           # 替代方案对比模板：用于比较至少两个方案的成本、时间、风险、ROI 和适用条件。
 │       │   │
 │       │   ├── user-story-breakdown/
 │       │   │   ├── instruction.md
@@ -256,13 +266,19 @@ pm-orchestrator/
 │       │
 │       └── scripts/
 │           ├── init-project.sh
-│           │   # 新项目初始化脚本：复制模板、清理示例背景文件，并生成 progress/refs/facts 记忆文件。
+│           │   # 新项目初始化脚本：复制模板、清理示例背景文件，并对 progress/refs/facts 做占位符替换。跨平台（Windows Git Bash / macOS / Linux）。
+│           ├── render-doc.sh
+│           │   # 落盘渲染脚本：从字段 JSON（fields-*.json）读取最终润色值，按模板渲染为正式 Markdown 文档并写入项目目录。渲染后自动运行 validate-paradigm.sh 做范式校验。
+│           ├── quick-persist.sh
+│           │   # 快速落盘脚本：从独立字段 .md 文件直接渲染 Markdown，绕过 JSON 中间层，无转义问题。适用于 AI 并行写多个字段 .md 后一键渲染。
+│           ├── validate-paradigm.sh
+│           │   # 范式校验脚本：校验渲染后的 Markdown 是否符合 writing-paradigm/ 范式要求（加粗领条、表格、流程图、blockquote、过渡词等）。支持需求卡片 5 字段、Epic 8 字段、Feature 6 字段。
 │           ├── validate-phase.sh
 │           │   # 阶段机械校验脚本：检查项目产物是否存在、frontmatter 是否完整、refs.json 是否注册。
 │           ├── export-doc-index.sh
 │           │   # 文档索引导出脚本：扫描项目文档并导出索引，或生成 Mermaid 引用图。
 │           ├── convert-document.py
-│               # 可选文档转换脚本：本机已有 Python/markitdown 时，将 PDF/Office/HTML/CSV/TXT 转成 Markdown。
+│           │   # 可选文档转换脚本：本机已有 Python/markitdown 时，将 PDF/Office/HTML/CSV/TXT 转成 Markdown。
 │           ├── validate-phase.ps1
 │           │   # Windows PowerShell 兼容入口；跨平台场景优先使用 validate-phase.sh。
 │           └── export-doc-index.ps1
@@ -279,12 +295,13 @@ pm-orchestrator/
 | 组件 | 职责 |
 |------|------|
 | `skills/pm-orchestrator/SKILL.md` | 主入口。负责项目选择、状态机、阶段路由、快捷指令、阶段转换和用户确认 |
-| `agents/requirement-analyst.md` | 需求分析专家。通过追问和诊断产出内容充分的需求卡片、Epic、Feature |
+| `agents/requirement-analyst.md` | 需求分析专家。通过逐字段追问产出按写作范式结构化的需求卡片、Epic、Feature |
 | `agents/story-breakdown-analyst.md` | 需求拆解专家。把 Feature 拆成 User Story、GWT 验收标准和溯源矩阵 |
 | `agents/detailed-design-designer.md` | 详细设计专家。产出结构流程、原型、交互契约、规则摘要和 Sprint 规划 |
-| `skills/pm-orchestrator/references/` | 各阶段 instruction、checklist、模板、示例和追溯模型 |
+| `skills/pm-orchestrator/references/` | 各阶段 instruction、writing-paradigm、checklist、模板、示例和追溯模型 |
 | `skills/pm-orchestrator/project-template/` | 新建产品项目时复制的项目骨架 |
-| `skills/pm-orchestrator/scripts/` | 阶段校验和文档索引辅助脚本 |
+| `skills/pm-orchestrator/scripts/` | 落盘渲染、范式校验、阶段校验和文档索引辅助脚本 |
+| `skills/pm-orchestrator/background/` | 全局大背景库：跨项目复用的领域背景材料 |
 
 ## 工作流
 
@@ -293,15 +310,34 @@ pm-orchestrator/
    新建项目目录创建完成后，会先停在 `docs/background/` 材料确认点；用户回复放好、跳过或继续后，才会启动需求分析 agent。
 3. 主调度器读取项目 `progress.json` 和 `phase-summary.md`。
 4. 主调度器根据 `currentPhase` 委派对应 subagent。
-5. Subagent 以 `draft` 模式输出问题、诊断或文档草稿。
-6. 用户确认后，主调度器再以 `persist` 模式要求 subagent 落盘正式文档。
-7. 阶段完成时，主调度器读取 checklist，必要时运行校验脚本，再推进 `currentPhase`。
+5. Subagent 以 `draft` 模式工作：逐字段追问用户，每轮回答后更新字段 JSON（`docs/_extracted/.fields/fields-*.json`）中的 `qa_log`（Q&A 素材）和最终润色值（按范式写出）。
+6. 所有字段覆盖后，subagent 做范式自检，输出完整落盘预览请求用户确认。
+7. 用户确认后，主调度器以 `persist` 模式要求 subagent 调用 `render-doc.sh` 从字段 JSON 渲染正式 Markdown，并自动运行 `validate-paradigm.sh` 做范式校验。
+8. 阶段完成时，主调度器读取 checklist，运行校验脚本，再推进 `currentPhase`。
+
+### 需求分析阶段的字段 JSON 机制
+
+需求分析阶段使用字段 JSON 作为落盘数据源，实现"会话中断可恢复"和"AI 写作有素材可查"：
+
+- 每份文档（需求卡片/Epic/Feature）对应一个 `docs/_extracted/.fields/fields-*.json`
+- JSON 包含两部分：**最终润色值**（按范式写出的丰富多行 markdown 内容）和 **`qa_log`**（按字段记录的全部 Q&A 对话素材）
+- `render-doc.sh` 只读最终润色值渲染 Markdown，不读 `qa_log`
+- 会话中断后重新进入时，读 JSON 检查哪些字段已填、哪些还空着，从中断处继续
+
+### 写作范式体系
+
+所有需求分析文档字段必须遵循 `writing-paradigm/` 中定义的范式：
+
+- **6 条通用规律**：总结先行、加粗关键词领条、具名细节、结论跟"为什么"、诚实标注、视觉结构匹配内容
+- **6 种语言范式**：A（总结+分条）、B（blockquote 论断+分要点）、C（定位+表格）、D（定位+流程图+特征）、E（分层+每层表格）、F（段落论证）
+- **逐字段范式定义**：需求卡片 5 字段、Epic 9 字段、Feature 12 字段，每个字段指定使用哪种范式，并给出好差对比
+- **机械校验**：`validate-paradigm.sh` 自动检查加粗领条、表格、流程图、blockquote 等格式要求
 
 ## 阶段路由
 
 | currentPhase | Subagent | Reference | 主要产出 |
 |--------------|----------|-----------|----------|
-| `requirement-analysis` | `requirement-analyst` | `references/requirement-analysis/` | 内容充分的需求卡片、Epic、Feature |
+| `requirement-analysis` | `requirement-analyst` | `references/requirement-analysis/` | 需求卡片、Epic、Feature |
 | `user-story-breakdown` | `story-breakdown-analyst` | `references/user-story-breakdown/` | User Story、GWT、溯源矩阵 |
 | `detailed-design` | `detailed-design-designer` | `references/detailed-design/` | 结构流程、原型、交互契约、规则摘要、Sprint |
 
@@ -311,20 +347,34 @@ pm-orchestrator/
 
 | 文件 | 作用 |
 |------|------|
-| `progress.json` | 当前阶段和阶段状态 |
-| `refs.json` | 文档节点和引用关系 |
-| `facts.json` | 已确认事实 |
-| `decision-log.md` | 决策结论和理由 |
+| `progress.json` | 项目名片与状态：项目 ID、名称、类型、短描述、当前阶段、阶段状态、时间戳 |
+| `refs.json` | 文档节点索引和引用关系图谱 |
+| `facts.json` | 已确认结构化事实（每条标注来源类型） |
+| `decision-log.md` | 决策结论、理由、被否定的备选方案 |
 | `tracking-log.md` | 假设、风险、未决问题 |
-| `phase-summary.md` | 阶段摘要 |
+| `phase-summary.md` | 阶段恢复摘要：产物清单、关键结论、遗留问题、下一步 |
+
+字段 JSON 中间文件存放在 `docs/_extracted/.fields/fields-*.json`，是过程状态文件，不与正式 Markdown 产物混放。
 
 正式产出写入项目的 `docs/`：
 
-- `docs/requirement-analysis/`：需求分析阶段统一目录，包含诊断报告（如保留）、内容充分的需求卡片、Epic、Feature
-- `docs/design/`
-- `docs/execution/`
+- `docs/requirement-analysis/`：需求卡片、Epic、Feature
+- `docs/design/`：User Story、溯源矩阵、结构流程、原型、交互契约
+- `docs/execution/`：规则摘要、Sprint 规划
 
 ## 校验
+
+### 范式校验
+
+落盘时 `render-doc.sh` 自动运行 `validate-paradigm.sh`，也可手动运行：
+
+```bash
+bash skills/pm-orchestrator/scripts/validate-paradigm.sh "<渲染后的 Markdown 文件>"
+```
+
+校验内容：分条列点是否用加粗关键词领条、范式 C 字段是否有表格、范式 D 字段是否有流程图、范式 B 字段是否有 blockquote 核心论断、范式 F 字段是否有过渡词。零警告才能落盘。
+
+### 阶段校验
 
 阶段转换时可运行：
 
@@ -334,6 +384,8 @@ bash skills/pm-orchestrator/scripts/validate-phase.sh \
   --project-path "<项目路径>" \
   --phase requirement-analysis
 ```
+
+### 文档索引
 
 导出项目文档索引：
 
@@ -349,7 +401,9 @@ bash skills/pm-orchestrator/scripts/export-doc-index.sh \
   --format graph
 ```
 
-可选：将用户提供的 PDF、Word、PPT、Excel、HTML、CSV 或 TXT 转成 Markdown：
+### 文档转换（可选）
+
+将用户提供的 PDF、Word、PPT、Excel、HTML、CSV 或 TXT 转成 Markdown：
 
 ```bash
 python skills/pm-orchestrator/scripts/convert-document.py "<输入文件路径>" -o "<输出.md>" --metadata-output "<metadata.json>"
@@ -368,3 +422,5 @@ python -m pip install markitdown
 - 草稿先确认，确认后落盘
 - reference 按阶段渐进加载
 - 所有正式文档必须带 frontmatter，并注册到 `refs.json`
+- 所有字段必须遵循 `writing-paradigm/` 范式，落盘前通过 `validate-paradigm.sh` 机械校验
+- 字段 JSON 持续记录 `qa_log` 素材和最终润色值，支持会话中断恢复
