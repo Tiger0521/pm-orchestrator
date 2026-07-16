@@ -13,6 +13,8 @@
 #   二次扫描执行），故 &/`/$()/换行/引号/% 均按字面安全写入。
 # - 写入 JSON 的字符串先经 json_escape 转义 \、" 和控制字符；该函数的 replacement
 #   不含 &，参数扩展安全。
+# - 若 target_dir 已由 prepare-intake.sh 创建为 intake 目录，初始化时会保留
+#   docs/background/ 下用户已放入的背景材料，并合并项目模板。
 #
 # 用法：
 #   bash init-project.sh <project_id> <project_name> <description> <project_type> <matched_product_id> <product_library_match> <template_dir> <target_dir>
@@ -25,6 +27,7 @@
 #   product_library_match : 产品匹配度 high | medium | low | none（可为空）
 #   template_dir          : .../skills/pm-orchestrator/project-template 的绝对路径
 #   target_dir            : <workspace>/.claude/product-design-projects/<project-id> 的绝对路径
+#                           可为 prepare-intake.sh 预先创建的 intake 目录
 #
 # 退出码：0 成功；2 参数非法；3 路径/模板问题。
 #
@@ -81,10 +84,20 @@ if [ ! -d "$template_dir" ]; then
   exit 3
 fi
 
-# 目标不能已存在（避免覆盖既有项目）
+# 目标通常不能已存在；唯一例外是 prepare-intake.sh 创建的 intake 目录。
+intake_mode=0
 if [ -e "$target_dir" ]; then
-  echo "ERROR: target_dir already exists: $target_dir" >&2
-  exit 3
+  if [ -f "$target_dir/.pm-orchestrator-intake" ]; then
+    marker_id=$(tr -d '\r\n' < "$target_dir/.pm-orchestrator-intake" 2>/dev/null || true)
+    if [ "$marker_id" != "$project_id" ]; then
+      echo "ERROR: intake marker project_id mismatch: $target_dir" >&2
+      exit 3
+    fi
+    intake_mode=1
+  else
+    echo "ERROR: target_dir already exists: $target_dir" >&2
+    exit 3
+  fi
 fi
 
 # 防止 target 在 template 内部（避免递归复制）
@@ -95,11 +108,16 @@ esac
 # ---- 复制骨架 ----
 
 mkdir -p "$(dirname "$target_dir")"
-cp -R "$template_dir" "$target_dir"
-
-# 清空 background 目录下的示例/遗留文件，只保留 .gitkeep。
-# project-template 不应携带特定项目的背景材料；此处作为双保险。
-find "$target_dir/docs/background" -type f ! -name '.gitkeep' -delete 2>/dev/null || true
+if [ "$intake_mode" -eq 1 ]; then
+  cp -R "$template_dir"/. "$target_dir"
+  rm -f "$target_dir/.pm-orchestrator-intake"
+  : > "$target_dir/docs/background/.gitkeep"
+else
+  cp -R "$template_dir" "$target_dir"
+  # 清空 background 目录下的示例/遗留文件，只保留 .gitkeep。
+  # project-template 不应携带特定项目的背景材料；此处作为双保险。
+  find "$target_dir/docs/background" -type f ! -name '.gitkeep' -delete 2>/dev/null || true
+fi
 
 # ---- 生成记忆文件 ----
 

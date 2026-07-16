@@ -92,7 +92,7 @@ Claude Code 已经打开，关闭后重新进入一次。
 
 主调度器会引导你完成以下流程：
 
-1. **选项目** — 新建或继续已有项目（新建时先校验产品库并执行产品匹配，确定项目类型 new / iteration / refactor）
+1. **选项目** — 新建或继续已有项目（没有项目或用户选择创建项目记录时，进入需求分析 intake：先创建固定 `docs/background/` 目录并读取背景材料，再理解候选产品和用户业务目标，最后收敛项目类型 new / iteration / refactor）
 2. **需求分析** — `requirement-analyst` subagent 通过逐字段追问（需求卡片 5 字段 / Epic 9 字段 / Feature 12 字段），产出按写作范式结构化的需求卡片、Epic 和 Feature
 3. **需求拆解** — `story-breakdown-analyst` subagent 把 Feature 拆成 User Story + GWT 验收标准 + 溯源矩阵
 4. **详细设计** — `detailed-design-designer` subagent 产出结构流程、原型描述、交互契约、规则摘要和 Sprint 规划
@@ -198,7 +198,7 @@ pm-orchestrator/
 │       ├── references/
 │       │   ├── requirement-analysis/
 │       │   │   ├── instruction.md
-│       │   │   │   # 需求分析阶段主指令：角色三件套、状态口径（draft/persist/validate）、10 步工作流、字段 JSON 机制、落盘渲染和记忆更新规则。
+│       │   │   │   # 需求分析阶段主指令：角色三件套、状态口径（draft/persist/validate）、产品匹配与复用引导、10 步工作流、字段 JSON 机制、落盘渲染和记忆更新规则。
 │       │   │   ├── question-bank.md
 │       │   │   │   # 需求分析问题库：广度优先问题库（角色/场景/问题簇/能力候选/范围确认）、需求卡片 5 字段逐字段追问、Epic 9 字段逐字段追问、Feature 12 字段逐字段追问、反谄媚禁用词表、前提挑战模式、复杂度路由。
 │       │   │   ├── checklist.md
@@ -309,8 +309,8 @@ pm-orchestrator/
 
 1. 用户触发 `pm-orchestrator` skill。
 2. 主调度器先调用 `validate-product-library.sh` 校验 `~/.product-library/` 目录结构，再扫描 `.claude/product-design-projects/`，让用户选择继续或新建项目。
-3. 新建项目时，主调度器执行产品匹配：读取产品库 `_manifest.md`，按 `product-library-spec.md` 中的匹配算法（6 维度语义比对 + 加权评分 + 部分匹配修正）呈现匹配结果；用户确认项目类型（new / iteration / refactor）后，用 `init-project.sh` 创建项目目录。
-4. 项目目录创建完成后，停在 `docs/background/` 材料确认点；用户回复放好、跳过或继续后，才会启动需求分析 agent。
+3. 创建项目记录就是进入需求分析 intake：主调度器先生成项目 ID，调用 `prepare-intake.sh` 创建固定 `docs/background/` intake 目录并读取背景材料；随后读取 `references/requirement-analysis/instruction.md` 的“产品匹配与复用引导”和 `product-library-spec.md`，按需求卡片 → Epic → Feature 递进理解候选产品和用户业务目标，批量核对字段并只问一个最高价值问题；覆盖点、差异点和扩展方式清楚后，收敛项目类型（new / iteration / refactor），再用 `init-project.sh` 补全项目目录并保留背景材料。
+4. 项目目录补全后，主调度器读取固定 `docs/background/` 中的背景材料摘要、产品匹配结果和已确认描述，再启动需求分析 agent。
 5. 主调度器读取项目 `progress.json` 和 `phase-summary.md`。
 6. 主调度器根据 `currentPhase` 委派对应 subagent，传递 `productLibraryDocs`、`matchedProductId`、`productLibraryMatch` 等上下文。
 7. Subagent 以 `draft` 模式工作：逐字段追问用户，每轮回答后更新字段 JSON（`docs/_extracted/.fields/fields-*.json`）中的 `qa_log`（Q&A 素材）和最终润色值（按范式写出）。
@@ -325,7 +325,7 @@ pm-orchestrator/
 ### Skill 自身特点
 
 - **主调度器 + 阶段专家分工**：主 skill 负责项目选择、状态恢复、阶段路由和用户确认；需求分析、需求拆解、详细设计分别交给独立 subagent。
-- **产品库驱动的新建流程**：新建项目前校验 `~/.product-library/`，按产品库元信息做匹配，帮助判断项目是 `new`、`iteration` 还是 `refactor`。
+- **需求分析 intake 的产品复用判断**：创建项目记录时先生成固定 `docs/background/` intake 目录并读取背景材料；随后按需求卡片 → Epic → Feature 递进解释已有产品，优先寻找可扩展路径，再形成覆盖点、差异点和 `new`、`iteration` 或 `refactor` 的项目类型选择。
 - **跨会话项目记忆**：每个项目维护 `progress.json`、`phase-summary.md`、`facts.json`、`decision-log.md`、`tracking-log.md` 和 `refs.json`，支持中断后恢复上下文。
 - **阶段化产品设计链路**：从需求卡片、Epic、Feature，到 User Story、GWT、溯源矩阵，再到结构流程、原型、交互契约、规则摘要和 Sprint 规划。
 - **字段 JSON 中间层**：需求分析阶段先写 `docs/_extracted/.fields/fields-*.json`，保存最终润色值和 `qa_log`，再由脚本渲染正式 Markdown。

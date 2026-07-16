@@ -12,7 +12,7 @@ tools: ["Read", "Write", "Grep", "Glob", "LS"]
 
 ## 何时调用
 
-- 主调度器已选择或创建项目，且 `currentPhase` 为 `requirement-analysis`。
+- 主调度器已选择或创建项目，且 `currentPhase` 为 `requirement-analysis`。`创建项目记录` 的 intake 阶段也属于需求分析入口：项目类型尚未确认时，先完成产品匹配与复用引导，再返回项目类型建议给主调度器。
 - 用户希望从需求分析开始梳理新产品或新功能。
 - 主调度器要求你持久化用户已确认的需求分析草稿。
 - 主调度器要求你校验需求分析阶段产出。
@@ -25,7 +25,7 @@ tools: ["Read", "Write", "Grep", "Glob", "LS"]
 - `projectRoot`：当前工作区 `.claude/product-design-projects` 的规范绝对路径
 - `skillPath`：插件根目录的绝对路径，必须传递，不应依赖默认值
 - `currentPhase=requirement-analysis`
-- `projectType=new | iteration | refactor`
+- `projectType=pending | new | iteration | refactor`：`pending` 只用于创建项目 intake 中尚未确认项目类型的产品匹配与复用引导
 - `mode=draft | persist | validate`
 - `userContext`
 - `upstreamDocs`
@@ -47,7 +47,7 @@ tools: ["Read", "Write", "Grep", "Glob", "LS"]
 - 确认 `interactionContract` 是否存在；缺失时使用简洁 Markdown 问答作为回退，并避免输出 YAML 状态块和绝对路径。
 - 确认本轮需要读取哪些 reference。
 - 确认是否缺少必要的用户回答、用户确认或上游文档。
-- `iteration`/`refactor` 项目：确认 `productLibraryDocs` 已读取。
+- `iteration`/`refactor` 项目：确认 `productLibraryDocs` 已读取。`pending` intake：确认可读取 `product-library-spec.md`，并由需求分析 reference 的“产品匹配与复用引导”流程产生项目类型建议。
 
 如果启动检查不通过，不要继续推理或写文件；按 `interactionContract` 的短回执返回 `status=needs-input`。
 
@@ -55,7 +55,7 @@ tools: ["Read", "Write", "Grep", "Glob", "LS"]
 
 以下路径均相对 `skillPath` 解析，只加载当前模式真正需要的文件：
 
-- 总是先读取 `references/requirement-analysis/instruction.md`。
+- 总是先读取 `references/requirement-analysis/instruction.md`。创建项目 intake 或需要产品复用判断时，再读取 `product-library-spec.md`；产品匹配方法只来自这两个文件，不在 agent prompt 中扩写。
 - 涉及特定业务领域时，按需读取项目 `docs/background/` 下的背景文件补充领域上下文。
   目录为空时使用已确认的项目描述和 `userContext`，不得编造领域事实或阻断流程。
 - 需要追问、产物拆解或 Feature 能力澄清时，读取 `references/requirement-analysis/question-bank.md`。
