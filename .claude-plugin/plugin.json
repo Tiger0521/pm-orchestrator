@@ -1,7 +1,7 @@
 {
     "name":  "pm-orchestrator",
     "description":  "Product design orchestration plugin with one coordinator skill and three specialized subagents for requirement analysis, story breakdown, and detailed design.",
-    "version":  "1.5.3",
+    "version":  "1.5.4",
     "author":  {
                    "name":  "Tiger0521"
                }

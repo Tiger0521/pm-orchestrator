@@ -45,6 +45,10 @@ if [ ! -f "$meta_file" ]; then
 fi
 
 mkdir -p "$output_dir"
+output_dir_abs="$(cd -P "$output_dir" 2>/dev/null && pwd)" || {
+  echo "ERROR: cannot resolve output_dir: $output_dir" >&2
+  exit 2
+}
 
 # ---- meta.json 值提取（用 sed 健壮提取，兼容有无空格、BOM） ----
 meta_val() {
@@ -68,7 +72,28 @@ doc_type=$(meta_val "type")
 doc_id=$(meta_val "id")
 project_id=$(meta_val "projectId")
 title=$(meta_val "title")
-output_file="$output_dir/${doc_id}.md"
+case "$doc_type" in
+  requirement-card) expected_id_regex='^req-[0-9]{3,}$' ;;
+  epic)             expected_id_regex='^epic-[0-9]{3,}$' ;;
+  feature)          expected_id_regex='^feature-[0-9]{3,}$' ;;
+  *)                expected_id_regex='' ;;
+esac
+
+if [ -z "$expected_id_regex" ] || ! printf '%s' "$doc_id" | grep -Eq "$expected_id_regex"; then
+  echo "ERROR: invalid document id for type '$doc_type': $doc_id" >&2
+  exit 2
+fi
+
+if ! printf '%s' "$project_id" | grep -Eq '^[a-z0-9][a-z0-9-]{0,62}$'; then
+  echo "ERROR: invalid projectId: $project_id" >&2
+  exit 2
+fi
+
+output_file="$output_dir_abs/${doc_id}.md"
+case "$output_file" in
+  "$output_dir_abs"/*) ;;
+  *) echo "ERROR: output file escaped output_dir: $output_file" >&2; exit 2 ;;
+esac
 
 # ---- 校验必填字段文件存在 ----
 check_fields() {

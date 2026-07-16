@@ -15,14 +15,16 @@
 #   不含 &，参数扩展安全。
 #
 # 用法：
-#   bash init-project.sh <project_id> <project_name> <description> <project_type> <template_dir> <target_dir>
+#   bash init-project.sh <project_id> <project_name> <description> <project_type> <matched_product_id> <product_library_match> <template_dir> <target_dir>
 #
-#   project_id    : 匹配 ^[a-z0-9][a-z0-9-]{0,62}$
-#   project_name  : 项目名称（可含任意字符，写入 JSON 时自动转义）
-#   description   : 需求描述（可含任意字符/多行，写入 JSON 时自动转义）
-#   project_type  : new | iteration | refactor
-#   template_dir  : .../skills/pm-orchestrator/project-template 的绝对路径
-#   target_dir    : <workspace>/.claude/product-design-projects/<project-id> 的绝对路径
+#   project_id            : 匹配 ^[a-z0-9][a-z0-9-]{0,62}$
+#   project_name          : 项目名称（可含任意字符，写入 JSON 时自动转义）
+#   description           : 需求描述（可含任意字符/多行，写入 JSON 时自动转义）
+#   project_type          : new | iteration | refactor
+#   matched_product_id    : 关联的已有产品 ID（可为空）
+#   product_library_match : 产品匹配度 high | medium | low | none（可为空）
+#   template_dir          : .../skills/pm-orchestrator/project-template 的绝对路径
+#   target_dir            : <workspace>/.claude/product-design-projects/<project-id> 的绝对路径
 #
 # 退出码：0 成功；2 参数非法；3 路径/模板问题。
 #
@@ -32,8 +34,10 @@ project_id="${1:?missing project_id}"
 project_name="${2:?missing project_name}"
 description="${3:?missing description}"
 project_type="${4:?missing project_type}"
-template_dir="${5:?missing template_dir}"
-target_dir="${6:?missing target_dir}"
+matched_product_id="${5:-}"  # can be empty
+product_library_match="${6:-}"  # can be empty (high|medium|low|none)
+template_dir="${7:?missing template_dir}"
+target_dir="${8:?missing target_dir}"
 
 # ---- 校验 ----
 
@@ -48,6 +52,28 @@ case "$project_type" in
   new|iteration|refactor) ;;
   *) echo "ERROR: invalid project_type (new|iteration|refactor): $project_type" >&2; exit 2 ;;
 esac
+
+# product_library_match 枚举（可为空）
+if [ -n "$product_library_match" ]; then
+  case "$product_library_match" in
+    high|medium|low|none) ;;
+    *) echo "ERROR: invalid product_library_match (high|medium|low|none): $product_library_match" >&2; exit 2 ;;
+  esac
+fi
+
+# matched_product_id 格式校验（非空时）
+if [ -n "$matched_product_id" ]; then
+  if ! printf '%s' "$matched_product_id" | grep -Eq '^[a-z0-9][a-z0-9-]{0,62}$'; then
+    echo "ERROR: invalid matched_product_id (need ^[a-z0-9][a-z0-9-]{0,62}\$): $matched_product_id" >&2
+    exit 2
+  fi
+  # 校验产品库中对应产品目录存在
+  product_lib_dir="$HOME/.product-library/$matched_product_id"
+  if [ ! -d "$product_lib_dir" ]; then
+    echo "ERROR: product library directory not found: $product_lib_dir" >&2
+    exit 3
+  fi
+fi
 
 # 模板必须存在
 if [ ! -d "$template_dir" ]; then
@@ -88,11 +114,15 @@ json_escape() {
   s="${s//$'\n'/\\n}"   # 换行 -> \n
   s="${s//$'\r'/\\r}"   # 回车 -> \r
   s="${s//$'\t'/\\t}"   # tab -> \t
+  s="${s//$'\b'/\\b}"   # 退格 -> \b
+  s="${s//$'\f'/\\f}"   # 换页 -> \f
   printf '%s' "$s"
 }
 
 esc_name=$(json_escape "$project_name")
 esc_desc=$(json_escape "$description")
+esc_matched=$(json_escape "$matched_product_id")
+esc_match=$(json_escape "$product_library_match")
 
 # 用 printf %s 填充 JSON：format 串用单引号保持字面，值作为参数在双引号内安全展开。
 # 不用参数扩展替换，规避 Git Bash 把 & 当匹配引用的行为。
@@ -101,6 +131,8 @@ printf '{
   "projectId": "%s",
   "projectName": "%s",
   "projectType": "%s",
+  "matchedProductId": "%s",
+  "productLibraryMatch": "%s",
   "description": "%s",
   "status": "active",
   "currentPhase": "requirement-analysis",
@@ -126,7 +158,7 @@ printf '{
   },
   "lastUpdated": "%s"
 }
-' "$project_id" "$esc_name" "$project_type" "$esc_desc" "$ts" "$ts" "$ts" > "$target_dir/progress.json"
+' "$project_id" "$esc_name" "$project_type" "$esc_matched" "$esc_match" "$esc_desc" "$ts" "$ts" "$ts" > "$target_dir/progress.json"
 
 printf '{
   "projectId": "%s",

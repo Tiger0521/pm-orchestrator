@@ -2,16 +2,10 @@
 """
 Convert user-provided documents to Markdown with markitdown.
 
-用途：把用户提供的 PDF、Word、PPT、Excel、HTML、CSV、TXT 等文件转换成
-Markdown，供需求分析阶段作为 file-extract 来源继续做事实抽取和校验。
-
 This script is intentionally small and deterministic: it does not download
 dependencies, does not call external services, and does not write project
-memory files. The requirement-analysis agent can use the generated Markdown as
-a file-extract source, then apply the data validation rules from its references.
-
-边界：本脚本只负责“文档转 Markdown + 可选 metadata 输出”，不判断事实是否
-可信，也不写入 facts.json、refs.json 等项目记忆文件。
+memory files. The extracted Markdown is still untrusted input and must be
+validated by the relevant agent before it becomes project facts.
 """
 
 from __future__ import annotations
@@ -22,6 +16,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+DEFAULT_MAX_BYTES = 50 * 1024 * 1024
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -42,6 +38,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional path to write extraction metadata as JSON.",
     )
     parser.add_argument(
+        "--output-root",
+        help="Directory that output files must stay inside. Defaults to the current working directory.",
+    )
+    parser.add_argument(
+        "--max-bytes",
+        type=int,
+        default=DEFAULT_MAX_BYTES,
+        help="Maximum accepted input size in bytes. Defaults to 50 MiB.",
+    )
+    parser.add_argument(
         "--title",
         help="Optional source title to include in metadata.",
     )
@@ -49,7 +55,6 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def load_markitdown() -> Any:
-    # 延迟导入，方便在未安装 markitdown 时给出清晰的依赖安装提示。
     try:
         from markitdown import MarkItDown
     except ImportError as exc:
@@ -61,7 +66,6 @@ def load_markitdown() -> Any:
 
 
 def extract_text(result: Any) -> str:
-    # 兼容 markitdown 不同版本可能返回的字段名，避免脚本绑死单一版本。
     for attr in ("text_content", "markdown", "content"):
         value = getattr(result, attr, None)
         if isinstance(value, str):
@@ -71,13 +75,22 @@ def extract_text(result: Any) -> str:
     raise TypeError("markitdown returned an unsupported result shape.")
 
 
+def resolve_output_path(path_arg: str, output_root: Path) -> Path:
+    output_path = Path(path_arg).expanduser().resolve()
+    root = output_root.expanduser().resolve()
+    try:
+        output_path.relative_to(root)
+    except ValueError as exc:
+        raise ValueError(f"Output path must be inside output root: {root}") from exc
+    return output_path
+
+
 def write_text(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
 
 
 def build_metadata(source: Path, markdown: str, title: str | None) -> dict[str, Any]:
-    # metadata 用于后续溯源：写入 facts.json 前仍需用户确认和数据校验。
     stat = source.stat()
     return {
         "sourceType": "file-extract",
@@ -104,6 +117,15 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Input path is not a file: {source}", file=sys.stderr)
         return 2
 
+    if args.max_bytes <= 0:
+        print("--max-bytes must be greater than 0", file=sys.stderr)
+        return 2
+    if source.stat().st_size > args.max_bytes:
+        print(f"Input file is larger than --max-bytes ({args.max_bytes}): {source}", file=sys.stderr)
+        return 2
+
+    output_root = Path(args.output_root).expanduser().resolve() if args.output_root else Path.cwd().resolve()
+
     try:
         MarkItDown = load_markitdown()
         converter = MarkItDown()
@@ -113,18 +135,22 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Document conversion failed: {exc}", file=sys.stderr)
         return 1
 
-    if args.output:
-        write_text(Path(args.output).expanduser().resolve(), markdown)
-    else:
-        sys.stdout.write(markdown)
-        if markdown and not markdown.endswith("\n"):
-            sys.stdout.write("\n")
+    try:
+        if args.output:
+            output_path = resolve_output_path(args.output, output_root)
+            write_text(output_path, markdown)
+        else:
+            sys.stdout.write(markdown)
+            if markdown and not markdown.endswith("\n"):
+                sys.stdout.write("\n")
 
-    if args.metadata_output:
-        # metadata 与 Markdown 分开输出，便于 agent 单独引用来源信息。
-        metadata = build_metadata(source, markdown, args.title)
-        metadata_path = Path(args.metadata_output).expanduser().resolve()
-        write_text(metadata_path, json.dumps(metadata, ensure_ascii=False, indent=2))
+        if args.metadata_output:
+            metadata = build_metadata(source, markdown, args.title)
+            metadata_path = resolve_output_path(args.metadata_output, output_root)
+            write_text(metadata_path, json.dumps(metadata, ensure_ascii=False, indent=2))
+    except Exception as exc:
+        print(f"Document output failed: {exc}", file=sys.stderr)
+        return 2
 
     return 0
 

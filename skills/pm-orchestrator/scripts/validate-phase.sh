@@ -392,6 +392,53 @@ else
   done
 fi
 
+# ---- iteration/refactor: 校验已有产物未被修改 ----
+project_type=$(json_string_value "$progress_path" "projectType")
+matched_product_id=$(json_string_value "$progress_path" "matchedProductId")
+
+if [ -n "$matched_product_id" ] && [ "$project_type" != "new" ]; then
+  product_lib="$HOME/.product-library/$matched_product_id"
+
+  if [ -d "$product_lib" ]; then
+    check_pairs=""
+    if [ "$project_type" = "iteration" ]; then
+      check_pairs=$'epics|epic-\nfeatures|feature-'
+    elif [ "$project_type" = "refactor" ]; then
+      check_pairs=$'epics|epic-\nfeatures|feature-\nuser-stories|story-'
+    fi
+
+    while IFS='|' read -r subdir prefix; do
+      [ -n "$subdir" ] || continue
+
+      if [ "$subdir" = "user-stories" ]; then
+        lib_dir="$product_lib/requirement-breakdown/user-stories"
+        proj_dir="$docs_path/design"
+      else
+        lib_dir="$product_lib/requirement-analysis/$subdir"
+        proj_dir="$docs_path/requirement-analysis"
+      fi
+
+      [ -d "$lib_dir" ] || continue
+
+      shopt -s nullglob
+      for lib_file in "$lib_dir"/${prefix}*.md; do
+        [ -f "$lib_file" ] || continue
+        filename=$(basename "$lib_file")
+        proj_file="$proj_dir/$filename"
+
+        if [ -f "$proj_file" ]; then
+          if ! diff -q "$lib_file" "$proj_file" >/dev/null 2>&1; then
+            add_issue "[$project_type] $filename: modified from product library version"
+          fi
+        else
+          add_issue "[$project_type] $filename: exists in product library but missing from project"
+        fi
+      done
+      shopt -u nullglob
+    done <<< "$check_pairs"
+  fi
+fi
+
 if [ "${#ISSUES[@]}" -gt 0 ]; then
   echo "Validation failed with ${#ISSUES[@]} issue(s)."
   for issue in "${ISSUES[@]}"; do

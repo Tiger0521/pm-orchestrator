@@ -24,6 +24,10 @@ if [ ! -f "$json_file" ]; then
 fi
 
 mkdir -p "$output_dir"
+output_dir_abs="$(cd -P "$output_dir" 2>/dev/null && pwd)" || {
+  echo "ERROR: cannot resolve output_dir: $output_dir" >&2
+  exit 2
+}
 
 # ---- JSON 值提取 ----
 # 从 AI 生成的 JSON 中提取指定 key 的字符串值。
@@ -33,13 +37,18 @@ json_val() {
   local key="$1"
   local val
   val=$(grep "\"$key\":" "$json_file" | head -1)
+  if [ -z "$val" ]; then
+    echo "WARN: json_val: key '$key' not found or empty in $json_file" >&2
+    printf ''
+    return
+  fi
   val="${val#*\": \"}"
   val="${val%\"}"
   val="${val%\",}"
-  val="${val//\\n/$'\n'}"
-  val="${val//\\t/$'\t'}"
-  val="${val//\\\"/\"}"
-  val="${val//\\\\/\\}"
+  val="${val//\\\\/\\}"   # \\ → \  (must be first: decode literal backslash before decoding \n \t \")
+  val="${val//\\n/$'\n'}"   # \n → newline
+  val="${val//\\t/$'\t'}"   # \t → tab
+  val="${val//\\\"/\"}"     # \" → " (must be after \\ → \, otherwise \" in source becomes " then lost)
   printf '%s' "$val"
 }
 
@@ -48,7 +57,28 @@ doc_type=$(json_val "type")
 doc_id=$(json_val "id")
 project_id=$(json_val "projectId")
 title=$(json_val "title")
-output_file="$output_dir/${doc_id}.md"
+case "$doc_type" in
+  requirement-card) expected_id_regex='^req-[0-9]{3,}$' ;;
+  epic)             expected_id_regex='^epic-[0-9]{3,}$' ;;
+  feature)          expected_id_regex='^feature-[0-9]{3,}$' ;;
+  *)                expected_id_regex='' ;;
+esac
+
+if [ -z "$expected_id_regex" ] || ! printf '%s' "$doc_id" | grep -Eq "$expected_id_regex"; then
+  echo "ERROR: invalid document id for type '$doc_type': $doc_id" >&2
+  exit 2
+fi
+
+if ! printf '%s' "$project_id" | grep -Eq '^[a-z0-9][a-z0-9-]{0,62}$'; then
+  echo "ERROR: invalid projectId: $project_id" >&2
+  exit 2
+fi
+
+output_file="$output_dir_abs/${doc_id}.md"
+case "$output_file" in
+  "$output_dir_abs"/*) ;;
+  *) echo "ERROR: output file escaped output_dir: $output_file" >&2; exit 2 ;;
+esac
 
 # ---- 渲染函数 ----
 
@@ -357,7 +387,8 @@ if [ -f "$validator" ]; then
   bash "$validator" "$output_file"
   validate_exit=$?
   if [ "$validate_exit" -ne 0 ]; then
-    echo "--- 警告: 存在范式不合规项，必须修复字段 JSON 并重新渲染后才能确认落盘 ---"
+    echo "--- 错误: 存在范式不合规项，必须修复字段 JSON 并重新渲染后才能确认落盘 ---"
+    exit 1
   fi
 else
   echo "WARN: validate-paradigm.sh not found, skipping paradigm validation" >&2

@@ -60,13 +60,29 @@ canonical_dir() {
   (cd -P "$1" 2>/dev/null && pwd) || fail "cannot resolve $2: $1"
 }
 
-canonical_parent_for_file() {
+canonical_target_for_file() {
   local target="$1"
-  local parent
+  local parent base existing_parent suffix next
   parent=$(dirname "$target")
-  mkdir -p "$parent" || fail "cannot create output directory: $parent"
-  parent=$(cd -P "$parent" 2>/dev/null && pwd) || fail "cannot resolve output directory: $parent"
-  printf '%s/%s' "$parent" "$(basename "$target")"
+  base=$(basename "$target")
+
+  if [ -d "$parent" ]; then
+    parent=$(cd -P "$parent" 2>/dev/null && pwd) || fail "cannot resolve output directory: $parent"
+    printf '%s/%s' "$parent" "$base"
+    return
+  fi
+
+  existing_parent="$parent"
+  suffix=""
+  while [ ! -d "$existing_parent" ]; do
+    suffix="/$(basename "$existing_parent")$suffix"
+    next=$(dirname "$existing_parent")
+    [ "$next" != "$existing_parent" ] || fail "cannot resolve output directory: $parent"
+    existing_parent="$next"
+  done
+
+  existing_parent=$(cd -P "$existing_parent" 2>/dev/null && pwd) || fail "cannot resolve output directory: $parent"
+  printf '%s%s/%s' "$existing_parent" "$suffix" "$base"
 }
 
 trim() {
@@ -237,11 +253,21 @@ else
 fi
 
 if [ -n "$output_path" ]; then
-  target=$(canonical_parent_for_file "$output_path")
+  target=$(canonical_target_for_file "$output_path")
   case "$target" in
     "$project"/*) ;;
     *) fail "Output path must be inside the project directory." ;;
   esac
+
+  target_parent=$(dirname "$target")
+  mkdir -p "$target_parent" || fail "cannot create output directory: $target_parent"
+  target_parent=$(cd -P "$target_parent" 2>/dev/null && pwd) || fail "cannot resolve output directory: $target_parent"
+  target="$target_parent/$(basename "$target")"
+  case "$target" in
+    "$project"/*) ;;
+    *) fail "Output path must be inside the project directory." ;;
+  esac
+
   printf '%s\n' "$output" > "$target"
   echo "Exported: $target"
 else

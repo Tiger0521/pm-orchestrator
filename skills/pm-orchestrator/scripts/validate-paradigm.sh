@@ -186,11 +186,13 @@ case "$doc_type" in
     ;;
   feature)
     echo "--- Feature 范式校验 ---"
+    check_transition "能力描述" "能力描述"
     check_paradigm_a "能力目标" "能力目标"
     check_paradigm_a "业务价值" "业务价值"
     check_paradigm_a "业务场景" "业务场景"
     check_flowchart "业务流程" "业务流程"
     check_table "业务规则" "业务规则"
+    check_transition "技术可行性" "技术可行性"
     check_table "资源投入" "资源投入"
     ;;
   *)
