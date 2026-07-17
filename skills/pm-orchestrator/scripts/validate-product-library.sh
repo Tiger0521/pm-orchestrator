@@ -5,10 +5,10 @@
 # Validates the structure of a global product library directory.
 #
 # Usage:
-#   bash validate-product-library.sh <library_path> <spec_file>
+#   bash validate-product-library.sh [library_path] [spec_file]
 #
-#   library_path : Path to the product library (e.g., ~/.product-library)
-#   spec_file    : Path to product-library-spec.md (for reference, not parsed)
+#   library_path : Optional. Path to the product library (default: $HOME/.product-library)
+#   spec_file    : Optional. Path to product-library-spec.md (default: ../product-library-spec.md)
 #
 # Cross-platform: Windows Git Bash / macOS / Linux.
 # Dependencies: bash + standard Unix tools only (grep, find, sed, awk, head,
@@ -387,27 +387,30 @@ print_summary() {
 # ---------------------------------------------------------------------------
 usage() {
   cat <<'EOF'
-Usage: bash validate-product-library.sh <library_path> <spec_file>
+Usage: bash validate-product-library.sh [library_path] [spec_file]
 
 Arguments:
-  library_path  Path to the product library (e.g., ~/.product-library)
-  spec_file     Path to product-library-spec.md (for reference, not parsed)
+  library_path  Optional. Path to the product library (default: $HOME/.product-library)
+  spec_file     Optional. Path to product-library-spec.md (default: ../product-library-spec.md)
 
 Exit codes:
-  0  all validation checks passed
+  0  all validation checks passed, or product library is not initialized yet
   1  one or more validation checks failed
   2  usage error
 EOF
 }
 
 main() {
-  if [[ $# -ne 2 ]]; then
+  if [[ $# -gt 2 ]]; then
     usage >&2
     exit 2
   fi
 
-  LIBRARY_PATH="$1"
-  SPEC_FILE="$2"
+  local script_dir
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+
+  LIBRARY_PATH="${1:-$HOME/.product-library}"
+  SPEC_FILE="${2:-$script_dir/../product-library-spec.md}"
 
   printf 'Validating product library:\n'
   printf '  library : %s\n' "$LIBRARY_PATH"
@@ -425,7 +428,7 @@ main() {
   check_library_exists
   rc=$?
   if [[ $rc -eq 99 ]]; then
-    # Library does not exist — this is not a failure. Exit 0 with the
+    # Library does not exist; this is not a failure. Exit 0 with the
     # LIBRARY_NOT_EXISTS marker already printed by check_library_exists.
     printf '\nValidation skipped: library does not exist.\n'
     exit 0

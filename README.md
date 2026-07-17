@@ -2,7 +2,7 @@
 
 `pm-orchestrator` 是一个产品全流程设计插件。它把原来的单一 skill 改造成：
 
-- 一个主调度 skill：负责项目选择、跨会话恢复、阶段路由、用户确认和质量门
+- 一个主调度 skill：负责入口分流、项目恢复、跨会话记忆、阶段路由、用户确认和质量门
 - 三个独立 subagent：分别负责需求分析、需求拆解、详细设计
 - 一套写作范式体系：6 条通用规律 + 6 种语言范式（A-F），逐字段定义每个文档字段的写法和好差对比
 - 一组机械校验脚本：从 JSON 字段渲染 Markdown、校验范式合规、校验阶段产物完整性
@@ -92,7 +92,7 @@ Claude Code 已经打开，关闭后重新进入一次。
 
 主调度器会引导你完成以下流程：
 
-1. **选项目** — 新建或继续已有项目（没有项目或用户选择创建项目记录时，进入需求分析 intake：先创建固定 `docs/background/` 目录并读取背景材料，再理解候选产品和用户业务目标，最后收敛项目类型 new / iteration / refactor）
+1. **入口分流** — 用户提新需求时进入需求分析 intake；用户明确继续旧项目时才进入项目恢复。intake 会先创建固定 `docs/background/` 目录并读取背景材料，再理解候选产品和用户业务目标，最后收敛项目类型 new / iteration / refactor。
 2. **需求分析** — `requirement-analyst` subagent 通过逐字段追问（需求卡片 5 字段 / Epic 9 字段 / Feature 12 字段），产出按写作范式结构化的需求卡片、Epic 和 Feature
 3. **需求拆解** — `story-breakdown-analyst` subagent 把 Feature 拆成 User Story + GWT 验收标准 + 溯源矩阵
 4. **详细设计** — `detailed-design-designer` subagent 产出结构流程、原型描述、交互契约、规则摘要和 Sprint 规划
@@ -159,7 +159,7 @@ pm-orchestrator/
 ├── skills/
 │   └── pm-orchestrator/
 │       ├── SKILL.md
-│       │   # 主调度 skill 入口：处理项目选择/新建/恢复、阶段路由、用户确认、快捷指令和阶段转换。
+│       │   # 主调度 skill 入口：处理入口分流/项目记录创建/恢复、阶段路由、用户确认、快捷指令和阶段转换。
 │       │
 │       ├── product-library-spec.md
 │       │   # 产品库规范：定义全局产品库目录结构、命名规则、元信息格式和产品匹配算法（6 维度语义比对 + 加权评分 + 部分匹配修正）。
@@ -263,8 +263,10 @@ pm-orchestrator/
 │       │           # 共享追溯模型：定义文档类型、ID 前缀、引用关系和 refs.json 结构。
 │       │
 │       └── scripts/
+│           ├── prepare-intake.sh
+│           │   # Intake 准备脚本：在项目类型确认前创建固定 docs/background/ intake 目录，不依赖项目模板。
 │           ├── init-project.sh
-│           │   # 新项目初始化脚本：复制模板、清理示例背景文件，并对 progress/refs/facts 做占位符替换。跨平台（Windows Git Bash / macOS / Linux）。
+│           │   # 新项目初始化脚本：识别 intake 目录、合并项目模板并保留背景材料，初始化 progress/refs/facts。跨平台（Windows Git Bash / macOS / Linux）。
 │           ├── render-doc.sh
 │           │   # 落盘渲染脚本：从字段 JSON（fields-*.json）读取最终润色值，按模板渲染为正式 Markdown 文档并写入项目目录。渲染后自动运行 validate-paradigm.sh 做范式校验。
 │           ├── quick-persist.sh
@@ -275,6 +277,8 @@ pm-orchestrator/
 │           │   # 阶段机械校验脚本：检查项目产物是否存在、frontmatter 是否完整、refs.json 是否注册。
 │           ├── export-doc-index.sh
 │           │   # 文档索引导出脚本：扫描项目文档并导出索引，或生成 Mermaid 引用图。
+│           ├── init-product-library.sh
+│           │   # 产品库初始化脚本：支持从远程仓库克隆、从本地目录复制或全新创建空产品库。产品库不存在时由主调度器引导调用。
 │           ├── validate-product-library.sh
 │           │   # 产品库结构校验脚本：校验 ~/.product-library/ 目录结构、命名规则和元信息格式。每次 Skill 启动时自动调用。
 │           ├── export-to-library.sh
@@ -296,7 +300,7 @@ pm-orchestrator/
 
 | 组件 | 职责 |
 |------|------|
-| `skills/pm-orchestrator/SKILL.md` | 主入口。负责项目选择、状态机、阶段路由、快捷指令、阶段转换和用户确认 |
+| `skills/pm-orchestrator/SKILL.md` | 主入口。负责入口分流、项目恢复、状态机、阶段路由、快捷指令、阶段转换和用户确认 |
 | `agents/requirement-analyst.md` | 需求分析专家。通过逐字段追问产出按写作范式结构化的需求卡片、Epic、Feature |
 | `agents/story-breakdown-analyst.md` | 需求拆解专家。把 Feature 拆成 User Story、GWT 验收标准和溯源矩阵 |
 | `agents/detailed-design-designer.md` | 详细设计专家。产出结构流程、原型、交互契约、规则摘要和 Sprint 规划 |
@@ -308,8 +312,8 @@ pm-orchestrator/
 ## 工作流
 
 1. 用户触发 `pm-orchestrator` skill。
-2. 主调度器先调用 `validate-product-library.sh` 校验 `~/.product-library/` 目录结构，再扫描 `.claude/product-design-projects/`，让用户选择继续或新建项目。
-3. 创建项目记录就是进入需求分析 intake：主调度器先生成项目 ID，调用 `prepare-intake.sh` 创建固定 `docs/background/` intake 目录并读取背景材料；随后读取 `references/requirement-analysis/instruction.md` 的“产品匹配与复用引导”和 `product-library-spec.md`，按需求卡片 → Epic → Feature 递进理解候选产品和用户业务目标，批量核对字段并只问一个最高价值问题；覆盖点、差异点和扩展方式清楚后，收敛项目类型（new / iteration / refactor），再用 `init-project.sh` 补全项目目录并保留背景材料。
+2. 主调度器先用完整命令调用 `validate-product-library.sh` 校验 `~/.product-library/` 目录结构，再根据用户本轮表达分流：提新需求进入需求分析 intake；明确继续、打开、切换或查看项目时才扫描并恢复已有项目。
+3. 需求分析 intake 先生成 pending 项目记录 ID，调用 `prepare-intake.sh` 创建固定 `docs/background/` intake 目录并读取背景材料；随后读取 `references/requirement-analysis/instruction.md` 的“产品匹配与复用引导”和 `product-library-spec.md`，按需求卡片 → Epic → Feature 递进理解候选产品和用户业务目标，批量核对字段并只问一个最高价值问题；覆盖点、差异点和扩展方式清楚后，收敛项目类型（new / iteration / refactor），再用 `init-project.sh` 补全项目目录并保留背景材料。
 4. 项目目录补全后，主调度器读取固定 `docs/background/` 中的背景材料摘要、产品匹配结果和已确认描述，再启动需求分析 agent。
 5. 主调度器读取项目 `progress.json` 和 `phase-summary.md`。
 6. 主调度器根据 `currentPhase` 委派对应 subagent，传递 `productLibraryDocs`、`matchedProductId`、`productLibraryMatch` 等上下文。
@@ -324,7 +328,8 @@ pm-orchestrator/
 
 ### Skill 自身特点
 
-- **主调度器 + 阶段专家分工**：主 skill 负责项目选择、状态恢复、阶段路由和用户确认；需求分析、需求拆解、详细设计分别交给独立 subagent。
+- **主调度器 + 阶段专家分工**：主 skill 负责入口分流、项目恢复、阶段路由和用户确认；需求分析、需求拆解、详细设计分别交给独立 subagent。
+- **产品架构最高原则**：所有阶段反复对照元数据驱动、职责边界清晰、平台化与通用能力三条原则，避免重复建设、职责漂移和场景硬编码。
 - **需求分析 intake 的产品复用判断**：创建项目记录时先生成固定 `docs/background/` intake 目录并读取背景材料；随后按需求卡片 → Epic → Feature 递进解释已有产品，优先寻找可扩展路径，再形成覆盖点、差异点和 `new`、`iteration` 或 `refactor` 的项目类型选择。
 - **跨会话项目记忆**：每个项目维护 `progress.json`、`phase-summary.md`、`facts.json`、`decision-log.md`、`tracking-log.md` 和 `refs.json`，支持中断后恢复上下文。
 - **阶段化产品设计链路**：从需求卡片、Epic、Feature，到 User Story、GWT、溯源矩阵，再到结构流程、原型、交互契约、规则摘要和 Sprint 规划。
@@ -451,7 +456,7 @@ bash skills/pm-orchestrator/scripts/export-doc-index.sh \
 
 ```bash
 bash skills/pm-orchestrator/scripts/validate-product-library.sh \
-  ~/.product-library \
+  "$HOME/.product-library" \
   skills/pm-orchestrator/product-library-spec.md
 ```
 
@@ -482,6 +487,9 @@ python -m pip install markitdown
 
 ## 设计原则
 
+- 以元数据作为资源管理能力的核心驱动，各产品围绕统一资源模型协同工作
+- 各产品及公共能力聚焦自身领域能力，避免重复建设和功能交叉；能力重叠或职责不清时进入架构评审
+- 优先沉淀通用能力、原子能力和可配置能力，避免针对具体业务场景或具体用户问题硬编码
 - 主 skill 只做调度，不替代 subagent 的专业工作
 - 每次只推进一个阶段
 - 草稿先确认，确认后落盘

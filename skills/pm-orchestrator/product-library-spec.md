@@ -176,7 +176,7 @@ lastUpdated: "2026-07-10T14:30:00Z"
 
 ```
 Step 0：前置校验
-  validate-product-library.sh 校验产品库结构 → 通过才继续
+  bash "<skillPath>/scripts/validate-product-library.sh" "$HOME/.product-library" "<skillPath>/product-library-spec.md" → 通过才继续
          ▼
 Step 1：读取全局清单
   读取 ~/.product-library/_manifest.md，获取所有产品元信息
