@@ -130,7 +130,7 @@ description: |
    背景材料统一放在：`<workspace>/.claude/product-design-projects/<project-id>/docs/background/`。
 5. 读取背景材料：请用户把行业背景、调研、竞品、政策、业务流程、现有系统说明等材料放入上述固定目录；也可以直接粘贴少量关键内容，或明确跳过。用户回复后，读取 `docs/background/` 下已有材料，并按“不可信材料处理”规则提取候选事实、来源和待验证点。没有材料时，记录为“无前置背景材料”，继续用用户描述推进。
 6. 形成 intake 输入：把用户描述和背景材料整理成“待确认的需求描述”，覆盖业务问题、目标用户/场景、现状痛点、期望结果、约束边界。请用户确认或修正后，再作为需求分析 intake 的输入。
-7. 在需求分析 intake 中理解已有产品：读取 `references/requirement-analysis/instruction.md` 的“产品匹配与复用引导”小节，并按需读取 `product-library-spec.md`。先用产品库算法形成候选关联产品，再按需求卡片 → Epic → Feature 递进解释已有产品，围绕用户自己的业务目标、场景、角色、数据、规则、流程和验收口径核对覆盖点与差异点。
+7. 在需求分析 intake 中理解已有产品：**主调度器不读取 `instruction.md` 的产品匹配段，不读产品库文档正文**。产品匹配与复用引导由 `requirement-analyst` 完成（见 §5.1 改进 C）。主调度器只负责把 `productLibraryPath`、`productArchitectureDesignPath`、`manifestPath` 传给 analyst，由 analyst 按 `product-library-spec.md` §8 渐进式披露流程执行。
 8. 收敛项目类型：当用户侧事实足够清楚后，由需求分析 intake 汇总“已有产品已覆盖 / 本次新增或变化 / 仍待确认”，并给出项目类型建议供用户确认：
    - `iteration`：已有产品的问题本质和业务闭环成立，本次差异主要是角色、对象、规则、数据源、流程、场景、入口、统计或权限扩展。
    - `refactor`：业务定义沿用已有产品，但现有方案的架构、性能、稳定性、体验或规则实现需要系统性改造。
@@ -183,7 +183,7 @@ description: |
 
 1. 确认用户选择的项目；如果项目来自模糊匹配或自然语言指代，必须先向用户确认。
 2. 用户确认后，读取该项目的 `progress.json` 和 `phase-summary.md`。
-3. 读取 `progress.json.selectedProductLibraryId`、`progress.json.selectedProductLibraryPath` 和 `progress.json.matchedProductId`。先恢复并校验已选产品库，重新读取该产品库的总体架构设计；若 `matchedProductId` 有值，从已选产品库下读取对应产品的 Epic + Feature 作为 `productLibraryDocs`（`refactor` 项目额外读取 User Story）。若无值，不读取产品库文档。
+3. 读取 `progress.json.selectedProductLibraryId`、`progress.json.selectedProductLibraryPath` 和 `progress.json.matchedProductId`。先恢复并校验已选产品库。**主调度器不读产品库文档正文，不读总体架构设计正文**——`iteration`/`refactor` 项目的产品库文档（Epic/Feature/User Story）和总体架构设计由 `requirement-analyst` 在委派后自行读取。主调度器只传路径：`productLibraryDocsPath`（产品库根路径）、`productArchitectureDesignPath`、`manifestPath`。若 `matchedProductId` 有值，传给 analyst 由其按需读取对应产品的 Epic + Feature（`refactor` 项目额外读取 User Story）。若无值，不读取产品库文档。
 4. 委派前必须询问用户是否有新增行业背景、调研、竞品、政策、业务流程、现有系统说明或其他材料需要补充；允许用户放入 `docs/background/`、直接粘贴、上传附件，或明确跳过。
 5. 如果项目 `docs/background/` 下存在用户背景文件，委派前必须全部读取；如果用户本轮提供了新增材料，也必须先读取或整理为候选事实。没有背景文件且用户明确跳过时，继续使用已确认项目上下文，不得阻断分析。
 6. 简要汇报 `projectType`、当前阶段和上次进展。
@@ -210,13 +210,9 @@ upstreamDocs:
   - "<doc-id-or-relative-path>"
 selectedProductLibraryId: "<本轮确认的产品库 ID>"
 selectedProductLibraryPath: "~/.product-library/<selected-product-library-id>"
-productArchitectureDesign:
-  path: "~/.product-library/<selected-product-library-id>/<总体架构设计.md>"
-  summary: "<总体架构设计摘要>"
-  content: "<必要时传递的总体架构设计正文或关键摘录>"
-productLibraryDocs:
-  - path: "~/.product-library/<selected-product-library-id>/<product-id>/..."
-    summary: "<匹配产品的文档摘要>"
+productArchitectureDesignPath: "~/.product-library/<selected-product-library-id>/<总体架构设计.md>"
+productLibraryDocsPath: "~/.product-library/<selected-product-library-id>"
+manifestPath: "~/.product-library/<selected-product-library-id>/_manifest.md"
 matchedProductId: "<关联的已有产品 ID，无匹配时为空>"
 productLibraryMatch: "high | medium | low | none"
 projectBackgroundDocs:

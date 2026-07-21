@@ -313,10 +313,10 @@ pm-orchestrator/
 
 1. 用户触发 `pm-orchestrator` skill。
 2. 主调度器先扫描 `~/.product-library/` 产品库集合，确认本轮产品库，读取该产品库的 `*总体架构设计.md` 作为最高设计标准，再用完整命令调用 `validate-product-library.sh` 校验已选产品库目录结构，然后根据用户本轮表达分流：提新需求进入需求分析 intake；明确继续、打开、切换或查看项目时才扫描并恢复已有项目。
-3. 需求分析 intake 先生成 pending 项目记录 ID，调用 `prepare-intake.sh` 创建固定 `docs/background/` intake 目录并读取背景材料；随后读取 `references/requirement-analysis/instruction.md` 的“产品匹配与复用引导”和 `product-library-spec.md`，按需求卡片 → Epic → Feature 递进理解候选产品和用户业务目标，批量核对字段并只问一个最高价值问题；覆盖点、差异点和扩展方式清楚后，收敛项目类型（new / iteration / refactor），再用 `init-project.sh` 补全项目目录并保留背景材料。
-4. 项目目录补全后，主调度器读取固定 `docs/background/` 中的背景材料摘要、产品匹配结果和已确认描述，再启动需求分析 agent。
+3. 需求分析 intake 先生成 pending 项目记录 ID，调用 `prepare-intake.sh` 创建固定 `docs/background/` intake 目录并读取背景材料；产品匹配与复用引导由 `requirement-analyst` 按 `product-library-spec.md` §8 渐进式披露流程执行（候选导览只读 `_product.md`，用户选定候选后只读该候选需求卡片，早停判断通过才读 Epic），主调度器不读产品库文档正文；收敛项目类型（new / iteration / refactor）后，用 `init-project.sh` 补全项目目录并保留背景材料。
+4. 项目目录补全后，主调度器读取固定 `docs/background/` 中的背景材料摘要和已确认描述，再启动需求分析 agent。
 5. 主调度器读取项目 `progress.json` 和 `phase-summary.md`。
-6. 主调度器根据 `currentPhase` 委派对应 subagent，传递 `productLibraryDocs`、`matchedProductId`、`productLibraryMatch` 等上下文。
+6. 主调度器根据 `currentPhase` 委派对应 subagent，传递 `productLibraryDocsPath`、`productArchitectureDesignPath`、`manifestPath`、`matchedProductId`、`productLibraryMatch` 等路径和标识上下文（不传产品库文档正文）。
 7. Subagent 以 `draft` 模式工作：逐字段追问用户，每轮回答后更新字段 JSON（`docs/_extracted/.fields/fields-*.json`）中的 `qa_log`（Q&A 素材）和最终润色值（按范式写出）。
 8. 所有字段覆盖后，subagent 做范式自检，输出完整落盘预览请求用户确认。
 9. 用户确认后，主调度器以 `persist` 模式要求 subagent 调用 `render-doc.sh` 从字段 JSON 渲染正式 Markdown，并自动运行 `validate-paradigm.sh` 做范式校验。
