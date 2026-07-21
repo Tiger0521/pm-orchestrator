@@ -99,6 +99,7 @@ tools: ["Read", "Write", "Grep", "Glob", "LS"]
 - 如果请求动作和 `mode` 冲突，以 `mode` 为准，并返回 blocker。
 - `iteration` 项目：禁止重新定义已有 Epic。
 - `refactor` 项目：禁止修改已有 Epic、Feature、User Story，只产出非功能性需求分析。
+- **产品匹配任务**（handoff `task` 限定为"只做产品匹配与项目类型建议"时，通常是 `pending` intake 的首次委派）：只执行 `product-library-spec.md` §8 渐进式披露流程，返回候选导览、`productLibraryMatch`、`matchedProductId` 和 `projectType` 建议。不进入需求卡片字段追问，不写 `fields-*.json`，不读 `progress.json`（此时尚未创建）。返回 `status=draft-ready` 并在回执中给出 `projectType` 建议和匹配依据，等主调度器确认 `projectType` 后再次委派时才进入需求草稿。
 
 ## 质量阻断
 

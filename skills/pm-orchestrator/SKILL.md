@@ -68,7 +68,7 @@ description: |
    - 用户提出一个新的业务目标、系统设想、需求方向或“我要做……”时，进入**创建项目记录与需求分析 intake**。此时即使工作区已有未完成项目，也先把它们作为运行态背景，由 intake 判断是否同一需求、是否复用已有产品。
    - 用户表达模糊、既可能续旧项目又可能提出新需求时，先用一句话澄清“继续某个已有项目，还是开始一个新的需求分析 intake”，选项文案使用“开始需求分析 intake / 继续已有项目”，把 `new` 留到产品匹配后的项目类型确认环节。
 6. 扫描工作区下的 `.claude/product-design-projects/` 目录，只用于恢复旧项目、识别同名/近似 intake、或生成不冲突的项目记录 ID；扫描结果不改变入口分流判断。
-7. 若用户进入需求分析 intake，先完成背景材料读取、产品库候选理解和复用引导，再收敛 `projectType=new | iteration | refactor`。
+7. 若用户进入需求分析 intake，按 intake 内部步骤顺序执行（收集初始描述 -> 处理已有 intake -> 生成项目 ID -> 准备背景目录 -> 读取背景材料 -> 形成 intake 输入 -> 委派产品匹配 -> 收敛 projectType）。intake 1-6 步完成前不得委派产品匹配，不得自行判定 `projectType=new | iteration | refactor`。
 8. 只有用户确认继续某个已有项目，或 intake 完成项目类型确认并补全项目目录后，才更新工作区 `.claude/product-design-projects/current-project.json`。
 
 入口分流和 intake 追问以普通对话文字呈现即可：先说明当前判断，再给出少量可选回答和“补充描述”。如果结构化选择工具不可用或参数失败，继续用文字问题推进当前流程，不改变入口类型。
@@ -130,12 +130,12 @@ description: |
    背景材料统一放在：`<workspace>/.claude/product-design-projects/<project-id>/docs/background/`。
 5. 读取背景材料：请用户把行业背景、调研、竞品、政策、业务流程、现有系统说明等材料放入上述固定目录；也可以直接粘贴少量关键内容，或明确跳过。用户回复后，读取 `docs/background/` 下已有材料，并按“不可信材料处理”规则提取候选事实、来源和待验证点。没有材料时，记录为“无前置背景材料”，继续用用户描述推进。
 6. 形成 intake 输入：把用户描述和背景材料整理成“待确认的需求描述”，覆盖业务问题、目标用户/场景、现状痛点、期望结果、约束边界。请用户确认或修正后，再作为需求分析 intake 的输入。
-7. 在需求分析 intake 中理解已有产品：**主调度器不读取 `instruction.md` 的产品匹配段，不读产品库文档正文**。产品匹配与复用引导由 `requirement-analyst` 完成（见 §5.1 改进 C）。主调度器只负责把 `productLibraryPath`、`productArchitectureDesignPath`、`manifestPath` 传给 analyst，由 analyst 按 `product-library-spec.md` §8 渐进式披露流程执行。
-8. 收敛项目类型：当用户侧事实足够清楚后，由需求分析 intake 汇总“已有产品已覆盖 / 本次新增或变化 / 仍待确认”，并给出项目类型建议供用户确认：
+7. 委派产品匹配：**前置条件：intake 第 1-6 步必须已全部完成**（已收集项目名称和初始描述、已处理已有 intake、已生成项目 ID、已创建背景目录、已读取背景材料、已形成经用户确认的"待确认的需求描述"）。前置条件未满足时，不得委派 analyst，继续完成 1-6 步。前置条件满足后，主调度器以 `mode=draft` 委派 `requirement-analyst`，在 handoff 的 `task` 中明确"本轮只做产品匹配与项目类型建议，不进入需求卡片字段追问、不写 fields JSON"。主调度器传 `productLibraryDocsPath`、`productArchitectureDesignPath`、`manifestPath`、`selectedProductLibraryId`、`selectedProductLibraryPath` 和已收集的背景摘要。analyst 按 `product-library-spec.md` §8 渐进式披露流程执行（候选导览只读 `_product.md`，用户选定候选后读卡片，早停判断通过才读 Epic），返回候选导览、匹配度（`productLibraryMatch`）、`matchedProductId` 和 `projectType` 建议。主调度器不读产品库文档正文，不读 `instruction.md` 产品匹配段。analyst 返回前，主调度器不得自行判定 `projectType`。
+8. 收敛项目类型：analyst 返回 `projectType` 建议后，主调度器把建议展示给用户确认；这是对 analyst 建议的确认，不是主调度器自行判定。确认规则：
    - `iteration`：已有产品的问题本质和业务闭环成立，本次差异主要是角色、对象、规则、数据源、流程、场景、入口、统计或权限扩展。
    - `refactor`：业务定义沿用已有产品，但现有方案的架构、性能、稳定性、体验或规则实现需要系统性改造。
    - `new`：业务目标、用户链路、核心对象或价值主张无法合理挂接到已有产品。
-   - 候选产品为 none 时，建议项目类型为 `new`，等待用户确认，并保留产品库无匹配的结论。
+   - 候选产品为 none 时，analyst 应建议 `new`，主调度器展示并等待用户确认，并保留产品库无匹配的结论。
 9. 用 `project-template/` 骨架补全项目目录。**不要逐个 Write 记忆文件**，
    改为一次性调用 `scripts/init-project.sh`：它会识别 `prepare-intake.sh` 创建的 intake 目录，合并项目模板并保留 `docs/background/` 中已有材料：
 
@@ -177,7 +177,7 @@ description: |
    `currentPhase=requirement-analysis` 及各阶段 `startedAt`/`lastUpdated` 时间戳。
    主调度器无需再单独写入这些字段。脚本返回非 0 时按其错误信息修正后重试，不要
    回退到逐个 Write。
-12. 项目目录补全后，读取 `docs/background/` 中的背景材料摘要、产品匹配结果和已确认描述，再以 `mode=draft` 委派 `requirement-analyst`。
+12. 项目目录补全后，以 `mode=draft` 委派 `requirement-analyst` 执行需求卡片草稿。产品匹配已在第 7 步完成，analyst 读 `progress.json` 恢复 `matchedProductId`、`productLibraryMatch` 等结果，从需求卡片字段追问开始，不重复产品匹配。读取 `docs/background/` 中的背景材料摘要和已确认描述作为草稿输入。
 
 ### 继续项目流程
 
