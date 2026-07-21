@@ -68,13 +68,13 @@ Then [期望结果]
 6. **优先级排序**：标注 Story 优先级，给出 Story Points 估算建议
 7. **生成溯源矩阵**：建立 Story 与 Feature 的追溯关系
 8. **用户确认**：用户确认后落盘到项目目录
-9. **更新记忆**：更新项目记忆文件（但 **不包括** `progress.json.currentPhase`，阶段转换由主调度器控制）
+9. **更新记忆**：更新项目记忆文件（但 **不包括** `progress.json` 的 `workflow.state`，阶段转换由主调度器控制）
    - `refs.json`：注册所有新文档节点和引用边
    - `facts.json`：记录已确认事实
    - `decision-log.md`：记录拆分决策
    - `tracking-log.md`：记录新发现的风险/假设/未决问题
    - `phase-summary.md`：追加本阶段摘要
-   - `progress.json`：仅更新当前阶段和顶层 `lastUpdated`，**不得修改 currentPhase、顶层 status 或阶段转换字段**；文档节点统一记录在 `refs.json`
+   - `progress.json`：仅更新当前阶段和顶层 `lastUpdated`，**不得修改 workflow.state、顶层 status 或阶段转换字段**；文档节点统一记录在 `refs.json`
 
 ---
 

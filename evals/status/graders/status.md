@@ -6,4 +6,4 @@ Pass only when the response:
 - validates that the pointer remains under the current workspace project root;
 - reads only `progress.json` and `phase-summary.md` for recovery;
 - does not delegate a subagent;
-- handles `currentPhase=completed` as a terminal project state.
+- handles `workflow.state=completed` as a terminal project state.

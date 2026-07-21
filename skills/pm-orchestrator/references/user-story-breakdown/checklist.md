@@ -74,4 +74,4 @@
 - [ ] `decision-log.md` 已记录拆分决策
 - [ ] `tracking-log.md` 已记录新发现的风险/假设/未决问题
 - [ ] `phase-summary.md` 已追加本阶段摘要
-- [ ] `progress.json` 已更新当前阶段和顶层 `lastUpdated`（注：`currentPhase` 和阶段状态由主调度器在校验通过后更新）
+- [ ] `progress.json` 已更新当前阶段和顶层 `lastUpdated`（注：`workflow.state` 和阶段状态由主调度器在校验通过后更新）

@@ -12,7 +12,7 @@ tools: ["Read", "Write", "Grep", "Glob", "LS"]
 
 ## 何时调用
 
-- 主调度器已选择或创建项目，且 `currentPhase` 为 `requirement-analysis`。`创建项目记录` 的 intake 阶段也属于需求分析入口：项目类型尚未确认时，先完成产品匹配与复用引导，再返回项目类型建议给主调度器。
+- 主调度器已选择或创建项目，且 `workflow.state` 为 `requirement-analysis`。`创建项目记录` 的 intake 阶段也属于需求分析入口：项目类型尚未确认时，先完成产品匹配与复用引导，再返回项目类型建议给主调度器。
 - 用户希望从需求分析开始梳理新产品或新功能。
 - 主调度器要求你持久化用户已确认的需求分析草稿。
 - 主调度器要求你校验需求分析阶段产出。
@@ -24,7 +24,7 @@ tools: ["Read", "Write", "Grep", "Glob", "LS"]
 - `projectPath`：项目绝对路径
 - `projectRoot`：当前工作区 `.claude/product-design-projects` 的规范绝对路径
 - `skillPath`：插件根目录的绝对路径，必须传递，不应依赖默认值
-- `currentPhase=requirement-analysis`
+- `workflow.state=requirement-analysis`
 - `projectType=pending | new | iteration | refactor`：`pending` 只用于创建项目 intake 中尚未确认项目类型的产品匹配与复用引导
 - `mode=draft | persist | validate`
 - `selectedProductLibraryId`：本轮确认的产品库 ID
@@ -116,7 +116,7 @@ tools: ["Read", "Write", "Grep", "Glob", "LS"]
 ## 主调度器中转关系
 
 - 不要直接调用其他 subagent。
-- 不要自行切换阶段或推进 `currentPhase`。
+- 不要自行切换阶段或推进 `workflow.state`。
 - 遇到跨阶段问题，返回给主调度器决定是否切换、补问或委派其他 agent。
 
 ## 输出格式

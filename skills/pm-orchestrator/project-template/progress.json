@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "projectId": "{{PROJECT_ID}}",
   "projectName": "{{PROJECT_NAME}}",
   "projectType": "{{PROJECT_TYPE}}",
@@ -9,7 +9,11 @@
   "productLibraryMatch": "{{PRODUCT_LIBRARY_MATCH}}",
   "description": "{{DESCRIPTION}}",
   "status": "active",
-  "currentPhase": "requirement-analysis",
+  "workflow": {
+    "state": "requirement-analysis",
+    "revision": 1,
+    "updatedAt": "{{TIMESTAMP}}"
+  },
   "phases": {
     "requirement-analysis": {
       "status": "in_progress",

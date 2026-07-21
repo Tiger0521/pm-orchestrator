@@ -166,7 +166,7 @@ pm-orchestrator/
 │       │
 │       ├── project-template/
 │       │   ├── progress.json
-│       │   │   # 新项目进度模板：记录 projectId、projectType、currentPhase、各阶段状态和更新时间。
+│       │   │   # 新项目进度模板：记录 projectId、projectType、workflow.state、各阶段状态和更新时间。
 │       │   ├── refs.json
 │       │   │   # 文档引用图谱模板：记录文档节点和 derived-from/belongs-to 等引用边。
 │       │   ├── facts.json
@@ -316,11 +316,11 @@ pm-orchestrator/
 3. 需求分析 intake 先生成 pending 项目记录 ID，调用 `prepare-intake.sh` 创建固定 `docs/background/` intake 目录并读取背景材料；产品匹配与复用引导由 `requirement-analyst` 按 `product-library-spec.md` §8 渐进式披露流程执行（候选导览只读 `_product.md`，用户选定候选后只读该候选需求卡片，早停判断通过才读 Epic），主调度器不读产品库文档正文；收敛项目类型（new / iteration / refactor）后，用 `init-project.sh` 补全项目目录并保留背景材料。
 4. 项目目录补全后，主调度器读取固定 `docs/background/` 中的背景材料摘要和已确认描述，再启动需求分析 agent。
 5. 主调度器读取项目 `progress.json` 和 `phase-summary.md`。
-6. 主调度器根据 `currentPhase` 委派对应 subagent，传递 `productLibraryDocsPath`、`productArchitectureDesignPath`、`manifestPath`、`matchedProductId`、`productLibraryMatch` 等路径和标识上下文（不传产品库文档正文）。
+6. 主调度器根据 `workflow.state` 委派对应 subagent，传递 `productLibraryDocsPath`、`productArchitectureDesignPath`、`manifestPath`、`matchedProductId`、`productLibraryMatch` 等路径和标识上下文（不传产品库文档正文）。
 7. Subagent 以 `draft` 模式工作：逐字段追问用户，每轮回答后更新字段 JSON（`docs/_extracted/.fields/fields-*.json`）中的 `qa_log`（Q&A 素材）和最终润色值（按范式写出）。
 8. 所有字段覆盖后，subagent 做范式自检，输出完整落盘预览请求用户确认。
 9. 用户确认后，主调度器以 `persist` 模式要求 subagent 调用 `render-doc.sh` 从字段 JSON 渲染正式 Markdown，并自动运行 `validate-paradigm.sh` 做范式校验。
-10. 阶段完成时，主调度器读取 checklist，运行校验脚本，再推进 `currentPhase`。`iteration`/`refactor` 项目额外校验已有产物是否被修改。
+10. 阶段完成时，主调度器读取 checklist，运行校验脚本，再推进 `workflow.state`。`iteration`/`refactor` 项目额外校验已有产物是否被修改。
 
 ## Skill 特点
 
@@ -384,7 +384,7 @@ pm-orchestrator/
 
 ## 阶段路由
 
-| currentPhase | Subagent | Reference | 主要产出 |
+| workflow.state | Subagent | Reference | 主要产出 |
 |--------------|----------|-----------|----------|
 | `requirement-analysis` | `requirement-analyst` | `references/requirement-analysis/` | 需求卡片、Epic、Feature |
 | `user-story-breakdown` | `story-breakdown-analyst` | `references/user-story-breakdown/` | User Story、GWT、溯源矩阵 |
@@ -396,7 +396,7 @@ pm-orchestrator/
 
 | 文件 | 作用 |
 |------|------|
-| `progress.json` | 项目名片与状态：项目 ID、名称、类型、已选产品库（`selectedProductLibraryId` / `selectedProductLibraryPath`）、匹配产品 ID（`matchedProductId`）、产品匹配度（`productLibraryMatch`）、短描述、当前阶段、阶段状态、时间戳 |
+| `progress.json` | 项目名片与状态：项目 ID、名称、类型、已选产品库（`selectedProductLibraryId` / `selectedProductLibraryPath`）、匹配产品 ID（`matchedProductId`）、产品匹配度（`productLibraryMatch`）、短描述、`workflow.state`（当前状态）、`schemaVersion`、阶段状态、时间戳。intake 额外含 `intake.*` 子对象 |
 | `refs.json` | 文档节点索引和引用关系图谱 |
 | `facts.json` | 已确认结构化事实（每条标注来源类型） |
 | `decision-log.md` | 决策结论、理由、被否定的备选方案 |

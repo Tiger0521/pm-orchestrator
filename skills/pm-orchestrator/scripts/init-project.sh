@@ -172,10 +172,15 @@ esc_library_path=$(json_escape "$selected_product_library_path")
 esc_matched=$(json_escape "$matched_product_id")
 esc_match=$(json_escape "$product_library_match")
 
+# 如果是 intake 模式，备份 intake progress.json（保留 intake 审计数据）
+if [ "$intake_mode" -eq 1 ] && [ -f "$target_dir/progress.json" ]; then
+  cp "$target_dir/progress.json" "$target_dir/progress.intake.json"
+fi
+
 # 用 printf %s 填充 JSON：format 串用单引号保持字面，值作为参数在双引号内安全展开。
 # 不用参数扩展替换，规避 Git Bash 把 & 当匹配引用的行为。
 printf '{
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "projectId": "%s",
   "projectName": "%s",
   "projectType": "%s",
@@ -185,7 +190,11 @@ printf '{
   "productLibraryMatch": "%s",
   "description": "%s",
   "status": "active",
-  "currentPhase": "requirement-analysis",
+  "workflow": {
+    "state": "requirement-analysis",
+    "revision": 1,
+    "updatedAt": "%s"
+  },
   "phases": {
     "requirement-analysis": {
       "status": "in_progress",
@@ -208,7 +217,7 @@ printf '{
   },
   "lastUpdated": "%s"
 }
-' "$project_id" "$esc_name" "$project_type" "$esc_library_id" "$esc_library_path" "$esc_matched" "$esc_match" "$esc_desc" "$ts" "$ts" "$ts" > "$target_dir/progress.json"
+' "$project_id" "$esc_name" "$project_type" "$esc_library_id" "$esc_library_path" "$esc_matched" "$esc_match" "$esc_desc" "$ts" "$ts" "$ts" "$ts" > "$target_dir/progress.json"
 
 printf '{
   "projectId": "%s",

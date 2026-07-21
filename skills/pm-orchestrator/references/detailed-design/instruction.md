@@ -73,13 +73,13 @@
 5. **汇总规则**：输出规则摘要
 6. **Sprint 分解**：按优先级 + 依赖分配 Story
 7. **用户确认**：用户确认后落盘到项目目录
-8. **更新记忆**：更新项目记忆文件（但 **不包括** `progress.json.currentPhase`，阶段转换由主调度器控制）
+8. **更新记忆**：更新项目记忆文件（但 **不包括** `progress.json` 的 `workflow.state`，阶段转换由主调度器控制）
    - `refs.json`：注册所有新文档节点和引用边
    - `facts.json`：记录已确认事实
    - `decision-log.md`：记录设计决策
    - `tracking-log.md`：记录新发现的风险/假设/未决问题
    - `phase-summary.md`：追加本阶段摘要
-   - `progress.json`：仅更新当前阶段和顶层 `lastUpdated`，**不得修改 currentPhase、顶层 status 或阶段转换字段**；文档节点统一记录在 `refs.json`
+   - `progress.json`：仅更新当前阶段和顶层 `lastUpdated`，**不得修改 workflow.state、顶层 status 或阶段转换字段**；文档节点统一记录在 `refs.json`
 
 ---
 

@@ -12,7 +12,7 @@ tools: ["Read", "Write", "Grep", "Glob", "LS"]
 
 ## 何时调用
 
-- 主调度器已选择项目，且 `currentPhase` 为 `user-story-breakdown`。
+- 主调度器已选择项目，且 `workflow.state` 为 `user-story-breakdown`。
 - 用户已有确认过的 Feature/Epic，并希望拆成 User Story。
 - 主调度器要求你持久化用户已确认的 Story 和溯源草稿。
 - 主调度器要求你校验需求拆解阶段产出。
@@ -24,7 +24,7 @@ tools: ["Read", "Write", "Grep", "Glob", "LS"]
 - `projectPath`（项目绝对路径）
 - `projectRoot`（当前工作区 `.claude/product-design-projects` 的规范绝对路径）
 - `skillPath`（插件根目录的绝对路径，必须传递，不应依赖默认值）
-- `currentPhase=user-story-breakdown`
+- `workflow.state=user-story-breakdown`
 - `mode=draft | persist | validate`
 - `selectedProductLibraryId`：本轮确认的产品库 ID
 - `selectedProductLibraryPath`：本轮确认的产品库目录
@@ -92,7 +92,7 @@ tools: ["Read", "Write", "Grep", "Glob", "LS"]
 ## 主调度器中转关系
 
 - 不要直接调用其他 subagent。
-- 不要自行切换阶段或推进 `currentPhase`。
+- 不要自行切换阶段或推进 `workflow.state`。
 - 遇到跨阶段问题，返回给主调度器决定是否切换、补问或委派其他 agent。
 
 ## 输出格式

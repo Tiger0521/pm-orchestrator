@@ -220,4 +220,4 @@
 - [ ] `tracking-log.md` 已记录未验证假设、风险、未决问题
 - [ ] `phase-summary.md` 已追加本阶段摘要
 - [ ] `progress.json` 已更新当前阶段和顶层 `lastUpdated`；文档节点统一记录在 `refs.json`
-- [ ] `progress.json.currentPhase` 未被 subagent 修改
+- [ ] `progress.json` 的 `workflow.state` 未被 subagent 修改

@@ -12,7 +12,7 @@ tools: ["Read", "Write", "Grep", "Glob", "LS"]
 
 ## 何时调用
 
-- 主调度器已选择项目，且 `currentPhase` 为 `detailed-design`。
+- 主调度器已选择项目，且 `workflow.state` 为 `detailed-design`。
 - 用户已有确认过的 User Story，并希望生成详细设计产物。
 - 主调度器要求你持久化用户已确认的设计或执行草稿。
 - 主调度器要求你校验详细设计阶段产出。
@@ -24,7 +24,7 @@ tools: ["Read", "Write", "Grep", "Glob", "LS"]
 - `projectPath`（项目绝对路径）
 - `projectRoot`（当前工作区 `.claude/product-design-projects` 的规范绝对路径）
 - `skillPath`（插件根目录的绝对路径，必须传递，不应依赖默认值）
-- `currentPhase=detailed-design`
+- `workflow.state=detailed-design`
 - `mode=draft | persist | validate`
 - `selectedProductLibraryId`：本轮确认的产品库 ID
 - `selectedProductLibraryPath`：本轮确认的产品库目录
@@ -92,7 +92,7 @@ tools: ["Read", "Write", "Grep", "Glob", "LS"]
 ## 主调度器中转关系
 
 - 不要直接调用其他 subagent。
-- 不要自行切换阶段或推进 `currentPhase`。
+- 不要自行切换阶段或推进 `workflow.state`。
 - 遇到跨阶段问题，返回给主调度器决定是否切换、补问或委派其他 agent。
 
 ## 输出格式
