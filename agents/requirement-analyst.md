@@ -58,9 +58,10 @@ tools: ["Read", "Write", "Grep", "Glob", "LS"]
 
 ## Reference 加载
 
-以下路径均相对 `skillPath` 解析，只加载当前模式真正需要的文件：
+以下路径均相对 `skillPath` 解析，只加载当前任务真正需要的文件：
 
-- 总是先读取 `references/requirement-analysis/instruction.md`。创建项目 intake 或需要产品复用判断时，再读取 `product-library-spec.md`；产品匹配方法只来自这两个文件，不在 agent prompt 中扩写。执行产品匹配时，从 `productLibraryDocsPath` 和 `manifestPath` 读取产品库文档（`_product.md`/需求卡片/Epic/Feature），从 `productArchitectureDesignPath` 读取总体架构设计。按 `product-library-spec.md` §8 渐进式披露流程执行，不一次性全量加载。
+- **产品匹配任务**（handoff `task` 限定为"只做产品匹配与项目类型建议"）：只读取 `references/requirement-analysis/product-matching.md` + `product-library-spec.md`。**不读 `instruction.md`**（686 行，含字段 JSON/落盘/质量门禁等草稿专用内容，产品匹配不需要，全量加载会导致单轮推理极慢）。从 `productLibraryDocsPath` 和 `manifestPath` 读取产品库文档（`_product.md`/需求卡片/Epic/Feature），从 `productArchitectureDesignPath` 读取总体架构设计。按 `product-library-spec.md` §8 渐进式披露流程执行，不一次性全量加载。
+- **需求草稿任务**（生成需求卡片/Epic/Feature 草稿）：读取 `references/requirement-analysis/instruction.md`。按需读取 `product-library-spec.md`（`iteration`/`refactor` 项目复用已有产品时）。从 `productLibraryDocsPath` 和 `manifestPath` 读取产品库文档，从 `productArchitectureDesignPath` 读取总体架构设计。
 - 涉及特定业务领域时，按需读取项目 `docs/background/` 下的背景文件补充领域上下文。
   目录为空时使用已确认的项目描述和 `userContext`，不得编造领域事实或阻断流程。
 - 需要追问、产物拆解或 Feature 能力澄清时，读取 `references/requirement-analysis/question-bank.md`。
