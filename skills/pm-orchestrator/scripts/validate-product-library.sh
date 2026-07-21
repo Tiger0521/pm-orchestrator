@@ -2,12 +2,12 @@
 #
 # validate-product-library.sh
 #
-# Validates the structure of a global product library directory.
+# Validates the structure of a selected product library directory.
 #
 # Usage:
 #   bash validate-product-library.sh [library_path] [spec_file]
 #
-#   library_path : Optional. Path to the product library (default: $HOME/.product-library)
+#   library_path : Optional. Path to the selected product library (default: $HOME/.product-library/network-resource-center-product-library)
 #   spec_file    : Optional. Path to product-library-spec.md (default: ../product-library-spec.md)
 #
 # Cross-platform: Windows Git Bash / macOS / Linux.
@@ -245,6 +245,39 @@ detect_empty_products_array() {
   return 1
 }
 
+
+# ---------------------------------------------------------------------------
+# Check 2b: exactly one architecture design markdown exists at library root
+# ---------------------------------------------------------------------------
+check_architecture_design() {
+  section "Check 2b: architecture design document"
+
+  local count=0
+  local found=""
+  local f base
+  while IFS= read -r -d '' f; do
+    base=$(basename "$f")
+    count=$((count + 1))
+    found="$found$base
+"
+  done < <(find "$LIBRARY_PATH" -maxdepth 1 -type f -name '*总体架构设计.md' -print0 2>/dev/null)
+
+  if [[ "$count" -eq 0 ]]; then
+    fail "architecture design document not found at library root (expected *总体架构设计.md)"
+    ISSUES+=("architecture design document not found at library root: $LIBRARY_PATH")
+    return 1
+  fi
+
+  if [[ "$count" -gt 1 ]]; then
+    fail "multiple architecture design documents found at library root; keep exactly one *总体架构设计.md"
+    printf '%s' "$found" | sed '/^$/d' | while IFS= read -r name; do note "architecture design candidate: $name"; done
+    ISSUES+=("multiple architecture design documents found at library root: $LIBRARY_PATH")
+    return 1
+  fi
+
+  pass "architecture design document exists: $(printf '%s' "$found" | sed '/^$/d')"
+  return 0
+}
 # ---------------------------------------------------------------------------
 # Check 3: identify product folders by name regex
 # ---------------------------------------------------------------------------
@@ -390,7 +423,7 @@ usage() {
 Usage: bash validate-product-library.sh [library_path] [spec_file]
 
 Arguments:
-  library_path  Optional. Path to the product library (default: $HOME/.product-library)
+  library_path  Optional. Path to the selected product library (default: $HOME/.product-library/network-resource-center-product-library)
   spec_file     Optional. Path to product-library-spec.md (default: ../product-library-spec.md)
 
 Exit codes:
@@ -409,7 +442,7 @@ main() {
   local script_dir
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 
-  LIBRARY_PATH="${1:-$HOME/.product-library}"
+  LIBRARY_PATH="${1:-$HOME/.product-library/network-resource-center-product-library}"
   SPEC_FILE="${2:-$script_dir/../product-library-spec.md}"
 
   printf 'Validating product library:\n'
@@ -439,6 +472,9 @@ main() {
 
   # Check 2: manifest.
   check_manifest
+
+  # Check 2b: architecture design document.
+  check_architecture_design
 
   # Checks 3-8: product folders.
   scan_products

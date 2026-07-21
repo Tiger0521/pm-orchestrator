@@ -394,10 +394,24 @@ fi
 
 # ---- iteration/refactor: 校验已有产物未被修改 ----
 project_type=$(json_string_value "$progress_path" "projectType")
+selected_product_library_path=$(json_string_value "$progress_path" "selectedProductLibraryPath")
+selected_product_library_id=$(json_string_value "$progress_path" "selectedProductLibraryId")
 matched_product_id=$(json_string_value "$progress_path" "matchedProductId")
 
 if [ -n "$matched_product_id" ] && [ "$project_type" != "new" ]; then
-  product_lib="$HOME/.product-library/$matched_product_id"
+  if [ -z "$selected_product_library_path" ] && [ -n "$selected_product_library_id" ]; then
+    selected_product_library_path="$HOME/.product-library/$selected_product_library_id"
+  fi
+  if [ -z "$selected_product_library_path" ]; then
+    add_issue "[progress.json] matchedProductId requires selectedProductLibraryPath or selectedProductLibraryId"
+    product_lib=""
+  else
+    product_lib="$selected_product_library_path/$matched_product_id"
+  fi
+
+  if [ -n "$product_lib" ] && [ ! -d "$product_lib" ]; then
+    add_issue "[progress.json] matched product not found in selected product library: $product_lib"
+  fi
 
   if [ -d "$product_lib" ]; then
     check_pairs=""

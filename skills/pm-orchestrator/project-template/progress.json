@@ -3,6 +3,8 @@
   "projectId": "{{PROJECT_ID}}",
   "projectName": "{{PROJECT_NAME}}",
   "projectType": "{{PROJECT_TYPE}}",
+  "selectedProductLibraryId": "{{SELECTED_PRODUCT_LIBRARY_ID}}",
+  "selectedProductLibraryPath": "{{SELECTED_PRODUCT_LIBRARY_PATH}}",
   "matchedProductId": "{{MATCHED_PRODUCT_ID}}",
   "productLibraryMatch": "{{PRODUCT_LIBRARY_MATCH}}",
   "description": "{{DESCRIPTION}}",

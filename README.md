@@ -162,7 +162,7 @@ pm-orchestrator/
 │       │   # 主调度 skill 入口：处理入口分流/项目记录创建/恢复、阶段路由、用户确认、快捷指令和阶段转换。
 │       │
 │       ├── product-library-spec.md
-│       │   # 产品库规范：定义全局产品库目录结构、命名规则、元信息格式和产品匹配算法（6 维度语义比对 + 加权评分 + 部分匹配修正）。
+│       │   # 产品库规范：定义产品库集合、单个产品库目录结构、命名规则、元信息格式、总体架构设计文档和产品匹配算法（6 维度语义比对 + 加权评分 + 部分匹配修正）。
 │       │
 │       ├── project-template/
 │       │   ├── progress.json
@@ -280,7 +280,7 @@ pm-orchestrator/
 │           ├── init-product-library.sh
 │           │   # 产品库初始化脚本：支持从远程仓库克隆、从本地目录复制或全新创建空产品库。产品库不存在时由主调度器引导调用。
 │           ├── validate-product-library.sh
-│           │   # 产品库结构校验脚本：校验 ~/.product-library/ 目录结构、命名规则和元信息格式。每次 Skill 启动时自动调用。
+│           │   # 产品库结构校验脚本：校验已选产品库目录结构、命名规则、元信息格式和唯一总体架构设计文档。每次 Skill 启动时自动调用。
 │           ├── export-to-library.sh
 │           │   # 产品库导出脚本：将已完成项目的正式产物复制到产品库对应目录，并更新 _product.md 元信息。项目完成后手动执行。
 │           ├── convert-document.py
@@ -312,7 +312,7 @@ pm-orchestrator/
 ## 工作流
 
 1. 用户触发 `pm-orchestrator` skill。
-2. 主调度器先用完整命令调用 `validate-product-library.sh` 校验 `~/.product-library/` 目录结构，再根据用户本轮表达分流：提新需求进入需求分析 intake；明确继续、打开、切换或查看项目时才扫描并恢复已有项目。
+2. 主调度器先扫描 `~/.product-library/` 产品库集合，确认本轮产品库，读取该产品库的 `*总体架构设计.md` 作为最高设计标准，再用完整命令调用 `validate-product-library.sh` 校验已选产品库目录结构，然后根据用户本轮表达分流：提新需求进入需求分析 intake；明确继续、打开、切换或查看项目时才扫描并恢复已有项目。
 3. 需求分析 intake 先生成 pending 项目记录 ID，调用 `prepare-intake.sh` 创建固定 `docs/background/` intake 目录并读取背景材料；随后读取 `references/requirement-analysis/instruction.md` 的“产品匹配与复用引导”和 `product-library-spec.md`，按需求卡片 → Epic → Feature 递进理解候选产品和用户业务目标，批量核对字段并只问一个最高价值问题；覆盖点、差异点和扩展方式清楚后，收敛项目类型（new / iteration / refactor），再用 `init-project.sh` 补全项目目录并保留背景材料。
 4. 项目目录补全后，主调度器读取固定 `docs/background/` 中的背景材料摘要、产品匹配结果和已确认描述，再启动需求分析 agent。
 5. 主调度器读取项目 `progress.json` 和 `phase-summary.md`。
@@ -329,7 +329,7 @@ pm-orchestrator/
 ### Skill 自身特点
 
 - **主调度器 + 阶段专家分工**：主 skill 负责入口分流、项目恢复、阶段路由和用户确认；需求分析、需求拆解、详细设计分别交给独立 subagent。
-- **产品架构最高原则**：所有阶段反复对照元数据驱动、职责边界清晰、平台化与通用能力三条原则，避免重复建设、职责漂移和场景硬编码。
+- **产品库总体架构设计**：所有阶段反复对照已选产品库的 `*总体架构设计.md`，避免偏离该产品库的产品定位、能力边界、数据口径、复用方式和演进方向。
 - **需求分析 intake 的产品复用判断**：创建项目记录时先生成固定 `docs/background/` intake 目录并读取背景材料；随后按需求卡片 → Epic → Feature 递进解释已有产品，优先寻找可扩展路径，再形成覆盖点、差异点和 `new`、`iteration` 或 `refactor` 的项目类型选择。
 - **跨会话项目记忆**：每个项目维护 `progress.json`、`phase-summary.md`、`facts.json`、`decision-log.md`、`tracking-log.md` 和 `refs.json`，支持中断后恢复上下文。
 - **阶段化产品设计链路**：从需求卡片、Epic、Feature，到 User Story、GWT、溯源矩阵，再到结构流程、原型、交互契约、规则摘要和 Sprint 规划。
@@ -396,7 +396,7 @@ pm-orchestrator/
 
 | 文件 | 作用 |
 |------|------|
-| `progress.json` | 项目名片与状态：项目 ID、名称、类型、匹配产品 ID（`matchedProductId`）、产品匹配度（`productLibraryMatch`）、短描述、当前阶段、阶段状态、时间戳 |
+| `progress.json` | 项目名片与状态：项目 ID、名称、类型、已选产品库（`selectedProductLibraryId` / `selectedProductLibraryPath`）、匹配产品 ID（`matchedProductId`）、产品匹配度（`productLibraryMatch`）、短描述、当前阶段、阶段状态、时间戳 |
 | `refs.json` | 文档节点索引和引用关系图谱 |
 | `facts.json` | 已确认结构化事实（每条标注来源类型） |
 | `decision-log.md` | 决策结论、理由、被否定的备选方案 |
@@ -456,7 +456,7 @@ bash skills/pm-orchestrator/scripts/export-doc-index.sh \
 
 ```bash
 bash skills/pm-orchestrator/scripts/validate-product-library.sh \
-  "$HOME/.product-library" \
+  "$HOME/.product-library/network-resource-center-product-library" \
   skills/pm-orchestrator/product-library-spec.md
 ```
 
@@ -465,7 +465,7 @@ bash skills/pm-orchestrator/scripts/validate-product-library.sh \
 ```bash
 bash skills/pm-orchestrator/scripts/export-to-library.sh \
   "<项目目录>" \
-  "~/.product-library/<product-id>" \
+  "~/.product-library/<product-library-id>/<product-id>" \
   "<skillPath>"
 ```
 

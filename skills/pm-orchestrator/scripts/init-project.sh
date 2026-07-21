@@ -17,12 +17,14 @@
 #   docs/background/ 下用户已放入的背景材料，并合并项目模板。
 #
 # 用法：
-#   bash init-project.sh <project_id> <project_name> <description> <project_type> <matched_product_id> <product_library_match> <template_dir> <target_dir>
+#   bash init-project.sh <project_id> <project_name> <description> <project_type> <selected_product_library_id> <selected_product_library_path> <matched_product_id> <product_library_match> <template_dir> <target_dir>
 #
 #   project_id            : 匹配 ^[a-z0-9][a-z0-9-]{0,62}$
 #   project_name          : 项目名称（可含任意字符，写入 JSON 时自动转义）
 #   description           : 需求描述（可含任意字符/多行，写入 JSON 时自动转义）
 #   project_type          : new | iteration | refactor
+#   selected_product_library_id   : 本轮确认的产品库 ID（kebab-case，可为空）
+#   selected_product_library_path : 本轮确认的产品库目录（可为空；通常为 ~/.product-library/<product-library-id>）
 #   matched_product_id    : 关联的已有产品 ID（可为空）
 #   product_library_match : 产品匹配度 high | medium | low | none（可为空）
 #   template_dir          : .../skills/pm-orchestrator/project-template 的绝对路径
@@ -37,10 +39,12 @@ project_id="${1:?missing project_id}"
 project_name="${2:?missing project_name}"
 description="${3:?missing description}"
 project_type="${4:?missing project_type}"
-matched_product_id="${5:-}"  # can be empty
-product_library_match="${6:-}"  # can be empty (high|medium|low|none)
-template_dir="${7:?missing template_dir}"
-target_dir="${8:?missing target_dir}"
+selected_product_library_id="${5:-}"  # can be empty
+selected_product_library_path="${6:-}"  # can be empty
+matched_product_id="${7:-}"  # can be empty
+product_library_match="${8:-}"  # can be empty (high|medium|low|none)
+template_dir="${9:?missing template_dir}"
+target_dir="${10:?missing target_dir}"
 
 # ---- 校验 ----
 
@@ -63,15 +67,39 @@ if [ -n "$product_library_match" ]; then
     *) echo "ERROR: invalid product_library_match (high|medium|low|none): $product_library_match" >&2; exit 2 ;;
   esac
 fi
+# selected_product_library_id 格式校验（非空时）
+if [ -n "$selected_product_library_id" ]; then
+  if ! printf '%s' "$selected_product_library_id" | grep -Eq '^[a-z0-9][a-z0-9-]{0,62}$'; then
+    echo "ERROR: invalid selected_product_library_id (need ^[a-z0-9][a-z0-9-]{0,62}\$): $selected_product_library_id" >&2
+    exit 2
+  fi
+fi
 
+# selected_product_library_path 必须与 ID 一起提供；非空时必须存在。
+if [ -n "$selected_product_library_path" ]; then
+  if [ ! -d "$selected_product_library_path" ]; then
+    echo "ERROR: selected product library path not found: $selected_product_library_path" >&2
+    exit 3
+  fi
+elif [ -n "$selected_product_library_id" ]; then
+  selected_product_library_path="$HOME/.product-library/$selected_product_library_id"
+  if [ ! -d "$selected_product_library_path" ]; then
+    echo "ERROR: selected product library path not found: $selected_product_library_path" >&2
+    exit 3
+  fi
+fi
 # matched_product_id 格式校验（非空时）
 if [ -n "$matched_product_id" ]; then
   if ! printf '%s' "$matched_product_id" | grep -Eq '^[a-z0-9][a-z0-9-]{0,62}$'; then
     echo "ERROR: invalid matched_product_id (need ^[a-z0-9][a-z0-9-]{0,62}\$): $matched_product_id" >&2
     exit 2
   fi
-  # 校验产品库中对应产品目录存在
-  product_lib_dir="$HOME/.product-library/$matched_product_id"
+  # 校验已选产品库中对应产品目录存在
+  if [ -z "$selected_product_library_path" ]; then
+    echo "ERROR: matched_product_id requires selected_product_library_path" >&2
+    exit 3
+  fi
+  product_lib_dir="$selected_product_library_path/$matched_product_id"
   if [ ! -d "$product_lib_dir" ]; then
     echo "ERROR: product library directory not found: $product_lib_dir" >&2
     exit 3
@@ -139,6 +167,8 @@ json_escape() {
 
 esc_name=$(json_escape "$project_name")
 esc_desc=$(json_escape "$description")
+esc_library_id=$(json_escape "$selected_product_library_id")
+esc_library_path=$(json_escape "$selected_product_library_path")
 esc_matched=$(json_escape "$matched_product_id")
 esc_match=$(json_escape "$product_library_match")
 
@@ -149,6 +179,8 @@ printf '{
   "projectId": "%s",
   "projectName": "%s",
   "projectType": "%s",
+  "selectedProductLibraryId": "%s",
+  "selectedProductLibraryPath": "%s",
   "matchedProductId": "%s",
   "productLibraryMatch": "%s",
   "description": "%s",
@@ -176,7 +208,7 @@ printf '{
   },
   "lastUpdated": "%s"
 }
-' "$project_id" "$esc_name" "$project_type" "$esc_matched" "$esc_match" "$esc_desc" "$ts" "$ts" "$ts" > "$target_dir/progress.json"
+' "$project_id" "$esc_name" "$project_type" "$esc_library_id" "$esc_library_path" "$esc_matched" "$esc_match" "$esc_desc" "$ts" "$ts" "$ts" > "$target_dir/progress.json"
 
 printf '{
   "projectId": "%s",

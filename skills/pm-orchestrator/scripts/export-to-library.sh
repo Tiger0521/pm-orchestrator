@@ -2,7 +2,7 @@
 #
 # export-to-library.sh
 #
-# Export completed project artifacts to the global product library.
+# Export completed project artifacts to a selected product library.
 #
 # Cross-platform: Windows Git Bash / macOS / Linux.
 # Dependencies: bash + standard Unix tools only (cp, find, printf, date,
@@ -13,7 +13,7 @@
 #
 # Arguments:
 #   project_dir         Project directory, e.g. .claude/product-design-projects/my-project
-#   product_library_dir Target product directory in the library, e.g. ~/.product-library/my-product
+#   product_library_dir Target product directory, e.g. ~/.product-library/network-resource-center-product-library/my-product
 #   skill_path          Plugin skill path (reserved for future use; currently unused)
 #
 # Exit codes:
@@ -39,7 +39,7 @@ Usage: bash export-to-library.sh <project_dir> <product_library_dir> <skill_path
 
 Arguments:
   project_dir         Project directory (e.g. .claude/product-design-projects/my-project)
-  product_library_dir Target product directory in the library (e.g. ~/.product-library/my-product)
+  product_library_dir Target product directory (e.g. ~/.product-library/network-resource-center-product-library/my-product)
   skill_path          Plugin skill path (reserved for future use, currently unused)
 
 Exit codes:
@@ -136,11 +136,11 @@ if [[ -z "$ra_md_count" || "$ra_md_count" -eq 0 ]]; then
     exit 1
 fi
 
-# product_library_dir must be a direct child of ~/.product-library/<product-id>.
+# product_library_dir must be ~/.product-library/<product-library-id>/<product-id>.
 if [[ -n "${HOME:-}" ]]; then
-    library_root="$HOME/.product-library"
+    library_collection_root="$HOME/.product-library"
 elif [[ -n "${USERPROFILE:-}" ]]; then
-    library_root="$USERPROFILE/.product-library"
+    library_collection_root="$USERPROFILE/.product-library"
 else
     error "cannot determine home directory (HOME and USERPROFILE both empty)"
     exit 1
@@ -155,14 +155,22 @@ fi
 
 if [[ ! -d "$parent_dir" ]]; then
     error "parent directory of product_library_dir does not exist: $parent_dir"
-    error "please create the product library root first (e.g. mkdir -p ~/.product-library)."
+    error "please create the selected product library first (e.g. ~/.product-library/network-resource-center-product-library)."
     exit 1
 fi
 
-library_root_abs=$(canonical_dir "$library_root" "product library root") || exit 1
-parent_dir_abs=$(canonical_dir "$parent_dir" "product library parent") || exit 1
-if [[ "$parent_dir_abs" != "$library_root_abs" ]]; then
-    error "product_library_dir must be a direct child of ~/.product-library: $product_library_dir"
+product_library_id=$(basename -- "$parent_dir")
+if ! printf '%s' "$product_library_id" | grep -Eq '^[a-z0-9][a-z0-9-]{0,62}$'; then
+    error "invalid product library id in product_library_dir: $product_library_id"
+    exit 1
+fi
+
+collection_root_abs=$(canonical_dir "$library_collection_root" "product library collection root") || exit 1
+parent_dir_abs=$(canonical_dir "$parent_dir" "selected product library") || exit 1
+grandparent_dir=$(dirname -- "$parent_dir")
+grandparent_dir_abs=$(canonical_dir "$grandparent_dir" "product library collection parent") || exit 1
+if [[ "$grandparent_dir_abs" != "$collection_root_abs" ]]; then
+    error "product_library_dir must be under ~/.product-library/<product-library-id>/<product-id>: $product_library_dir"
     exit 1
 fi
 
