@@ -67,6 +67,25 @@ field_val() {
   fi
 }
 
+# requirement_bg 只应包含背景正文；兼容旧输入中的完整引用句，使渲染保持幂等。
+normalize_requirement_bg() {
+  local value="$1" doc_kind="$2" req_id="$3" prefix
+  value="${value#$'\357\273\277'}"
+  if [ "$doc_kind" = "epic" ]; then
+    prefix="本 Epic 派生自 [@$req_id]"
+  else
+    prefix="本 Feature 回应 [@$req_id] 中的需求"
+  fi
+  while :; do
+    case "$value" in
+      "$prefix"：*) value="${value#"$prefix"：}" ;;
+      "$prefix":*) value="${value#"$prefix":}" ;;
+      *) break ;;
+    esac
+    value="${value#"${value%%[![:space:]]*}"}"
+  done
+  printf '%s' "$value"
+}
 # ---- 读取公共元数据 ----
 doc_type=$(meta_val "type")
 doc_id=$(meta_val "id")
@@ -212,6 +231,7 @@ render_epic() {
 
   req_id=$(meta_val "req_id")
   requirement_bg=$(field_val "requirement_bg")
+  requirement_bg=$(normalize_requirement_bg "$requirement_bg" "epic" "$req_id")
   product_name=$(field_val "product_name")
   positioning=$(field_val "positioning")
   product_goals=$(field_val "product_goals")
@@ -277,6 +297,7 @@ render_feature() {
   req_id=$(meta_val "req_id")
   epic_id=$(meta_val "epic_id")
   requirement_bg=$(field_val "requirement_bg")
+  requirement_bg=$(normalize_requirement_bg "$requirement_bg" "feature" "$req_id")
   capability_name=$(field_val "capability_name")
   capability_description=$(field_val "capability_description")
   capability_goal=$(field_val "capability_goal")
