@@ -51,4 +51,4 @@ Then {{EXPECTED_RESULT_3}}
 
 ## 关联 Feature
 
-本 Story 实现 [@{{FEATURE_ID}}]。
+本 Story 实现 [[{{FEATURE_ID}}]]。

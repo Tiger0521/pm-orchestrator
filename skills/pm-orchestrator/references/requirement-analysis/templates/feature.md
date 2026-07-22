@@ -32,7 +32,7 @@ refs:
 
 ## 需求背景
 
-本 Feature 回应 [@{{REQ_ID}}] 中的需求：{{REQUIREMENT_BG}}
+本 Feature 回应 [[{{REQ_ID}}]] 中的需求：{{REQUIREMENT_BG}}
 
 ## 能力名称
 
@@ -48,7 +48,7 @@ refs:
 
 ## 用户角色
 
-引用 [@{{EPIC_ID}}] 中的角色：{{USER_ROLES}}
+引用 [[{{EPIC_ID}}]] 中的角色：{{USER_ROLES}}
 
 ## 业务价值
 

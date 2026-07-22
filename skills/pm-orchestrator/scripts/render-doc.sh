@@ -57,9 +57,9 @@ normalize_requirement_bg() {
   local value="$1" doc_kind="$2" req_id="$3" prefix
   value="${value#$'\357\273\277'}"
   if [ "$doc_kind" = "epic" ]; then
-    prefix="本 Epic 派生自 [@$req_id]"
+    prefix="本 Epic 派生自 [[$req_id]]"
   else
-    prefix="本 Feature 回应 [@$req_id] 中的需求"
+    prefix="本 Feature 回应 [[$req_id]] 中的需求"
   fi
   while :; do
     case "$value" in
@@ -236,7 +236,7 @@ render_epic() {
     '' \
     '## 需求背景' \
     '' \
-    "本 Epic 派生自 [@$req_id]：$requirement_bg" \
+    "本 Epic 派生自 [[$req_id]]：$requirement_bg" \
     '' \
     '## 产品名称' \
     '' \
@@ -336,7 +336,7 @@ render_feature() {
     '' \
     '## 需求背景' \
     '' \
-    "本 Feature 回应 [@$req_id] 中的需求：$requirement_bg" \
+    "本 Feature 回应 [[$req_id]] 中的需求：$requirement_bg" \
     '' \
     '## 能力名称' \
     '' \
@@ -352,7 +352,7 @@ render_feature() {
     '' \
     '## 用户角色' \
     '' \
-    "引用 [@$epic_id] 中的角色：$user_roles" \
+    "引用 [[$epic_id]] 中的角色：$user_roles" \
     '' \
     '## 业务价值' \
     '' \

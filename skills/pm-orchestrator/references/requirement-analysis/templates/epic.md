@@ -30,7 +30,7 @@ refs:
 
 ## 需求背景
 
-本 Epic 派生自 [@{{REQ_ID}}]：{{REQUIREMENT_BG}}
+本 Epic 派生自 [[{{REQ_ID}}]]：{{REQUIREMENT_BG}}
 
 ## 产品名称
 

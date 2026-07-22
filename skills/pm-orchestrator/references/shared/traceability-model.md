@@ -101,11 +101,13 @@ refs:
 5. 写入前再次检查 ID、目标路径和 `refs.json` 节点均无冲突；发现冲突时停止写入并重新分配。
 6. 文件名必须与 ID 一致，例如 `feature-004` 写入 `feature-004.md`。
 
-正文中引用其他文档使用 `[@doc-id]` 语法，例如：
+正文中引用其他文档使用 `[[doc-id]]` 语法，例如：
 
 ```markdown
-本 Feature 属于 [@epic-001]，解决的需求卡片见 [@req-001]。
+本 Feature 属于 [[epic-001]]，解决的需求卡片见 [[req-001]]。
 ```
+
+> 说明：正文 `[[doc-id]]` 供人阅读与 Obsidian 双向链接使用；机器溯源链仍由 frontmatter `refs` + `refs.json` 维护，两者解耦。
 
 ---
 
