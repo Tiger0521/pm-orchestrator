@@ -78,7 +78,7 @@ description: |
 
 ### 产品库初始化引导
 
-当产品库不存在时，读取 `references/orchestrator-operations.md` 的"产品库初始化引导"段执行。
+当产品库不存在时，读取 `references/orchestrator-operations.md` 的"产品库初始化引导"段，按顺序执行：展示初始化选项；用户选择 Git 克隆时询问只读 GitHub token；收到 token 后调用脚本；初始化完成后校验产品库并继续。
 
 ### 自然语言继续项目
 
