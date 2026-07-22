@@ -6,10 +6,10 @@
 
 当产品库集合根目录不存在、没有候选产品库，或 `validate-product-library.sh` 输出 `LIBRARY_STATUS=NOT_EXISTS` 时，按以下顺序执行：
 
-1. 展示初始化方式并等待用户选择：
+1. 一次性展示初始化方式和所需参数：
 
 ```text
-A. 从 Git 远程仓库克隆 - 已有产品库托管在 Git 仓库；可提供远程地址，未提供时使用内置网络资源中心产品库
+A. 从 Git 远程仓库克隆 - 请按 `A + GitHub 只读 token` 回复；可同时附远程地址，未附时使用内置网络资源中心产品库
 B. 从本地目录复制 - 已有产品库在本地其他路径；需要提供目录路径
 C. 全新开始 - 创建空产品库（包含 _manifest.md 和总体架构设计文档）
 D. 补充描述：我自己填写
@@ -18,7 +18,7 @@ E. 强制跳过：将产品库候选记录为 none 并继续
 
 2. 根据用户选择执行：
 
-- 选择 A：询问用户的 GitHub 只读 token。收到后将 token 放入临时环境变量 `PRODUCT_LIBRARY_GITHUB_TOKEN`，运行初始化脚本。
+- 回复包含 A 和 token：从同一条回复取得 token，放入临时环境变量 `PRODUCT_LIBRARY_GITHUB_TOKEN`，立即运行初始化脚本。
 
   Windows PowerShell：
 
