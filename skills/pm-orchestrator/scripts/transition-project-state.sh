@@ -54,23 +54,23 @@ valid_edge() {
   local to="$2"
   case "$from->$to" in
     # Intake 状态机
-    select-library->collect-brief) return 0 ;;
-    collect-brief->collect-background) return 0 ;;
-    collect-background->prepare-intake-summary) return 0 ;;
-    prepare-intake-summary->confirm-intake-summary) return 0 ;;
-    prepare-intake-summary->prepare-intake-summary) return 0 ;;  # 用户修正，回环
-    confirm-intake-summary->analyze-reuse) return 0 ;;
-    confirm-intake-summary->prepare-intake-summary) return 0 ;;  # 用户修正，回环
-    analyze-reuse->confirm-project-type) return 0 ;;
-    confirm-project-type->initialize-project) return 0 ;;
-    initialize-project->requirement-analysis) return 0 ;;
+    "select-library->collect-brief") return 0 ;;
+    "collect-brief->collect-background") return 0 ;;
+    "collect-background->prepare-intake-summary") return 0 ;;
+    "prepare-intake-summary->confirm-intake-summary") return 0 ;;
+    "prepare-intake-summary->prepare-intake-summary") return 0 ;;  # 用户修正，回环
+    "confirm-intake-summary->analyze-reuse") return 0 ;;
+    "confirm-intake-summary->prepare-intake-summary") return 0 ;;  # 用户修正，回环
+    "analyze-reuse->confirm-project-type") return 0 ;;
+    "confirm-project-type->initialize-project") return 0 ;;
+    "initialize-project->requirement-analysis") return 0 ;;
     # 阶段转换
-    requirement-analysis->user-story-breakdown) return 0 ;;
-    user-story-breakdown->detailed-design) return 0 ;;
-    detailed-design->completed) return 0 ;;
+    "requirement-analysis->user-story-breakdown") return 0 ;;
+    "user-story-breakdown->detailed-design") return 0 ;;
+    "detailed-design->completed") return 0 ;;
     # 回退（!back）
-    user-story-breakdown->requirement-analysis) return 0 ;;
-    detailed-design->user-story-breakdown) return 0 ;;
+    "user-story-breakdown->requirement-analysis") return 0 ;;
+    "detailed-design->user-story-breakdown") return 0 ;;
     *) return 1 ;;
   esac
 }
