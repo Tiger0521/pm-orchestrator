@@ -37,7 +37,7 @@
 
 ## 范式合规
 
-每个字段必须遵循 `writing-paradigm/` 中对应范式。落盘前逐字段检查：
+每个字段必须遵循 `../writing-paradigm/` 中对应范式。落盘前逐字段检查：
 
 ### 通用六条
 
@@ -206,7 +206,7 @@
 - [ ] 用户已确认需求卡片和 Epic
 - [ ] 用户已确认 Feature
 - [ ] 用户看到并确认的是完整 Feature 落盘预览，不是摘要草稿或字段覆盖清单
-- [ ] Feature 草稿与 `templates/feature.md` 及 `render-doc.sh` 输出同结构、同字段、同正文内容
+- [ ] Feature 草稿与 `../templates/feature.md` 及 `render-doc.sh` 输出同结构、同字段、同正文内容
 - [ ] 用户已确认数据校验异常项（逐条核实或修正）
 - [ ] 用户已确认建设思路（设计主张及其内涵、价值、诚实边界）
 

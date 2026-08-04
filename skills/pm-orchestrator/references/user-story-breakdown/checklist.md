@@ -1,6 +1,6 @@
 # 需求拆解阶段质量门
 
-阶段完成并推进到「详细设计」前，必须逐条通过以下校验。校验项分为文件存在性、Frontmatter 完整性、User Story 质量、验收标准质量、覆盖度、溯源矩阵、用户确认、记忆更新八类。
+阶段完成并推进到「详细设计」前，必须逐条通过以下校验。校验项分为文件存在性、Frontmatter 完整性、User Story 质量、验收标准质量、覆盖度、溯源矩阵、盘问状态、用户确认、记忆更新九类。
 
 ---
 
@@ -76,6 +76,19 @@
 - [ ] 覆盖度检查清单完整（每个 Feature 至少一条 Story、所有 P0 Feature 已覆盖）
 
 ---
+
+
+## 盘问状态
+
+- [ ] 每条已选 Story 都有对应的 `docs/_extracted/.stories/story-<nnn>.json`，且顶层 Story/AC 字段可用于渲染。
+- [ ] 每个最终字段可追溯到 `interview.fact_checks` 的已核实事实或 `interview.decision_tree` 的用户确认节点。
+- [ ] 所有适用核心与条件分支均为 `confirmed`；任何 `forced-skip` 都有用户明确跳过理由、受影响范围和验证条件。
+- [ ] 每个决策组的 `shared_understanding` 均为 `confirmed`，不存在未处理的上游 Epic/Feature 冲突。
+- [ ] `interview.qa_log` 已按轮次记录润色后的追问和用户回答，保留全部业务信息量而非逐字照抄。
+- [ ] 会话恢复将从 `interview.current_node` 的已满足依赖之后继续，不重问已确认节点。
+
+---
+
 
 ## 用户确认
 

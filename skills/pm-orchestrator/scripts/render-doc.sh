@@ -71,6 +71,35 @@ normalize_requirement_bg() {
   done
   printf '%s' "$value"
 }
+# user_roles 只应包含角色正文；兼容旧输入中的完整引用句"引用 [[epic-id]] 中的角色：..."，使渲染保持幂等。
+normalize_user_roles() {
+  local value="$1" epic_id="$2" prefix
+  value="${value#$'\357\273\277'}"
+  prefix="引用 [[$epic_id]] 中的角色"
+  while :; do
+    case "$value" in
+      "$prefix"：*) value="${value#"$prefix"：}" ;;
+      "$prefix":*) value="${value#"$prefix":}" ;;
+      *) break ;;
+    esac
+    value="${value#"${value%%[![:space:]]*}"}"
+  done
+  printf '%s' "$value"
+}
+# priority_reason 只应含排序依据正文；兼容旧输入中的"排序依据：..."前缀，使渲染保持幂等。
+normalize_priority_reason() {
+  local value="$1"
+  value="${value#$'\357\273\277'}"
+  while :; do
+    case "$value" in
+      "排序依据"：*) value="${value#"排序依据"：}" ;;
+      "排序依据":*) value="${value#"排序依据":}" ;;
+      *) break ;;
+    esac
+    value="${value#"${value%%[![:space:]]*}"}"
+  done
+  printf '%s' "$value"
+}
 # ---- 读取公共字段 ----
 doc_type=$(json_val "type")
 doc_id=$(json_val "id")
@@ -292,6 +321,7 @@ render_feature() {
   capability_description=$(json_val "capability_description")
   capability_goal=$(json_val "capability_goal")
   user_roles=$(json_val "user_roles")
+  user_roles=$(normalize_user_roles "$user_roles" "$epic_id")
   business_value=$(json_val "business_value")
   business_scenarios=$(json_val "business_scenarios")
   business_process=$(json_val "business_process")
@@ -300,6 +330,7 @@ render_feature() {
   resource_investment=$(json_val "resource_investment")
   priority=$(json_val "priority")
   priority_reason=$(json_val "priority_reason")
+  priority_reason=$(normalize_priority_reason "$priority_reason")
 
   printf '%s\n' \
     '---' \

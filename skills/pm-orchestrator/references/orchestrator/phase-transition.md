@@ -1,6 +1,6 @@
 # 阶段转换
 
-只有主调度器可以改变 `workflow.state`。正常意图需要推进阶段，或快捷指令执行 `!next` / `!back` 时读取本文件。
+只有主调度器可以执行相邻阶段转换。正常意图需要推进阶段，或快捷指令执行 `!next` / `!back` 时读取本文件。唯一例外是 `requirement-analyst` 在 `mode=intake` 获得用户确认后调用 `init-project.sh`，以显式初始化把 `collect-background` 变为 `requirement-analysis`；这不是阶段转换操作。
 
 ## 推进阶段
 
@@ -50,4 +50,4 @@ bash <skillPath>/scripts/transition-project-state.sh \
 
 ## Intake 状态
 
-intake 内部状态只按 `requirement-analysis-intent.md` 推进。看到 intake 状态不代表当前需求分析阶段已经完成，也不能用阶段转换跳到需求拆解或详细设计。
+`collect-background` 是 `requirement-analyst` 的 `mode=intake` 内部状态。主调度器只读取项目状态并以 `mode=intake` 重新委派该 agent，不读取或驱动 intake 的背景材料、产品匹配或项目类型确认细节。只有该 agent 显式调用 `init-project.sh` 后，项目才进入 `requirement-analysis`；在此之前不能用阶段转换跳到需求拆解或详细设计。

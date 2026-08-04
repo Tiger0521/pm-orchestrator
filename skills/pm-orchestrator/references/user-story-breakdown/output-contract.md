@@ -73,28 +73,15 @@ refs:
 3. ID 一经分配不得复用；更新现有文档时沿用原 ID。
 4. 文件名必须与 ID 一致（如 `story-004` 写入 `story-004.md`）。
 
-## 草稿状态追踪
+## 草稿状态与恢复
 
-draft 模式下，每轮产出的 Story 草稿必须结构化输出，包含以下数据块，作为会话恢复的中间状态：
+`mode=draft` 的唯一过程状态源是每条已选 Story 的 `docs/_extracted/.stories/story-<nnn>.json`。它同时保存可落盘的 Story/AC 顶层字段，以及 `interview` 内的润色 Q&A、事实核查、决策树、强制跳过项和共同理解状态。字段与更新顺序由 `grilling-protocol.md` 定义，本文件不重复其 schema。
 
-```text
-## Story 草稿数据块
-
-### Story: <Story 标题>
-- 三段式: "作为 **<角色>**，我想要 **<活动>**，以便于 **<价值>**"
-- 优先级: P0 / P1 / P2
-- Story Points: <建议值>
-- 确认状态: pending / confirmed
-- 关联 Feature: <feature-id>
-
-#### 验收标准
-1. **<场景关键词>**：Given ... When ... Then ...
-2. **<场景关键词>**：Given ... When ... Then ...
-```
-
-确认状态追踪：每条 Story 和每条 AC 独立标记 `pending` 或 `confirmed`。用户确认的内容从 `pending` 翻转为 `confirmed`；用户提出修改的内容保持 `pending` 并记录修改方向。确认状态是草稿数据块的一部分，draft 模式下每轮返回时同步更新。
-
-会话恢复：如果会话中断，主调度器可读取上一轮对话中的 Story 草稿数据块（含确认状态），以 `mode=draft` 重新委派，subagent 恢复已确认的 Story 和 AC，只继续未确认部分。不需要重新从上游 Feature 开始拆解。
+- 每个顶层 Story/AC 字段都必须能追溯到已确认决策或已核实事实；用户尚未确认的内容不得写成最终值。
+- 每个 Story 与每条 AC 的状态均以 JSON 为准：`pending` 或 `confirmed`；决策节点额外允许且仅允许在用户明确选择时标为 `forced-skip`。
+- 会话恢复时，先读匹配的 Story JSON，从 `interview.current_node` 的已满足依赖之后继续；不得重问已确认节点。
+- 生成完整草稿或落盘预览时，正文必须从 JSON 的顶层字段生成，与后续脚本渲染同字段、同正文内容；不得用对话摘要替代。
+- `interview` 是草稿元数据，`render-story.sh` 忽略它。落盘确认前不得删除或重写其中已确认的盘问记录。
 
 ## 记忆更新
 

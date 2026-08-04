@@ -8,12 +8,12 @@
 
 ## 落盘步骤
 
-1. 确认用户已看过并确认完整 Story 落盘预览和溯源矩阵草稿
-2. 确认所有 Story 和 AC 的确认状态均为 `confirmed`
-3. 确认所有 Story 已通过写作规范自检（见 `writing-paradigm/user-story-writing.md` 落盘前自检清单）
-4. 将已确认的 Story 数据写入 `docs/_extracted/.stories/story-<nnn>.json`（每个 Story 一个 JSON 文件，字段结构见下方"Story JSON 结构"）
-5. 将已确认的溯源矩阵数据写入 `docs/_extracted/.stories/matrix-<nnn>.json`
-6. 调用 `render-story.sh` 批量渲染所有 Story JSON 为 Markdown：
+1. 确认用户已看过并确认完整 Story 落盘预览和溯源矩阵草稿。
+2. 确认所有 Story、AC 和 `interview.decision_tree` 中的适用节点均为 `confirmed`，或具备用户明确选择的 `forced-skip`；`shared_understanding` 的相关决策组必须均为 `confirmed`。
+3. 确认所有 Story 已通过写作规范自检（见 `writing-paradigm/user-story-writing.md` 落盘前自检清单），且顶层可渲染字段与用户确认的预览逐项一致。
+4. 读取并校验 draft 已创建的 `docs/_extracted/.stories/story-<nnn>.json`；不得在 `mode=persist` 新建、改写或删除 Story 的 `interview`、Q&A 或已确认字段。详细状态 schema 见 `grilling-protocol.md`。
+5. 将已确认的溯源矩阵数据写入 `docs/_extracted/.stories/matrix-<nnn>.json`。
+6. 调用 `render-story.sh` 批量渲染已校验的 Story JSON 为 Markdown：
    ```bash
    bash "<skillPath>/scripts/render-story.sh" \
      "<projectPath>/docs/_extracted/.stories/" \
@@ -35,6 +35,8 @@
 ## Story JSON 结构
 
 每个 Story 对应一个 JSON 文件，字段结构如下：
+
+Story JSON 在 `mode=draft` 已被创建并持续更新，是唯一过程状态源。除下列渲染字段外，它还必须保留 `interview` 元数据（润色 Q&A、事实核查、决策树、强制跳过项和共同理解状态）；完整 schema 与写入规则只见 `grilling-protocol.md`，避免与该文件重复。`render-story.sh` 忽略 `interview`。
 
 ```json
 {

@@ -53,17 +53,7 @@ valid_edge() {
   local from="$1"
   local to="$2"
   case "$from->$to" in
-    # Intake 状态机
-    "select-library->collect-brief") return 0 ;;
-    "collect-brief->collect-background") return 0 ;;
-    "collect-background->prepare-intake-summary") return 0 ;;
-    "prepare-intake-summary->confirm-intake-summary") return 0 ;;
-    "prepare-intake-summary->prepare-intake-summary") return 0 ;;  # 用户修正，回环
-    "confirm-intake-summary->analyze-reuse") return 0 ;;
-    "confirm-intake-summary->prepare-intake-summary") return 0 ;;  # 用户修正，回环
-    "analyze-reuse->confirm-project-type") return 0 ;;
-    "confirm-project-type->initialize-project") return 0 ;;
-    "initialize-project->requirement-analysis") return 0 ;;
+    # intake 在 requirement-analyst 的 mode=intake 内完成；正式初始化由 init-project.sh 直接建立 requirement-analysis 状态。
     # 阶段转换
     "requirement-analysis->user-story-breakdown") return 0 ;;
     "user-story-breakdown->detailed-design") return 0 ;;
@@ -80,11 +70,6 @@ if ! valid_edge "$from_state" "$to_state"; then
   exit 3
 fi
 
-# 同状态不算迁移（prepare-intake-summary 回环保留 revision 不变）
-if [ "$from_state" = "$to_state" ]; then
-  echo "OK: state unchanged ($to_state), event=$event"
-  exit 0
-fi
 
 # ---- 原子更新 ----
 

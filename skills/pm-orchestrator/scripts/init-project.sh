@@ -17,19 +17,21 @@
 #   docs/background/ 下用户已放入的背景材料，并合并项目模板。
 #
 # 用法：
-#   bash init-project.sh <project_id> <project_name> <description> <project_type> <selected_product_library_id> <selected_product_library_path> <matched_product_id> <product_library_match> <template_dir> <target_dir>
+#   bash init-project.sh <project_id> <project_name> <description> <project_type> <selected_product_library_id> <selected_product_library_path> <matched_product_id> <product_library_match> <template_dir> <target_dir> [initial_workflow_state] [source_product_id]
 #
 #   project_id            : 匹配 ^[a-z0-9][a-z0-9-]{0,62}$
 #   project_name          : 项目名称（可含任意字符，写入 JSON 时自动转义）
 #   description           : 需求描述（可含任意字符/多行，写入 JSON 时自动转义）
 #   project_type          : new | iteration | refactor
-#   selected_product_library_id   : 本轮确认的产品库 ID（kebab-case，可为空）
-#   selected_product_library_path : 本轮确认的产品库目录（可为空；通常为 ~/.product-library/<product-library-id>）
-#   matched_product_id    : 关联的已有产品 ID（可为空）
+#   selected_product_library_id   : 本轮确认的产品库目录名（可为中文，可为空）
+#   selected_product_library_path : 本轮确认的产品库目录（可为空；位于 product-library/ 下）
+#   matched_product_id    : 关联的已有产品全名（可为空）
 #   product_library_match : 产品匹配度 high | medium | low | none（可为空）
 #   template_dir          : .../skills/pm-orchestrator/project-template 的绝对路径
 #   target_dir            : <workspace>/.claude/product-design-projects/<project-id> 的绝对路径
 #                           可为 prepare-intake.sh 预先创建的 intake 目录
+#   initial_workflow_state : requirement-analysis（默认）| user-story-breakdown | detailed-design
+#   source_product_id      : 直启后续阶段时显式选择的只读产品库产品全名（可为空）
 #
 # 退出码：0 成功；2 参数非法；3 路径/模板问题。
 #
@@ -45,6 +47,8 @@ matched_product_id="${7:-}"  # can be empty
 product_library_match="${8:-}"  # can be empty (high|medium|low|none)
 template_dir="${9:?missing template_dir}"
 target_dir="${10:?missing target_dir}"
+initial_workflow_state="${11:-requirement-analysis}"
+source_product_id="${12:-}"
 
 # ---- 校验 ----
 
@@ -59,6 +63,10 @@ case "$project_type" in
   new|iteration|refactor) ;;
   *) echo "ERROR: invalid project_type (new|iteration|refactor): $project_type" >&2; exit 2 ;;
 esac
+case "$initial_workflow_state" in
+  requirement-analysis|user-story-breakdown|detailed-design) ;;
+  *) echo "ERROR: invalid initial_workflow_state: $initial_workflow_state" >&2; exit 2 ;;
+esac
 
 # product_library_match 枚举（可为空）
 if [ -n "$product_library_match" ]; then
@@ -67,33 +75,23 @@ if [ -n "$product_library_match" ]; then
     *) echo "ERROR: invalid product_library_match (high|medium|low|none): $product_library_match" >&2; exit 2 ;;
   esac
 fi
-# selected_product_library_id 格式校验（非空时）
-if [ -n "$selected_product_library_id" ]; then
-  if ! printf '%s' "$selected_product_library_id" | grep -Eq '^[a-z0-9][a-z0-9-]{0,62}$'; then
-    echo "ERROR: invalid selected_product_library_id (need ^[a-z0-9][a-z0-9-]{0,62}\$): $selected_product_library_id" >&2
-    exit 2
-  fi
-fi
-
-# selected_product_library_path 必须与 ID 一起提供；非空时必须存在。
+# 产品库路径必须显式传入并与目录名一致。
 if [ -n "$selected_product_library_path" ]; then
   if [ ! -d "$selected_product_library_path" ]; then
     echo "ERROR: selected product library path not found: $selected_product_library_path" >&2
     exit 3
   fi
-elif [ -n "$selected_product_library_id" ]; then
-  selected_product_library_path="$HOME/.product-library/$selected_product_library_id"
-  if [ ! -d "$selected_product_library_path" ]; then
-    echo "ERROR: selected product library path not found: $selected_product_library_path" >&2
+  if [ "$(basename "$selected_product_library_path")" != "$selected_product_library_id" ]; then
+    echo "ERROR: selected product library id must equal directory name: $selected_product_library_id" >&2
     exit 3
   fi
+elif [ -n "$selected_product_library_id" ]; then
+  echo "ERROR: selected_product_library_id requires an explicit selected_product_library_path" >&2
+  exit 3
 fi
-# matched_product_id 格式校验（非空时）
+# matched_product_id 使用产品全名，并校验对应目录。
 if [ -n "$matched_product_id" ]; then
-  if ! printf '%s' "$matched_product_id" | grep -Eq '^[a-z0-9][a-z0-9-]{0,62}$'; then
-    echo "ERROR: invalid matched_product_id (need ^[a-z0-9][a-z0-9-]{0,62}\$): $matched_product_id" >&2
-    exit 2
-  fi
+  case "$matched_product_id" in ''|'.'|'..'|*'/'*|*'\'*) echo "ERROR: invalid matched_product_id: $matched_product_id" >&2; exit 2 ;; esac
   # 校验已选产品库中对应产品目录存在
   if [ -z "$selected_product_library_path" ]; then
     echo "ERROR: matched_product_id requires selected_product_library_path" >&2
@@ -104,6 +102,11 @@ if [ -n "$matched_product_id" ]; then
     echo "ERROR: product library directory not found: $product_lib_dir" >&2
     exit 3
   fi
+fi
+
+if [ -n "$source_product_id" ]; then
+  case "$source_product_id" in ''|'.'|'..'|*'/'*|*'\\'*) echo "ERROR: invalid source_product_id: $source_product_id" >&2; exit 2 ;; esac
+  [ -d "$selected_product_library_path/$source_product_id" ] || { echo "ERROR: source product directory not found: $source_product_id" >&2; exit 3; }
 fi
 
 # 模板必须存在
@@ -171,6 +174,12 @@ esc_library_id=$(json_escape "$selected_product_library_id")
 esc_library_path=$(json_escape "$selected_product_library_path")
 esc_matched=$(json_escape "$matched_product_id")
 esc_match=$(json_escape "$product_library_match")
+esc_source_product=$(json_escape "$source_product_id")
+case "$initial_workflow_state" in
+  requirement-analysis) req_status='in_progress'; req_time="\"$ts\""; story_status='pending'; story_time='null'; design_status='pending'; design_time='null' ;;
+  user-story-breakdown) req_status='pending'; req_time='null'; story_status='in_progress'; story_time="\"$ts\""; design_status='pending'; design_time='null' ;;
+  detailed-design) req_status='pending'; req_time='null'; story_status='pending'; story_time='null'; design_status='in_progress'; design_time="\"$ts\"" ;;
+esac
 
 # 如果是 intake 模式，备份 intake progress.json（保留 intake 审计数据）
 if [ "$intake_mode" -eq 1 ] && [ -f "$target_dir/progress.json" ]; then
@@ -188,37 +197,37 @@ printf '{
   "selectedProductLibraryPath": "%s",
   "matchedProductId": "%s",
   "productLibraryMatch": "%s",
+  "sourceProductId": "%s",
   "description": "%s",
   "status": "active",
   "workflow": {
-    "state": "requirement-analysis",
+    "state": "%s",
     "revision": 1,
     "updatedAt": "%s"
   },
   "phases": {
     "requirement-analysis": {
-      "status": "in_progress",
-      "startedAt": "%s",
+      "status": "%s",
+      "startedAt": %s,
       "completedAt": null,
-      "lastUpdated": "%s"
+      "lastUpdated": %s
     },
     "user-story-breakdown": {
-      "status": "pending",
-      "startedAt": null,
+      "status": "%s",
+      "startedAt": %s,
       "completedAt": null,
-      "lastUpdated": null
+      "lastUpdated": %s
     },
     "detailed-design": {
-      "status": "pending",
-      "startedAt": null,
+      "status": "%s",
+      "startedAt": %s,
       "completedAt": null,
-      "lastUpdated": null
+      "lastUpdated": %s
     }
   },
   "lastUpdated": "%s"
 }
-' "$project_id" "$esc_name" "$project_type" "$esc_library_id" "$esc_library_path" "$esc_matched" "$esc_match" "$esc_desc" "$ts" "$ts" "$ts" "$ts" > "$target_dir/progress.json"
-
+' "$project_id" "$esc_name" "$project_type" "$esc_library_id" "$esc_library_path" "$esc_matched" "$esc_match" "$esc_source_product" "$esc_desc" "$initial_workflow_state" "$ts" "$req_status" "$req_time" "$req_time" "$story_status" "$story_time" "$story_time" "$design_status" "$design_time" "$design_time" "$ts" > "$target_dir/progress.json"
 printf '{
   "projectId": "%s",
   "lastUpdated": "%s",

@@ -110,7 +110,7 @@ git clone https://github.com/Tiger0521/pm-orchestrator.git "$HOME/.claude/skills
 | Agent 层 | `agents/` | 暴露三个阶段 subagent |
 | 主 Skill 层 | `skills/pm-orchestrator/SKILL.md` | 入口分流、产品库校验、项目状态、阶段路由 |
 | Reference 层 | `skills/pm-orchestrator/references/` | 阶段方法、模板、质量门、共享追溯模型和主调度操作细节 |
-| 工具层 | `project-template/`、`scripts/`、`product-library-spec.md`、`evals/` | 项目骨架、机械校验、产品库规范、评测样例 |
+| 工具层 | `project-template/`、`scripts/`、`references/product-library/contract.md`、`evals/` | 项目骨架、机械校验、产品库规范、评测样例 |
 
 三个 agent 的实际 Claude Code 类型必须带插件前缀：
 
@@ -122,38 +122,115 @@ git clone https://github.com/Tiger0521/pm-orchestrator.git "$HOME/.claude/skills
 
 裸名如 `requirement-analyst` 只作为文档简称，不作为实际委派类型。
 
-## 工作流
+## 调度流程
 
-1. 主调度器启动后先确认产品库：扫描 `~/.product-library/`，选择本轮产品库，读取唯一的 `*总体架构设计.md` 作为最高产品设计标准，并运行 `validate-product-library.sh` 校验结构。
-2. 判断用户意图：新需求进入需求分析 intake；明确继续、打开、切换、查看项目时进入项目恢复或快捷指令。
-3. 新需求 intake 先调用 `prepare-intake.sh` 创建 pending 项目记录和固定 `docs/background/` 目录，再读取用户背景材料。
-4. 背景材料确认后，主调度器委派 `pm-orchestrator:requirement-analyst` 做产品匹配。产品匹配只读 `product-matching.md` 和 `product-library-spec.md`，不全量加载 `instruction.md`。
-5. 用户确认项目类型 `new | iteration | refactor` 后，主调度器调用 `init-project.sh` 补全项目骨架并进入正式需求分析。
-6. 后续按 `progress.json.workflow.state` 路由到对应 agent。主调度器只传路径和上下文，不把产品库正文塞进 handoff。
-7. 阶段 agent 以 `draft` 模式追问和生成草稿；用户确认后才进入 `persist`，由主调度器调用脚本落盘正式 Markdown。
-8. 阶段转换前读取 checklist，可运行 `validate-phase.sh`，再用 `transition-project-state.sh` 更新状态机。
+主调度器只负责确认上下文、恢复或创建过程项目、校验阶段前置条件和委派；阶段内的追问、分析、草稿与落盘由对应 subagent 处理。每次只运行一个 subagent，且正式产物始终遵循“先确认、后落盘”。
+
+```mermaid
+flowchart TD
+    Start([用户输入]) --> Shortcut{以 ! 开头？}
+    Shortcut -- 是 --> Command[执行快捷指令<br/>status / list / switch / doc / graph / next / back]
+    Command --> Wait([返回结果并等待下一轮])
+
+    Shortcut -- 否 --> Library[定位候选 product-library<br/>从当前目录向上最多 3 层]
+    Library --> LibraryOK{用户确认且校验通过？}
+    LibraryOK -- 否 --> InitLibrary[选择候选或初始化产品库]
+    InitLibrary --> Library
+    LibraryOK -- 是 --> Project{继续已有过程项目？}
+
+    Project -- 是 --> Restore[校验项目路径与产品库一致性<br/>读取 progress.json 和 phase-summary.md]
+    Restore --> State{workflow.state}
+    State -- collect-background / requirement-analysis --> RA[委派 requirement-analyst]
+    State -- user-story-breakdown --> SB[委派 story-breakdown-analyst]
+    State -- detailed-design --> DD[委派 detailed-design-designer]
+    State -- completed --> Report[仅汇报项目已完成状态]
+
+    Project -- 否 --> Intent{本轮意图}
+    Intent -- 需求分析 --> Intake[以 mode=intake 委派<br/>requirement-analyst]
+    Intake --> InitProject[Agent 创建 intake、完成匹配和类型确认<br/>初始化 requirement-analysis 项目]
+    InitProject --> RA
+    Intent -- 需求拆解 / 详细设计 --> Source[选择产品库中的已有产品<br/>收集项目 ID、名称、任务]
+    Source --> Iteration[创建 iteration 项目<br/>初始状态为目标阶段]
+    Iteration --> Target{目标阶段}
+    Target -- 需求拆解 --> SB
+    Target -- 详细设计 --> DD
+
+    RA --> Result{Subagent 返回状态}
+    SB --> Result
+    DD --> Result
+    Result -- needs-input --> Ask[展示一个问题]
+    Ask --> Wait
+    Result -- draft-ready --> Confirm[展示完整落盘预览<br/>请求用户确认]
+    Confirm --> Wait
+    Result -- persisted --> Continue[检查索引与阶段记忆<br/>下一轮按当前状态继续]
+    Result -- validation-pass --> Transition[校验相邻阶段<br/>用户确认后迁移 workflow.state]
+    Result -- validation-failed --> Fix[展示缺失项并停留当前阶段]
+    Result -- blocked --> Blocked[说明阻断原因并停止推进]
+    Continue --> Wait
+    Transition --> Wait
+    Fix --> Wait
+    Blocked --> Wait
+    Report --> Wait
+```
+
+### 正常调度规则
+
+1. **确认产品库**：从当前目录向上最多 3 层查找 `product-library/`。只有用户确认候选、读取唯一匹配 `^.+架构设计\.md$` 的根文档、并通过 `validate-product-library.sh` 校验后，才能继续。
+2. **恢复已有项目**：列出 `<workspace>/.claude/product-design-projects/` 下可用项目。确认项目后，主调度器校验路径和产品库一致性，并按 `progress.json.workflow.state` 委派对应 agent；`completed` 只汇报状态。
+3. **创建新项目**：未使用已有项目时只分类一次。需求分析以 `mode=intake` 直接委派需求分析 agent；需求拆解或详细设计则先选择已有产品，再创建直达目标阶段的 `iteration` 项目。
+4. **草稿与落盘**：subagent 在 `draft` 模式中提问或生成完整预览；收到明确确认后才以 `persist` 模式写入正式文档并更新索引。`validate` 只校验现有产物，不创建新产物。
+5. **阶段转换**：只允许相邻转换：`requirement-analysis → user-story-breakdown → detailed-design → completed`。转换前由当前阶段 agent 校验、运行 `validate-phase.sh`，展示结果并取得用户确认；随后由主调度器运行 `transition-project-state.sh` 更新状态。允许回退 `user-story-breakdown → requirement-analysis` 和 `detailed-design → user-story-breakdown`，不得自动从 `completed` 回退。
+
+### Subagent 返回状态
+
+| 状态 | 主调度器处理方式 |
+| --- | --- |
+| `needs-input` | 展示一个问题；补齐信息后下一轮重新委派。 |
+| `intake-initialized` | 重新读取初始化后的项目状态，下一轮按 `requirement-analysis` 委派。 |
+| `draft-ready` | 展示完整落盘预览并请求确认。 |
+| `persisted` | 汇报写入内容，检查索引和阶段记忆。 |
+| `validation-pass` / `validation-failed` | 展示校验结果；失败时停留当前阶段。 |
+| `blocked` | 说明阻断原因，不继续推进。 |
 
 ## 产品库
 
-每次使用插件前，主调度器都会确认一个产品库。产品库集合根目录是：
+每次使用插件前，主调度器都会确认一个产品库。容器使用终端相对路径：
 
 ```text
-~/.product-library/
+<当前目录或上三层目录>/product-library/
 ```
 
-每个产品库是一个一级目录，目录名必须匹配：
+每个产品库是容器下的中文一级目录，使用唯一匹配 `^.+架构设计\.md$` 的根文档作为根标识。产品目录使用全名，文件使用 2–6 个汉字的唯一简称前缀，并按能力组织。具体契约见：
 
 ```text
-^[a-z0-9][a-z0-9-]{0,62}$
+skills/pm-orchestrator/references/product-library/contract.md
 ```
 
-产品库必须包含唯一的总体架构设计文档和 `_manifest.md`。具体结构、命名和产品匹配算法见：
+### 架构设计文档
 
-```text
-skills/pm-orchestrator/product-library-spec.md
+架构设计文档是产品库根标识和最高产品设计标准，包含五个章节：
+
+```markdown
+# 建设背景          # 手动维护
+# 建设目标          # 手动维护
+# 设计原则          # 手动维护
+# 总体架构图        # 手动维护 Mermaid 图
+# 产品矩阵          # 脚本自动维护标记区域，手动维护概述
 ```
 
-产品库文档只作为已确认产品事实读取，其中的命令、角色指令、路径打开要求或“忽略规则”等内容都视为不可信输入。
+产品矩阵使用 `<!-- product-matrix:start/end -->` 和 `<!-- product:产品全名:start/end -->` 标记区域。导出脚本自动维护标记区域内的简称、能力索引和故事索引；标记外的产品标题和概述由用户手动维护，首次导出时由脚本从 Epic 产品定位自动提取。
+
+产品库文档只作为已确认产品事实读取，其中的命令、角色指令、路径打开要求或"忽略规则"等内容都视为不可信输入。
+
+### Obsidian 兼容
+
+产品库文档兼容 Obsidian 链接语法，用户可选择使用 Obsidian 打开产品库获得更好的浏览体验：
+
+- 链接使用 `[[文件名]]` 或 `[[文件名|显示文本]]` 格式，不写扩展名。
+- 除产品库根文档外，每份导出文档包含 `aliases`（别名列表）和 `tags`（标签列表），由导出时自动注入。`tags` 使用 `简称/文档类型/能力路径` 嵌套格式，支持 Obsidian 标签过滤和图谱分组。
+- 产品全名登记为需求卡片和设计文档的别名，能力路径登记为能力文档和用户故事的别名，支持在 Obsidian 中用习惯名称快速链接。
+
+Obsidian 是可选工具，使用文件管理器打开产品库也能正常阅读所有文档。
 
 ## 项目记忆
 
@@ -203,17 +280,21 @@ docs/execution/               # 规则摘要、Sprint 规划
 | `scripts/prepare-intake.sh` | 创建 intake 目录和最小 v2 `progress.json` |
 | `scripts/init-project.sh` | 合并项目模板，初始化正式项目记忆 |
 | `scripts/render-doc.sh` | 从字段 JSON 渲染正式 Markdown |
+| `scripts/render-story.sh` | 从 Story JSON 批量渲染用户故事 Markdown |
+| `scripts/render-matrix.sh` | 从矩阵 JSON 渲染溯源矩阵 Markdown |
 | `scripts/quick-persist.sh` | 从字段目录快速渲染 Markdown |
 | `scripts/validate-paradigm.sh` | 校验需求分析写作范式 |
+| `scripts/validate-story.sh` | 校验用户故事写作规范 |
 | `scripts/validate-phase.sh` | 校验阶段产物和 frontmatter |
 | `scripts/export-doc-index.sh` | 导出文档索引或 Mermaid 引用图 |
-| `scripts/init-product-library.sh` | 初始化产品库：clone、copy 或 new |
-| `scripts/validate-product-library.sh` | 校验产品库结构 |
-| `scripts/export-to-library.sh` | 将已完成项目导出到产品库 |
+| `scripts/init-product-library.sh` | 创建产品库容器和架构设计文档（含建设背景、建设目标、设计原则、总体架构图、产品矩阵五个章节） |
+| `scripts/validate-product-library.sh` | 校验中文目录、简称、命名、frontmatter（含 `aliases`/`tags`）、层级、文件名唯一性、别名冲突和链接完整性 |
+| `scripts/export-to-library.sh` | 预览或增量导出已完成项目，自动注入 `aliases`/`tags`，更新产品矩阵标记区域，失败自动回滚 |
+| `scripts/rename-product.sh` | 预览或应用产品简称变更，更新产品矩阵标记区域，失败自动回滚 |
 | `scripts/transition-project-state.sh` | 校验合法状态边并原子更新 `workflow.state` |
 | `scripts/convert-document.py` | 可选：把 Word/PPT/Excel 转 Markdown |
 
-优先使用 `.sh` 脚本，保证 Windows Git Bash、macOS、Linux 行为一致。核心流程不依赖 Python；`convert-document.py` 只在本机已有 Python 和 `markitdown` 时使用。
+优先使用 `.sh` 脚本。增量导出与简称变更使用 Node.js 标准库保证事务性；`convert-document.py` 仅在本机具备 Python 和 `markitdown` 时使用。
 
 ## 手动校验
 
@@ -221,8 +302,7 @@ docs/execution/               # 规则摘要、Sprint 规划
 
 ```bash
 bash skills/pm-orchestrator/scripts/validate-product-library.sh \
-  "$HOME/.product-library/<product-library-id>" \
-  skills/pm-orchestrator/product-library-spec.md
+  "<工作区>/product-library/<产品库名称>"
 ```
 
 阶段校验：
