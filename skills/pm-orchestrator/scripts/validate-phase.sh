@@ -230,7 +230,7 @@ case "$phase" in
     expectations=$'requirement-analysis/req-*.md|requirement-card|req-\nrequirement-analysis/epic-*.md|epic|epic-\nrequirement-analysis/feature-*.md|feature|feature-'
     ;;
   user-story-breakdown)
-    expectations=$'design/story-*.md|user-story|story-\ndesign/matrix-*.md|traceability-matrix|matrix-'
+    expectations=$'requirement-analysis/feature-*/story-*.md|user-story|story-\nrequirement-analysis/matrix-*.md|traceability-matrix|matrix-'
     ;;
   detailed-design)
     expectations=$'design/flow-*.md|structure-flow|flow-\ndesign/proto-*.md|prototype|proto-\ndesign/contract-*.md|interaction-contract|contract-\nexecution/rules-*.md|rules-summary|rules-\nexecution/sprint-*.md|sprint|sprint-'
@@ -299,6 +299,17 @@ while IFS='|' read -r pattern expected_type expected_prefix; do
       DOC_REF_RELS+=("$relation")
     done
 
+    if [ "$phase" = "user-story-breakdown" ] && [ "$doc_type" = "user-story" ]; then
+      feature_refs=()
+      for index in "${!REF_IDS[@]}"; do
+        [ "${REF_RELS[$index]}" = "implements" ] && feature_refs+=("${REF_IDS[$index]}")
+      done
+      if [ "${#feature_refs[@]}" -ne 1 ] || [[ ! "${feature_refs[0]:-}" =~ ^feature-[0-9]{3,}$ ]]; then
+        add_issue "[placement] $filename: expected one implements reference to feature-<nnn>"
+      elif [ "$(dirname "$file")" != "$docs_path/requirement-analysis/${feature_refs[0]}" ]; then
+        add_issue "[placement] $filename: must be stored in requirement-analysis/${feature_refs[0]}/"
+      fi
+    fi
     rel_path="${file#$project/}"
     DOC_IDS+=("$doc_id")
     DOC_PATHS+=("$rel_path")
@@ -317,6 +328,15 @@ done
 if [ "$phase" = "requirement-analysis" ]; then
   shopt -s nullglob
   for legacy_pattern in "strategic/req-*.md" "strategic/epic-*.md" "requirement/feature-*.md"; do
+    legacy_found=( "$docs_path"/$legacy_pattern )
+    for file in "${legacy_found[@]}"; do
+      [ -f "$file" ] && { add_issue "[directory] legacy artifact found: $legacy_pattern"; break; }
+    done
+  done
+  shopt -u nullglob
+elif [ "$phase" = "user-story-breakdown" ]; then
+  shopt -s nullglob
+  for legacy_pattern in "design/story-*.md" "design/matrix-*.md" "requirement-analysis/story-*.md"; do
     legacy_found=( "$docs_path"/$legacy_pattern )
     for file in "${legacy_found[@]}"; do
       [ -f "$file" ] && { add_issue "[directory] legacy artifact found: $legacy_pattern"; break; }

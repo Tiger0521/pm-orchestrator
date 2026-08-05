@@ -4,11 +4,11 @@
 
 ## 产出文档
 
-需求拆解阶段产出两类正式文档：User Story（用户价值层）和溯源矩阵（追溯层）。每份文档通过 frontmatter 建立追溯关系，落盘到 `docs/design/` 目录。
+需求拆解阶段产出两类正式文档：User Story（用户价值层）和溯源矩阵（追溯层）。每份文档通过 frontmatter 建立追溯关系，落盘到 `docs/requirement-analysis/`，并与上游 Feature 同层管理。
 
 ### User Story 文档
 
-文件路径：`docs/design/story-<nnn>.md`
+文件路径：`docs/requirement-analysis/feature-<feature-nnn>/story-<nnn>.md`。每条 Story 必须写入其唯一 `implements` 引用所指 Feature 的子目录；不得写入 `docs/design/`、`docs/requirement-analysis/` 根层或其他 Feature 的目录。
 
 | 字段 | 内容要求 |
 | ---- | -------- |
@@ -23,7 +23,7 @@
 
 ### 溯源矩阵文档
 
-文件路径：`docs/design/matrix-<nnn>.md`
+文件路径：`docs/requirement-analysis/matrix-<nnn>.md`。矩阵覆盖多个 Feature，因此位于需求分析目录根层，不归属任何单一 Feature 子目录。
 
 | 字段 | 内容要求 |
 | ---- | -------- |
@@ -68,7 +68,7 @@ refs:
 
 遵循 `../shared/traceability-model.md` 的统一规范：
 
-1. 落盘前同时扫描 `refs.json.nodes` 和 `docs/design/` 目录中的 frontmatter ID。
+1. 落盘前同时扫描 `refs.json.nodes`、`docs/requirement-analysis/matrix-*.md` 和 `docs/requirement-analysis/feature-*/story-*.md` 中的 frontmatter ID。
 2. 按文档类型取已使用的最大三位序号再加一（如已有 `story-001` 和 `story-003`，下一个是 `story-004`）。
 3. ID 一经分配不得复用；更新现有文档时沿用原 ID。
 4. 文件名必须与 ID 一致（如 `story-004` 写入 `story-004.md`）。

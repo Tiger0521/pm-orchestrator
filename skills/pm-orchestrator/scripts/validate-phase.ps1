@@ -28,8 +28,8 @@ $phaseExpectations = @{
         @{ Pattern = "requirement-analysis/feature-*.md"; Type = "feature"; Prefix = "feature-" }
     )
     "user-story-breakdown" = @(
-        @{ Pattern = "design/story-*.md"; Type = "user-story"; Prefix = "story-" },
-        @{ Pattern = "design/matrix-*.md"; Type = "traceability-matrix"; Prefix = "matrix-" }
+        @{ Pattern = "requirement-analysis/feature-*/story-*.md"; Type = "user-story"; Prefix = "story-" },
+        @{ Pattern = "requirement-analysis/matrix-*.md"; Type = "traceability-matrix"; Prefix = "matrix-" }
     )
     "detailed-design" = @(
         @{ Pattern = "design/flow-*.md"; Type = "structure-flow"; Prefix = "flow-" },
@@ -183,6 +183,16 @@ foreach ($expected in $phaseExpectations[$phase]) {
             }
         }
 
+        if ($phase -eq "user-story-breakdown" -and $type -eq "user-story") {
+            $featureRefs = @($frontmatter.Refs | Where-Object {
+                (Remove-YamlQuotes $_.relation) -eq "implements" -and (Remove-YamlQuotes $_.id) -match '^feature-\d{3,}$'
+            })
+            if ($featureRefs.Count -ne 1) {
+                $issues += "[placement] $($file.Name): expected one implements reference to feature-<nnn>"
+            } elseif ($file.Directory.Name -ne (Remove-YamlQuotes $featureRefs[0].id)) {
+                $issues += "[placement] $($file.Name): must be stored in requirement-analysis/$(Remove-YamlQuotes $featureRefs[0].id)/"
+            }
+        }
         $relativePath = $file.FullName.Substring($project.Length).TrimStart('\', '/').Replace('\', '/')
         $documents += [PSCustomObject]@{
             Id = $id
@@ -200,6 +210,13 @@ foreach ($duplicate in $duplicateDocIds) {
 
 if ($phase -eq "requirement-analysis") {
     foreach ($legacyPattern in @("strategic/req-*.md", "strategic/epic-*.md", "requirement/feature-*.md")) {
+        if (Get-ChildItem -Path (Join-Path $docsPath $legacyPattern) -File -ErrorAction SilentlyContinue) {
+            $issues += "[directory] legacy artifact found: $legacyPattern"
+        }
+    }
+}
+if ($phase -eq "user-story-breakdown") {
+    foreach ($legacyPattern in @("design/story-*.md", "design/matrix-*.md", "requirement-analysis/story-*.md")) {
         if (Get-ChildItem -Path (Join-Path $docsPath $legacyPattern) -File -ErrorAction SilentlyContinue) {
             $issues += "[directory] legacy artifact found: $legacyPattern"
         }

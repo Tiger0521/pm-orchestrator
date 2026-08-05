@@ -6,9 +6,10 @@
 
 ## 文件存在性
 
-- [ ] 至少一个 `docs/design/story-*.md` 存在
-- [ ] 至少一个 `docs/design/matrix-*.md` 存在
-- [ ] 需求拆解阶段正式产物未分散写入 `docs/requirement-analysis/` 或其他目录
+- [ ] 至少一个 `docs/requirement-analysis/feature-*/story-*.md` 存在
+- [ ] 至少一个 `docs/requirement-analysis/matrix-*.md` 存在
+- [ ] 每条 Story 位于其唯一 `implements` 引用所指 Feature 的子目录；矩阵位于 `docs/requirement-analysis/` 根层
+- [ ] 需求拆解阶段正式产物未写入 `docs/design/`、需求分析目录根层的 `story-*.md` 或其他 Feature 目录
 
 ---
 
@@ -82,9 +83,10 @@
 
 - [ ] 每条已选 Story 都有对应的 `docs/_extracted/.stories/story-<nnn>.json`，且顶层 Story/AC 字段可用于渲染。
 - [ ] 每个最终字段可追溯到 `interview.fact_checks` 的已核实事实或 `interview.decision_tree` 的用户确认节点。
-- [ ] 所有适用核心与条件分支均为 `confirmed`；任何 `forced-skip` 都有用户明确跳过理由、受影响范围和验证条件。
-- [ ] 每个决策组的 `shared_understanding` 均为 `confirmed`，不存在未处理的上游 Epic/Feature 冲突。
+- [ ] 所有适用核心节点（角色与三段式、颗粒度与边界、GWT 场景选择、优先级与估算、溯源与覆盖）与条件分支均为 `confirmed`；任何 `forced-skip` 都有用户明确跳过理由、受影响范围和验证条件。
+- [ ] 每个决策组的 `shared_understanding`（`story_card`、`gwt`、`priority_and_traceability`）均为 `confirmed`，不存在未处理的上游 Epic/Feature 冲突。
 - [ ] `interview.qa_log` 已按轮次记录润色后的追问和用户回答，保留全部业务信息量而非逐字照抄。
+- [ ] 盘问未越界到详细设计范畴（性能阈值、技术选型、数据模型、接口、延迟）；这类问题均记为“详细设计待定”而非盘问用户。
 - [ ] 会话恢复将从 `interview.current_node` 的已满足依赖之后继续，不重问已确认节点。
 
 ---

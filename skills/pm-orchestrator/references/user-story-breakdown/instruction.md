@@ -51,9 +51,9 @@
 | 梳理角色、规则、流程 | `core-mechanisms.md`、`confirmation-method.md` | 输出角色-规则-流程摘要，并按确认方法只问一个问题 |
 | 自主生成主干 Story 候选总表 | `workflow.md`、`core-mechanisms.md`、`writing-paradigm/user-story-writing.md` | 基于 Epic/Feature 生成带来源能力的候选总表；完成 INVEST 与颗粒度初检 |
 | 让用户选择值得讨论的 Story | `confirmation-method.md` | 展示候选总表和理解回执，只问用户选择一个或多个候选标签 |
-| 补充已选主干 Story 的决策 | `grilling-protocol.md`、`core-mechanisms.md`、`writing-paradigm/user-story-writing.md` | 按决策树逐项收敛；只有用户确认共同理解后才可生成完整 Story/GWT 预览 |
-| 拆分异常分支 | `grilling-protocol.md`、`core-mechanisms.md`、`writing-paradigm/user-story-writing.md`、`confirmation-method.md` | 对未决异常逐项盘问、确认后生成异常分支草稿 |
-| 编写 GWT 验收标准 | `grilling-protocol.md`、`writing-paradigm/user-story-writing.md`、`core-mechanisms.md` | 对未决验收判断逐项盘问后，产出 3-8 条 GWT |
+| 补充已选主干 Story 的决策 | `grilling-protocol.md`、`core-mechanisms.md`、`writing-paradigm/user-story-writing.md` | 按决策树逐项收敛；每轮先呈现故事草稿再针对说不明白的细节提问；用户确认共同理解后才可生成完整 Story/GWT 预览 |
+| 选择异常场景 | `grilling-protocol.md`、`core-mechanisms.md`、`writing-paradigm/user-story-writing.md`、`confirmation-method.md` | 异常类型与处理从 Feature 读取（事实），只盘问相关性与是否独立成 Story |
+| 编写 GWT 验收标准 | `grilling-protocol.md`、`writing-paradigm/user-story-writing.md`、`core-mechanisms.md` | 从已确认场景推导可观察结果产出 3-8 条 GWT；仅在场景未决时盘问，不盘问验收口径或性能指标 |
 | 确认优先级、估算或溯源 | `grilling-protocol.md`、`confirmation-method.md`；生成矩阵时另读 `output-contract.md`、`../shared/traceability-model.md` | 对未决排序、估算、覆盖度决策逐项盘问；确认后输出对应草稿 |
 | 输出完整 Story 预览或草稿 JSON | `output-contract.md` | 使用正式落盘同结构、同字段、同正文内容输出，不得给摘要版 |
 | 生成溯源矩阵草稿 | `output-contract.md`、`../shared/traceability-model.md` | 建立 Story -> Feature 映射并检查覆盖度 |
@@ -73,7 +73,7 @@
 | 当前动作 | 动作前必读 | 读完后才能做什么 |
 | --- | --- | --- |
 | 判断是否允许落盘 | `output-contract.md`、`persist-guide.md`、`grilling-protocol.md` | 核对用户确认信号、Story/AC、共同理解和盘问状态及落盘字段完整性 |
-| 分配 ID 和建立追溯关系 | `../shared/traceability-model.md`、项目 `refs.json`、`docs/design/` 已有 frontmatter | 分配不冲突的 `story-*`/`matrix-*` ID |
+| 分配 ID 和建立追溯关系 | `../shared/traceability-model.md`、项目 `refs.json`、`docs/requirement-analysis/` 下已有 Story/矩阵 frontmatter | 分配不冲突的 `story-*`/`matrix-*` ID，并按 Feature 目录确定 Story 输出路径 |
 | 核验并落盘结构化 JSON | `persist-guide.md` | 核验 draft 已写入的 Story JSON，只写入溯源矩阵 JSON；不得逐行 Write Markdown |
 | 渲染 Story 或矩阵 Markdown | `persist-guide.md`；需要核对结构时才读 `templates/user-story.md`、`templates/traceability-matrix.md` | 调用渲染脚本生成正式 Markdown |
 | 更新项目记忆 | `output-contract.md` | 更新 `refs.json`、`facts.json`、`decision-log.md`、`tracking-log.md`、`phase-summary.md`；`progress.json` 只更新允许字段 |
@@ -89,7 +89,7 @@
 
 | 当前动作 | 动作前必读 | 读完后才能做什么 |
 | --- | --- | --- |
-| 执行阶段质量门 | `checklist.md`、已有 `docs/design/story-*.md`、已有 `docs/design/matrix-*.md` | 按质量门逐项返回通过/失败 |
+| 执行阶段质量门 | `checklist.md`、已有 `docs/requirement-analysis/feature-*/story-*.md`、已有 `docs/requirement-analysis/matrix-*.md` | 按质量门逐项返回通过/失败 |
 | 校验 Story/GWT 文字质量 | `writing-paradigm/user-story-writing.md` | 判断三段式、GWT、异常覆盖和文字质量是否合格 |
 | 校验追溯关系 | `../shared/traceability-model.md`、项目 `refs.json` | 检查 frontmatter refs、`refs.json` nodes/edges 和矩阵映射是否一致 |
 
@@ -108,7 +108,7 @@ subagent 不需要把所有文件正文复述给用户，但每次返回给主�
 ## Reference 文件职责
 
 - `workflow.md`：9 步执行流程、上游质量门、项目类型规模自适应。
-- `grilling-protocol.md`：已选 Story 及其下游决策的盘问树、事实核查、问题格式、共同理解门禁和草稿状态记录。
+- `grilling-protocol.md`：已选 Story 的盘问目标、Story 层级边界、5 节点决策树、故事草稿回执、共同理解门禁和草稿状态记录。
 - `core-mechanisms.md`：INVEST、三段式、GWT、异常分支、颗粒度、优先级估算、反谄媚。
 - `confirmation-method.md`：理解回执、确认流程、每轮一个问题、范围漂移防护。
 - `writing-paradigm/user-story-writing.md`：三段式与 GWT 的详细写作规范、自检清单。

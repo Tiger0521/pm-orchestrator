@@ -17,14 +17,14 @@
    ```bash
    bash "<skillPath>/scripts/render-story.sh" \
      "<projectPath>/docs/_extracted/.stories/" \
-     "<projectPath>/docs/design/"
+     "<projectPath>/docs/requirement-analysis/"
    ```
-   脚本自动完成：按 ID 分配规则分配 ID、渲染 Markdown、写入 `docs/design/story-<nnn>.md`、自动运行 `validate-story.sh` 做写作规范校验
+   脚本自动完成：按全项目 ID 规则分配或复用 ID、从每条 Story 的 `featureId` 确定唯一归属、渲染 Markdown 到 `docs/requirement-analysis/feature-<feature-nnn>/story-<nnn>.md`，并自动运行 `validate-story.sh` 做写作规范校验。
 7. 调用 `render-matrix.sh` 渲染溯源矩阵：
    ```bash
    bash "<skillPath>/scripts/render-matrix.sh" \
      "<projectPath>/docs/_extracted/.stories/matrix-<nnn>.json" \
-     "<projectPath>/docs/design/"
+     "<projectPath>/docs/requirement-analysis/"
    ```
 8. **校验硬门禁**：`render-story.sh` 渲染完成后自动运行 `validate-story.sh`。有 `[WARN]` 项时必须修复对应 Story JSON 中的字段格式，重新渲染，直到零警告才能报告 `persisted`。不得跳过校验、不得忽略警告
 9. 更新 `refs.json`、`facts.json`、`decision-log.md`、`tracking-log.md`、`phase-summary.md`（更新内容见 `output-contract.md` 的记忆更新章节）

@@ -9,7 +9,7 @@
 #   bash render-matrix.sh <matrix_json_file> <output_dir>
 #
 #   matrix_json_file : 溯源矩阵 JSON 文件（matrix-*.json）
-#   output_dir       : Markdown 输出目录（通常 docs/design/）
+#   output_dir       : Markdown 输出目录（通常 docs/requirement-analysis/）
 #
 # 工作流程：
 #   1. 扫描 output_dir 中已有的 matrix-*.md，取最大序号

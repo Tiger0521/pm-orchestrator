@@ -9,7 +9,7 @@
 #   bash render-story.sh <stories_json_dir> <output_dir>
 #
 #   stories_json_dir : 存放 story-*.json 的目录（通常 docs/_extracted/.stories/）
-#   output_dir       : Markdown 输出目录（通常 docs/design/）
+#   output_dir       : 需求分析目录（通常 docs/requirement-analysis/；按 featureId 建子目录）
 #
 # 工作流程：
 #   1. 扫描 output_dir 中已有的 story-*.md，取最大序号
@@ -73,28 +73,24 @@ json_val() {
 
 # ---- 自动分配 ID ----
 allocate_next_id() {
-  local dir="$1"
-  local prefix="$2"   # "story"
+  local root="$1"
+  local prefix="$2"
   local max_num=0
 
-  # 扫描已有文件
-  for f in "$dir"/${prefix}-*.md; do
-    [ -f "$f" ] || continue
-    local fname
+  while IFS= read -r -d '' f; do
+    local fname num
     fname=$(basename "$f")
-    local num
-    num=$(echo "$fname" | sed "s/${prefix}-//" | sed 's/\.md$//')
-    # 去除前导零
+    num=${fname#"${prefix}-"}
+    num=${num%.md}
+    [[ "$num" =~ ^[0-9]+$ ]] || continue
     num=$((10#$num))
     if [ "$num" -gt "$max_num" ]; then
       max_num="$num"
     fi
-  done
+  done < <(find "$root" -type f -name "${prefix}-*.md" -print0)
 
-  local next_num=$((max_num + 1))
-  printf "%s-%03d" "$prefix" "$next_num"
+  printf "%s-%03d" "$prefix" "$((max_num + 1))"
 }
-
 # ---- 渲染单个 Story ----
 render_one_story() {
   local json_file="$1"
@@ -196,24 +192,41 @@ validation_failed=0
 
 for json_file in "${sorted_files[@]}"; do
   # 分配 ID
-  story_id=$(allocate_next_id "$output_dir" "story")
-  out_file="$output_dir/${story_id}.md"
+  story_id=$(json_val "id" "$json_file")
+  feature_id=$(json_val "featureId" "$json_file")
+  if [[ ! "$feature_id" =~ ^feature-[0-9]{3,}$ ]]; then
+    echo "ERROR: $(basename "$json_file") has invalid featureId: $feature_id" >&2
+    exit 2
+  fi
+  if [[ ! "$story_id" =~ ^story-[0-9]{3,}$ ]]; then
+    story_id=$(allocate_next_id "$output_dir" "story")
+  fi
 
+  out_dir="$output_dir/$feature_id"
+  out_file="$out_dir/${story_id}.md"
+  mkdir -p "$out_dir"
+  existing_path=$(find "$output_dir" -type f -name "${story_id}.md" -print -quit)
+  if [ -n "$existing_path" ] && [ "$existing_path" != "$out_file" ]; then
+    echo "ERROR: $story_id already belongs to a different Feature directory: $existing_path" >&2
+    exit 2
+  fi
+  tmp_file=$(mktemp "$out_dir/.${story_id}.XXXXXX")
   # 预占 ID（创建临时文件防止 ID 冲突）
-  echo "" > "$out_file"
 
   echo "渲染: $(basename "$json_file") → ${story_id}.md"
 
   # 渲染
-  render_one_story "$json_file" "$story_id" "$out_file"
+  render_one_story "$json_file" "$story_id" "$tmp_file"
   rendered_count=$((rendered_count + 1))
 
   # 校验
   echo "  校验: ${story_id}.md"
-  if bash "$script_dir/validate-story.sh" "$out_file"; then
+  if bash "$script_dir/validate-story.sh" "$tmp_file"; then
     echo "  [OK] ${story_id} 校验通过"
+    mv -f "$tmp_file" "$out_file"
   else
     echo "  [FAIL] ${story_id} 校验未通过（详见上方警告）"
+    rm -f "$tmp_file"
     validation_failed=$((validation_failed + 1))
   fi
   echo ""

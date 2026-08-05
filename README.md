@@ -229,6 +229,7 @@ skills/pm-orchestrator/references/product-library/contract.md
 - 链接使用 `[[文件名]]` 或 `[[文件名|显示文本]]` 格式，不写扩展名。
 - 除产品库根文档外，每份导出文档包含 `aliases`（别名列表）和 `tags`（标签列表），由导出时自动注入。`tags` 使用 `简称/文档类型/能力路径` 嵌套格式，支持 Obsidian 标签过滤和图谱分组。
 - 产品全名登记为需求卡片和设计文档的别名，能力路径登记为能力文档和用户故事的别名，支持在 Obsidian 中用习惯名称快速链接。
+- 导出会把过程文档 ID（如 `epic-001`）改写为产品库文件链接或可读名称；无法映射的过程 ID 会阻止导出，校验也会拒绝任何残留。
 
 Obsidian 是可选工具，使用文件管理器打开产品库也能正常阅读所有文档。
 
@@ -256,8 +257,9 @@ Obsidian 是可选工具，使用文件管理器打开产品库也能正常阅�
 ```text
 docs/background/              # 用户背景材料，不可信输入
 docs/_extracted/.fields/      # 字段 JSON 和中间产物
-docs/requirement-analysis/    # 需求卡片、Epic、Feature
-docs/design/                  # Story、溯源矩阵、结构流程、原型、交互契约
+docs/requirement-analysis/    # 需求卡片、Epic、Feature、按 Feature 分组的 Story、溯源矩阵
+  feature-<nnn>/story-<nnn>.md # 属于该 Feature 的 Story
+docs/design/                  # 结构流程、原型、交互契约
 docs/execution/               # 规则摘要、Sprint 规划
 ```
 
@@ -288,13 +290,14 @@ docs/execution/               # 规则摘要、Sprint 规划
 | `scripts/validate-phase.sh` | 校验阶段产物和 frontmatter |
 | `scripts/export-doc-index.sh` | 导出文档索引或 Mermaid 引用图 |
 | `scripts/init-product-library.sh` | 创建产品库容器和架构设计文档（含建设背景、建设目标、设计原则、总体架构图、产品矩阵五个章节） |
-| `scripts/validate-product-library.sh` | 校验中文目录、简称、命名、frontmatter（含 `aliases`/`tags`）、层级、文件名唯一性、别名冲突和链接完整性 |
-| `scripts/export-to-library.sh` | 预览或增量导出已完成项目，自动注入 `aliases`/`tags`，更新产品矩阵标记区域，失败自动回滚 |
+| `scripts/validate-product-library.sh` | 校验中文目录、简称、命名、frontmatter（含 `aliases`/`tags`）、层级、文件名唯一性、别名冲突、链接完整性及过程 ID 零残留 |
+| `scripts/export-to-library.sh` | 预览或增量导出已完成项目，自动注入 `aliases`/`tags`，将过程 ID 改写为产品库链接或可读名称，更新产品矩阵标记区域，失败自动回滚 |
 | `scripts/rename-product.sh` | 预览或应用产品简称变更，更新产品矩阵标记区域，失败自动回滚 |
 | `scripts/transition-project-state.sh` | 校验合法状态边并原子更新 `workflow.state` |
+| `scripts/migrate-story-layout.ps1` | 将旧版 Story/矩阵迁移为按 Feature 分组的需求分析资产 |
 | `scripts/convert-document.py` | 可选：把 Word/PPT/Excel 转 Markdown |
 
-优先使用 `.sh` 脚本。增量导出与简称变更使用 Node.js 标准库保证事务性；`convert-document.py` 仅在本机具备 Python 和 `markitdown` 时使用。
+优先使用 `.sh` 脚本。产品库校验、增量导出与简称变更使用 Node.js 标准库，以保证跨平台的 Unicode 命名校验和事务性；`convert-document.py` 仅在本机具备 Python 和 `markitdown` 时使用。
 
 ## 手动校验
 

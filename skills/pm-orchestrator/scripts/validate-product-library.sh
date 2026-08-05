@@ -3,6 +3,8 @@
 
 set -u
 
+command -v node >/dev/null 2>&1 || { echo "ERROR: Node.js is required for Unicode-safe product-library validation" >&2; exit 2; }
+
 ISSUES=()
 TMP_FILES=()
 fail_issue() { ISSUES+=("$1"); }
@@ -120,18 +122,24 @@ validate_doc() {
 
 valid_name() {
   local name="$1"
-  # 能力目录名/文件名：仅汉字与单个半角中划线（不得连续、不得首尾）
-  [[ "$name" =~ ^[一-龥]+(-[一-龥]+)*$ ]] || return 1
-  return 0
+  # Bash ERE CJK ranges are unreliable in Windows Git Bash; use Node Unicode regexes.
+  node -e 'const value = process.argv[1] ?? ""; process.exit(/^[\u4E00-\u9FFF]+(?:-[\u4E00-\u9FFF]+)*$/u.test(value) ? 0 : 1)' "$name"
 }
 
 valid_product_name() {
   local name="$1"
-  # 产品全名：简称(2-6 汉字)＋全角：＋描述(汉字)，对应 spec 第 2 节
-  [[ "$name" =~ ^[一-龥]{2,6}：[一-龥]+$ ]] || return 1
-  return 0
+  # 产品全名：简称(2-6 汉字)＋全角：＋描述(汉字)，对应 spec 第 2 节。
+  node -e 'const value = process.argv[1] ?? ""; process.exit(/^[\u4E00-\u9FFF]{2,6}\uFF1A[\u4E00-\u9FFF]+$/u.test(value) ? 0 : 1)' "$name"
 }
 
+valid_short_name() {
+  local name="$1"
+  node -e 'const value = process.argv[1] ?? ""; process.exit(/^[\u4E00-\u9FFF]{2,6}$/u.test(value) ? 0 : 1)' "$name"
+}
+
+unicode_length() {
+  node -e 'process.stdout.write(String(Array.from(process.argv[1] ?? "").length))' "$1"
+}
 table_short_for() {
   local product="$1"
   awk -F '\t' -v p="$product" '$1 == p { print $2; exit }' "$TABLE_ROWS"
@@ -231,9 +239,9 @@ while IFS=$'\t' read -r full short caps stories; do
   valid_product_name "$full" || fail_issue "[产品矩阵] 产品全名格式应为 简称：描述: $full"
   prefix=$(printf '%s' "$full" | awk -F'：' '{print $1}')
   [ "$short" = "$prefix" ] || fail_issue "[产品矩阵] 简称与全名冒号前缀不符: $full ($short/$prefix)"
-  short_len=$(printf '%s' "$short" | awk '{print length($0)}')
+  short_len=$(unicode_length "$short")
   [ "$short_len" -ge 2 ] && [ "$short_len" -le 6 ] || fail_issue "[产品矩阵] 简称必须为 2-6 个汉字: $short"
-  [[ "$short" =~ ^[一-龥]{2,6}$ ]] || fail_issue "[产品矩阵] 简称只能包含汉字: $short"
+  valid_short_name "$short" || fail_issue "[产品矩阵] 简称只能包含汉字: $short"
   [ "$(awk -F '\t' -v s="$short" '$2 == s {n++} END{print n+0}' "$TABLE_ROWS")" -eq 1 ] || fail_issue "[产品矩阵] 简称重复: $short"
   [ "$(awk -F '\t' -v p="$full" '$1 == p {n++} END{print n+0}' "$TABLE_ROWS")" -eq 1 ] || fail_issue "[产品矩阵] 产品全名重复: $full"
   [ -d "$LIBRARY_PATH/$full" ] || fail_issue "[产品矩阵] 已登记产品目录不存在: $full"
@@ -276,6 +284,14 @@ while IFS= read -r -d '' file; do
     grep -qxF "$target" "$LINK_TARGETS" || fail_issue "[链接] $rel: 链接目标不存在: [[$target]]"
   done
 done < <(find "$LIBRARY_PATH" -type f -name '*.md' ! -path "$ARCH" -print0)
+
+# Product libraries are formal assets, so process-space IDs such as epic-001 must
+# never remain in either frontmatter or document bodies.
+while IFS= read -r -d '' file; do
+  rel="${file#"$LIBRARY_PATH"/}"
+  process_ids=$(node -e 'const fs = require("fs"); const text = fs.readFileSync(process.argv[1], "utf8"); const ids = [...new Set([...text.matchAll(/\b(?:req|diagnostic|epic|feature|story|matrix|flow|proto|contract|rules|sprint)-\d+\b/gi)].map((match) => match[0]))]; process.stdout.write(ids.join(", "));' "$file")
+  [ -z "$process_ids" ] || fail_issue "[过程 ID] $rel: 产品库不得保留过程文档 ID: $process_ids"
+done < <(find "$LIBRARY_PATH" -type f -name '*.md' -print0)
 
 # Alias conflict: check no alias points to multiple files
 ALIAS_LIST=$(mktemp); TMP_FILES+=("$ALIAS_LIST")

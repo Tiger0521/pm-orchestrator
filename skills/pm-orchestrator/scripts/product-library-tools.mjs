@@ -3,6 +3,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
+const PROCESS_ID_PATTERN = String.raw`\b(?:req|diagnostic|epic|feature|story|matrix|flow|proto|contract|rules|sprint)-\d+\b`;
+
 function fail(message) {
   console.error(`ERROR: ${message}`);
   process.exit(1);
@@ -12,6 +14,84 @@ function safeName(value, label) {
   if (!value || value === '.' || value === '..' || /[\s:/\\*?<>|"]/.test(value)) {
     fail(`${label}为空或包含禁用字符: ${value}`);
   }
+}
+
+function escapedRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function processIdFromReference(value) {
+  const basename = value.trim().replaceAll('\\', '/').split('/').at(-1)?.replace(/\.md$/i, '') || '';
+  const match = basename.match(new RegExp(`^(${PROCESS_ID_PATTERN})$`, 'i'));
+  return match?.[1]?.toLowerCase() || '';
+}
+
+function processIdsIn(text) {
+  return [...text.matchAll(new RegExp(PROCESS_ID_PATTERN, 'gi'))].map((match) => match[0].toLowerCase());
+}
+
+function replacementForProcessId(sourceId, idLinks, referenceLabels, sourceLabel) {
+  const targetName = idLinks.get(sourceId);
+  if (targetName) return { targetName };
+  const label = referenceLabels.get(sourceId);
+  if (label) return { label };
+  throw new Error(`${sourceLabel}: 无法将过程 ID ${sourceId} 映射为产品库文档或可读名称`);
+}
+
+function rewriteWikiLinks(text, idLinks, referenceLabels, sourceLabel) {
+  return text.replace(/(!?)\[\[([^\]|#^]+)(#[^\]|]+|\^[^\]|]+)?(?:\|([^\]]+))?\]\]/g, (whole, embed, rawTarget, anchor = '', alias = '') => {
+    const sourceId = processIdFromReference(rawTarget);
+    if (!sourceId) return whole;
+    const replacement = replacementForProcessId(sourceId, idLinks, referenceLabels, sourceLabel);
+    if (replacement.targetName) return `${embed}[[${replacement.targetName}${anchor}${alias ? `|${alias}` : ''}]]`;
+    return alias.trim() || replacement.label;
+  });
+}
+
+function rewriteMarkdownLinks(text, idLinks, referenceLabels, sourceLabel) {
+  return text.replace(/(!?)\[([^\]]*)\]\(([^)\s]+)(\s+"[^"]*")?\)/g, (whole, embed, label, href) => {
+    if (/^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith('//')) return whole;
+    const [rawTarget, fragment = ''] = href.split(/(?=#)/, 2);
+    const sourceId = processIdFromReference(rawTarget);
+    if (!sourceId) return whole;
+    const replacement = replacementForProcessId(sourceId, idLinks, referenceLabels, sourceLabel);
+    if (replacement.targetName) return `${embed}[[${replacement.targetName}${fragment}${label ? `|${label}` : ''}]]`;
+    return label.trim() || replacement.label;
+  });
+}
+
+function rewriteProcessReferences(text, idLinks, referenceLabels, sourceLabel) {
+  let rewritten = rewriteMarkdownLinks(text, idLinks, referenceLabels, sourceLabel);
+  rewritten = rewriteWikiLinks(rewritten, idLinks, referenceLabels, sourceLabel);
+  const replacements = new Map(idLinks);
+  for (const [sourceId, label] of referenceLabels) if (!replacements.has(sourceId)) replacements.set(sourceId, label);
+  for (const [sourceId, replacement] of replacements) {
+    rewritten = rewritten.replace(new RegExp(`\\b${escapedRegex(sourceId)}\\b`, 'gi'), () => replacement);
+  }
+  const unresolved = [...new Set(processIdsIn(rewritten))];
+  if (unresolved.length) throw new Error(`${sourceLabel}: 产品库文档不得保留过程 ID: ${unresolved.join(', ')}`);
+  return rewritten;
+}
+
+function keepLibraryFrontmatter(raw, dropGeneratedFields = true) {
+  const kept = [];
+  let skipNested = false;
+  for (const line of raw) {
+    const top = line.match(/^([A-Za-z][A-Za-z0-9_-]*):/);
+    if (top) {
+      const excluded = dropGeneratedFields
+        ? ['id', 'product', 'type', 'capability', 'status', 'projectId', 'refs', 'aliases', 'tags']
+        : ['id', 'status', 'projectId', 'refs'];
+      skipNested = excluded.includes(top[1]);
+      if (skipNested) continue;
+    } else if (skipNested && /^[ \t]/.test(line)) {
+      continue;
+    } else {
+      skipNested = false;
+    }
+    kept.push(line);
+  }
+  return kept;
 }
 
 function parseFrontmatter(text) {
@@ -105,27 +185,10 @@ function generateTags(productShort, docType, capability) {
   return tags;
 }
 
-function rewriteDocument(source, product, productShort, docType, capability, relative, idLinks) {
+function rewriteDocument(source, product, productShort, docType, capability, relative, idLinks, referenceLabels) {
   const { raw, body: sourceBody } = parseFrontmatter(fs.readFileSync(source, 'utf8'));
-  const kept = [];
-  let skipNested = false;
-  for (const line of raw) {
-    const top = line.match(/^([A-Za-z][A-Za-z0-9_-]*):/);
-    if (top) {
-      skipNested = ['product', 'type', 'capability', 'status', 'projectId', 'aliases', 'tags'].includes(top[1]);
-      if (skipNested) continue;
-    } else if (skipNested && /^[ \t]/.test(line)) {
-      continue;
-    } else {
-      skipNested = false;
-    }
-    kept.push(line);
-  }
-  let body = sourceBody;
-  for (const [sourceId, targetName] of idLinks.entries()) {
-    const escaped = sourceId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    body = body.replace(new RegExp(`\\[\\[${escaped}(?:\\|([^\\]]+))?\\]\\]`, 'g'), (_, alias) => `[[${targetName}${alias ? `|${alias}` : ''}]]`);
-  }
+  const kept = keepLibraryFrontmatter(raw);
+  const body = rewriteProcessReferences(sourceBody, idLinks, referenceLabels, source);
   const front = ['---', `product: "${product}"`, `type: "${docType}"`];
   if (capability) front.push(`capability: "${capability}"`);
   const aliases = generateAliases(product, docType, capability, relative);
@@ -135,8 +198,9 @@ function rewriteDocument(source, product, productShort, docType, capability, rel
   front.push('tags:');
   for (const t of tags) front.push(`  - ${t}`);
   front.push(...kept, '---');
-  return `${front.join('\n')}\n\n${body.trimEnd()}\n`;
+  return rewriteProcessReferences(`${front.join('\n')}\n\n${body.trimEnd()}\n`, idLinks, referenceLabels, source);
 }
+
 
 function validateLibrary(scriptDir, libraryDir, bashExe) {
   const validator = path.join(scriptDir, 'validate-product-library.sh').replaceAll('\\', '/');
@@ -145,10 +209,10 @@ function validateLibrary(scriptDir, libraryDir, bashExe) {
   if (result.status !== 0) throw new Error(`${result.stdout || ''}${result.stderr || ''}`);
 }
 
-function extractOverview(epicSourcePath) {
+function extractOverview(epicSourcePath, idLinks, referenceLabels) {
   const { body } = parseFrontmatter(fs.readFileSync(epicSourcePath, 'utf8'));
   const match = body.match(/^##\s+产品定位\s*\n+([\s\S]+?)(?=\n##\s|$)/m);
-  return match ? match[1].trim() : '';
+  return match ? rewriteProcessReferences(match[1].trim(), idLinks, referenceLabels, epicSourcePath) : '';
 }
 
 function generateProductBlock(product, short, plans) {
@@ -174,7 +238,7 @@ function generateProductBlock(product, short, plans) {
   return lines.join('\n');
 }
 
-function updateArchitecture(archPath, product, short, plans, epicSource) {
+function updateArchitecture(archPath, product, short, plans, epicSource, idLinks, referenceLabels) {
   const lines = fs.readFileSync(archPath, 'utf8').split(/\r?\n/);
   const { matrixEnd, products } = parseProductMatrix(lines);
   const productStart = `<!-- product:${product}:start -->`;
@@ -184,7 +248,7 @@ function updateArchitecture(archPath, product, short, plans, epicSource) {
   if (existing) {
     lines.splice(existing.startIdx + 1, existing.endIdx - existing.startIdx - 1, '', markerContent, '');
   } else {
-    const overview = extractOverview(epicSource);
+    const overview = extractOverview(epicSource, idLinks, referenceLabels);
     const block = [`## ${product}`, '', overview, '', productStart, '', markerContent, '', productEnd, ''];
     lines.splice(matrixEnd, 0, ...block);
   }
@@ -219,6 +283,12 @@ function exportProduct(args) {
   if (!fs.existsSync(refsPath)) fail('项目缺少 refs.json');
   let refs;
   try { refs = JSON.parse(fs.readFileSync(refsPath, 'utf8')); } catch (error) { fail(`refs.json 无法读取: ${error.message}`); }
+  const referenceLabels = new Map();
+  for (const node of refs.nodes || []) {
+    if (typeof node.id !== 'string' || !processIdFromReference(node.id)) continue;
+    const title = typeof node.title === 'string' ? node.title.trim() : '';
+    if (title) referenceLabels.set(node.id.toLowerCase(), title);
+  }
   const sources = [];
   const seen = new Set();
   for (const node of refs.nodes || []) {
@@ -228,7 +298,7 @@ function exportProduct(args) {
     if (seen.has(source) || !fs.statSync(source, { throwIfNoEntry: false })?.isFile() || path.extname(source).toLowerCase() !== '.md') continue;
     const parsed = parseFrontmatter(fs.readFileSync(source, 'utf8'));
     if (['requirement-card', 'epic', 'feature', 'user-story'].includes(parsed.values.type)) {
-      sources.push({ source, ...parsed }); seen.add(source);
+      sources.push({ source, nodeId: typeof node.id === 'string' ? node.id.toLowerCase() : '', ...parsed }); seen.add(source);
     }
   }
   if (!sources.length) fail('refs.json 未登记可导出的正式产物');
@@ -243,14 +313,22 @@ function exportProduct(args) {
   const featureCaps = new Map();
   for (const item of byType.get('feature') || []) {
     const id = item.values.id || path.parse(item.source).name;
-    featureCaps.set(id, capabilityPath(item.values.capabilityPath || sectionValue(item.body, '能力名称') || item.values.title || ''));
+    const capability = capabilityPath(item.values.capabilityPath || sectionValue(item.body, '能力名称') || item.values.title || '');
+    featureCaps.set(id, capability);
+    if (item.nodeId) featureCaps.set(item.nodeId, capability);
   }
   const productDir = path.join(libraryDir, productName);
   const existingStoryNames = new Map();
+  const existingStoryNamesByTitle = new Map();
   for (const existing of walkFiles(productDir, (file) => file.includes(`${path.sep}UserStory${path.sep}`) && file.endsWith('.md'))) {
     try {
-      const id = parseFrontmatter(fs.readFileSync(existing, 'utf8')).values.id;
-      if (id) existingStoryNames.set(id, path.basename(existing));
+      const values = parseFrontmatter(fs.readFileSync(existing, 'utf8')).values;
+      const filename = path.basename(existing);
+      if (values.id) existingStoryNames.set(values.id, filename);
+      if (values.title) {
+        const titleKey = `${values.capability || ''}\u0000${values.title}`;
+        existingStoryNamesByTitle.set(titleKey, existingStoryNamesByTitle.has(titleKey) ? '' : filename);
+      }
     } catch { /* validation reports malformed existing files */ }
   }
 
@@ -273,7 +351,7 @@ function exportProduct(args) {
     if (!featureId) fail(`用户故事无法关联 Feature: ${item.source}`);
     const capability = featureCaps.get(featureId);
     const slug = capability.replaceAll('/', '-');
-    let filename = existingStoryNames.get(id);
+    let filename = existingStoryNames.get(id) || existingStoryNamesByTitle.get(`${capability}\u0000${item.values.title || ''}`);
     if (!filename) {
       const storyDir = path.join(productDir, ...capability.split('/'), 'UserStory');
       const used = walkFiles(storyDir, (file) => file.endsWith('.md')).map((file) => file.match(/用户故事([0-9]{2})/)?.[1]).filter(Boolean).map(Number);
@@ -286,7 +364,13 @@ function exportProduct(args) {
     plans.push({ source: item.source, relative: path.join(...capability.split('/'), 'UserStory', filename), type: '用户故事', capability, id });
   }
 
-  const idLinks = new Map(plans.map((plan) => [plan.id, path.parse(plan.relative).name]));
+  const idLinks = new Map();
+  for (const plan of plans) {
+    const targetName = path.parse(plan.relative).name;
+    idLinks.set(plan.id.toLowerCase(), targetName);
+    const nodeId = sources.find((item) => item.source === plan.source)?.nodeId;
+    if (nodeId) idLinks.set(nodeId, targetName);
+  }
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'pm-library-export-'));
   try {
     const stage = path.join(tempRoot, productName);
@@ -296,7 +380,7 @@ function exportProduct(args) {
       const staged = path.join(stage, plan.relative);
       const target = path.join(productDir, plan.relative);
       fs.mkdirSync(path.dirname(staged), { recursive: true });
-      fs.writeFileSync(staged, rewriteDocument(plan.source, productName, productShort, plan.type, plan.capability, plan.relative, idLinks), 'utf8');
+      fs.writeFileSync(staged, rewriteDocument(plan.source, productName, productShort, plan.type, plan.capability, plan.relative, idLinks, referenceLabels), 'utf8');
       const status = !fs.existsSync(target) ? 'NEW' : fs.readFileSync(target).equals(fs.readFileSync(staged)) ? 'UNCHANGED' : 'UPDATE';
       statuses.push({ status, staged, target });
     }
@@ -304,9 +388,11 @@ function exportProduct(args) {
     const stale = walkFiles(productDir, (file) => file.endsWith('.md') && !plannedTargets.has(path.resolve(file)))
       .map((target) => ({ status: 'STALE', target }))
       .sort((a, b) => a.target.localeCompare(b.target));
+
     console.log(applyChanges ? 'EXPORT_STATUS=APPLYING' : 'EXPORT_STATUS=PREVIEW');
     for (const item of statuses) console.log(`${item.status}\t${path.relative(libraryDir, item.target)}`);
     for (const item of stale) console.log(`${item.status}\t${path.relative(libraryDir, item.target)}`);
+
     if (!applyChanges) {
       if (stale.length) console.log('STALE 文件仅提示并保留；如需归档或删除，请单独处理。');
       console.log('确认以上清单后，以相同参数追加 --apply 执行写入。');
@@ -326,7 +412,8 @@ function exportProduct(args) {
         fs.mkdirSync(path.dirname(item.target), { recursive: true });
         fs.copyFileSync(item.staged, item.target);
       }
-      updateArchitecture(archPath, productName, productShort, plans, epic.source);
+
+      updateArchitecture(archPath, productName, productShort, plans, epic.source, idLinks, referenceLabels);
       validateLibrary(scriptDir, libraryDir, bashExe);
     } catch (error) {
       fs.writeFileSync(archPath, backupArch);
