@@ -2,22 +2,24 @@
 
 **前置条件**：顶层管线已完成第 1 步，且 `workflow.state=requirement-analysis`、`mode=draft`。
 
-**按需读取**：本文件所列步骤对应的 `../guides/question-bank.md`、`../guides/quality-and-interaction.md`、模板、写作范式和 `references/shared/traceability-model.md`；不读取落盘和校验详情。
+**按需读取**：本文件所列步骤对应的 `../guides/question-bank.md`、`../guides/quality-and-interaction.md`、模板、写作范式和 `references/shared/traceability-model.md`；不读取过程项目写入和校验详情。
 
 **允许写入**：仅 `docs/_extracted/.fields/fields-*.json`。不得写正式 Markdown、项目记忆或 `workflow.state`。
 
 **用户问题**：每轮只提出一个问题；每次问题前按 `../guides/quality-and-interaction.md` 输出理解回执，并完整执行 `../guides/question-bank.md` 的“盘问式决策澄清协议”。
 
-**终点**：信息不足时 `needs-input`；完整预览满足门禁时 `draft-ready`。
+**终点**：信息不足或仍在当前批次澄清时返回 `needs-input`；当前批次过程项目正式文档预览满足门禁时返回 `draft-ready`，并携带 `artifactScope=requirement-epic | features`。
 ## 产出顺序
 
 本文件规定执行顺序和门禁。每一步需要追问时，去 `../guides/question-bank.md` 取对应字段的问题。展示格式遵守主调度器传入的 `interactionContract`。
+
+需求分析按两个顺序批次执行：`requirement-epic` 先起草、确认并写入过程项目需求卡片 + Epic；只有该批次返回 `persisted` 后，才进入 `features` 批次起草、确认并写入过程项目 Feature。任一批次的 `draft-ready` 只表示该批次预览可确认，不表示整个需求分析阶段完成。
 
 在字段顺序允许进入下一问前，先依照问题库的“盘问式决策澄清协议”核实可查事实、选择最上游未决节点，并在该节点获用户决断后才继续其下游字段。该协议的共同理解门禁优先于本工作流的草稿和落盘出口。
 
 ### 字段 JSON 文件
 
-字段 JSON 是落盘数据源，一份文档对应一个 JSON：
+字段 JSON 是过程项目正式文档的数据源，一份文档对应一个 JSON：
 
 - 需求卡片：`docs/_extracted/.fields/fields-req-<nnn>.json`
 - Epic：`docs/_extracted/.fields/fields-epic-<nnn>.json`
@@ -25,11 +27,15 @@
 
 以上路径均相对于 `<projectPath>/`。字段 JSON 是中间状态文件，存放在 `docs/_extracted/.fields/` 子目录中，不与正式 Markdown 产物混放。
 
-JSON 的字段名和结构见“落盘”章节。`mode=draft` 时必须创建并持续更新字段 JSON；同时在对话中展示用户可见的逐字段草稿。字段 JSON、对话草稿、模板章节三者必须保持一致。`mode=persist` 且用户确认完整草稿后，以字段 JSON 作为 `render-doc.sh` 的唯一数据源渲染正式 Markdown。
+JSON 的字段名和结构见“写入过程项目”章节。`mode=draft` 时必须创建并持续更新字段 JSON；同时在对话中展示用户可见的逐字段草稿。字段 JSON、对话草稿、模板章节三者必须保持一致。`mode=persist` 且用户确认完整草稿后，以字段 JSON 作为 `render-doc.sh` 的唯一数据源渲染正式 Markdown。
 
 ### 启动时：读取 JSON 恢复进度
 
 每次被主调度器调用时，先检查 `<projectPath>/docs/_extracted/.fields/` 下是否有字段 JSON 文件。如果有，读取 JSON，检查哪些字段已填、哪些还空着，从中断处继续，不要从头问。
+
+再确定唯一批次：正常委派必须传入 `artifactScope`；仅恢复旧项目且 handoff 缺失该字段时，才根据正式产物补推——需求卡片和 Epic 尚未同时存在则选择 `requirement-epic`，二者已存在则选择 `features`。`requirement-epic` 不读取或起草 Feature；`features` 必须先确认正式需求卡片和 Epic 均存在且可读，否则返回 `blocked`。
+
+批次只路由一次：`artifactScope=requirement-epic` 执行第 1 至第 6 步并在第 6 步终止；`artifactScope=features` 跳过第一段，执行第 7 至第 10 步并在第 10 步终止。不得在一次调用中跨越两个批次。
 
 ### 每次回答后：更新 JSON
 
@@ -37,7 +43,7 @@ JSON 的字段名和结构见“落盘”章节。`mode=draft` 时必须创建�
 1. **记录 Q&A**：将该轮的追问和用户回答（经润色优化，保留全部信息量，只能多不能少）追加到字段 JSON 的 `qa_log` 对应字段数组中。
 2. **更新字段值**：基于已有 Q&A 素材，按 `../writing-paradigm/` 对应范式撰写该字段的最终润色值（丰富的、按范式结构化的多行 markdown 内容），写入字段 JSON 的对应字段。
 
-`qa_log` 是 AI 写作的素材源，最终润色值是按范式写出的丰富产物。两者都必须实时更新。`mode=persist` 时，校验最终润色值与用户确认的完整落盘预览一致，然后渲染 Markdown。
+`qa_log` 是 AI 写作的素材源，最终润色值是按范式写出的丰富产物。两者都必须实时更新。`mode=persist` 时，校验最终润色值与用户确认的过程项目正式文档预览一致，然后渲染 Markdown。
 
 ---
 
@@ -110,17 +116,15 @@ JSON 的字段名和结构见“落盘”章节。`mode=draft` 时必须创建�
 - 按模板结构输出完整落盘预览，每个字段写出完整内容，不写摘要或"详见上文"。预览必须包含 `../templates/requirement-card.md` 和 `../templates/epic.md` 中的全部章节、表格和字段；字段名必须使用模板字段，不得改成自造字段。
 - 可选：在对话中预览草稿时，可运行 `bash "<skillPath>/scripts/validate-paradigm.sh" "<output_file>"` 做范式机械校验，提前发现格式问题。落盘时 `render-doc.sh` 会自动运行校验。
 
-**第 6 步：等待用户确认**
+**第 6 步：返回第一批次预览**
 
-用户确认需求卡片 + Epic 的完整落盘预览后，第一段结束。用户确认前，不进入第二段。
-
-完整预览获用户确认后，以 `draft-ready` 结束；下一轮由顶层管线进入 `persist.md`。
+需求卡片 + Epic 的过程项目正式文档预览满足门禁后，返回 `draft-ready`、`artifactScope=requirement-epic`。主调度器展示该预览并请求确认写入过程项目；用户确认后，下一轮以 `mode=persist`、`artifactScope=requirement-epic` 写入过程项目。本次调用在此终止，不进入第二段。
 
 ---
 
 ### 第二段：Feature
 
-第二段在第一段经用户确认后开始。
+第二段只在第一段已正式写入过程项目后开始。进入时必须能读取正式需求卡片和 Epic；只有字段 JSON 或对话确认、不存在正式文档时，不得开始 Feature 拆解。
 
 **第 7 步：问出能力清单**
 
@@ -150,14 +154,14 @@ JSON 的字段名和结构见“落盘”章节。`mode=draft` 时必须创建�
 
 **第 9 步：输出 Feature 交互草稿**
 
-- 读取 `../templates/feature.md`，按模板结构输出完整落盘预览。预览必须包含模板中的全部章节、表格和字段；字段名必须使用模板字段，不得改成自造字段。
+- 读取 `../templates/feature.md`，按模板结构输出过程项目正式文档预览。预览必须包含模板中的全部章节、表格和字段；字段名必须使用模板字段，不得改成自造字段。
 - 按”质量评分门禁”做预输出评分。任一维度低于 5 分时，不输出草稿。
 - 每个字段写出完整内容，不写摘要或”详见上文”。
 
 **第 10 步：全部 Feature 输出完成**
 
-所有 Feature 草稿输出完毕，第二段结束。
+逐个完成所有 Feature 草稿后，输出本批次全部 Feature 的过程项目正式文档预览。任一 Feature 未完成字段确认、质量门或预览时，回到第 8 或第 9 步，并返回 `needs-input`。
 
-完整预览获用户确认后，以 `draft-ready` 结束；下一轮由顶层管线进入 `persist.md`。
+仅当至少一个 Feature 且能力清单中的全部 Feature 均已完成时，才返回 `draft-ready`、`artifactScope=features`。主调度器展示 Feature 批次预览并请求确认；用户确认后，下一轮以 `mode=persist`、`artifactScope=features` 进入 `persist.md`。
 
 ---

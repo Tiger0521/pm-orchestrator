@@ -116,13 +116,12 @@ function sectionValue(body, heading) {
 }
 
 function capabilityPath(value) {
-  const parts = value.split(/[/＞>]/).map((item) => item.trim()).filter(Boolean);
+  const parts = value.split(/[/，]/).map((item) => item.trim()).filter(Boolean);
   if (parts.length < 1 || parts.length > 2) fail(`能力名称必须是一层叶子能力或父能力/子能力: ${value}`);
-  for (const part of parts) {
+  return parts.map((part) => {
     safeName(part, '能力名称');
-    if (!part.endsWith('能力')) fail(`能力名称必须以 能力 结尾: ${part}`);
-  }
-  return parts.join('/');
+    return part.endsWith('能力') ? part : `${part}能力`;
+  }).join('/');
 }
 
 function walkFiles(root, predicate = () => true) {
@@ -162,20 +161,24 @@ function parseProductMatrix(lines) {
     const shortLine = markerLines.find((l) => /^\*\*简称\*\*：/.test(l));
     const short = shortLine ? shortLine.replace(/^\*\*简称\*\*：/, '').trim() : '';
     const capCount = markerLines.filter((l) => /^-\s+\[\[.+能力文档/.test(l)).length;
-    const storyCount = markerLines.filter((l) => /^-\s+\[\[.+用户故事/.test(l)).length;
+    const storyIndex = markerLines.findIndex((l) => l.trim() === '### 故事索引');
+    const storyCount = storyIndex < 0 ? 0 : markerLines.slice(storyIndex + 1).filter((l) => /^-\s+\[\[/.test(l)).length;
     products.push({ full: productFull, short, capCount, storyCount, startIdx: i, endIdx });
     i = endIdx;
   }
   return { matrixStart, matrixEnd, products };
 }
 
-function generateAliases(product, docType, capability, relative) {
+function storyFilenameStem(title) {
+  const value = title.trim();
+  if (!/^[\u4e00-\u9fffA-Za-z0-9]+(?:-[\u4e00-\u9fffA-Za-z0-9]+)*$/u.test(value)) fail(`用户故事标题只能包含中文、英文字母、数字和单个中划线，才能作为产品库文件名: ${title}`);
+  return value.endsWith('故事') ? value : `${value}故事`;
+}
+
+function generateAliases(product, docType, capability, storyTitle = '') {
   if (docType === '需求卡片' || docType === '设计文档') return [product];
   if (docType === '能力文档') return [capability];
-  if (docType === '用户故事') {
-    const storyNum = relative.match(/用户故事(\d+)/)?.[1] || '';
-    return [`${capability} ${storyNum}`];
-  }
+  if (docType === '用户故事') return [`${capability} ${storyTitle}`];
   return [];
 }
 
@@ -186,12 +189,12 @@ function generateTags(productShort, docType, capability) {
 }
 
 function rewriteDocument(source, product, productShort, docType, capability, relative, idLinks, referenceLabels) {
-  const { raw, body: sourceBody } = parseFrontmatter(fs.readFileSync(source, 'utf8'));
+  const { raw, body: sourceBody, values } = parseFrontmatter(fs.readFileSync(source, 'utf8'));
   const kept = keepLibraryFrontmatter(raw);
   const body = rewriteProcessReferences(sourceBody, idLinks, referenceLabels, source);
   const front = ['---', `product: "${product}"`, `type: "${docType}"`];
   if (capability) front.push(`capability: "${capability}"`);
-  const aliases = generateAliases(product, docType, capability, relative);
+  const aliases = generateAliases(product, docType, capability, values.title || '');
   const tags = generateTags(productShort, docType, capability);
   front.push('aliases:');
   for (const a of aliases) front.push(`  - ${a}`);
@@ -226,9 +229,8 @@ function generateProductBlock(product, short, plans) {
       if (!capGroups.has(parent)) capGroups.set(parent, []);
       capGroups.get(parent).push(`- [[${linkName}|${plan.capability}]]`);
     } else if (plan.type === '用户故事') {
-      const storyNum = plan.relative.match(/用户故事(\d+)/)?.[1] || '';
       if (!storyGroups.has(parent)) storyGroups.set(parent, []);
-      storyGroups.get(parent).push(`- [[${linkName}|${plan.capability}-${storyNum}]]`);
+      storyGroups.get(parent).push(`- [[${linkName}|${plan.title}]]`);
     }
   }
   const lines = [`**简称**：${short}`, '', '### 能力索引', ''];
@@ -311,24 +313,24 @@ function exportProduct(args) {
   if (!(byType.get('feature') || []).length) fail('产品至少需要一份 Feature');
 
   const featureCaps = new Map();
+  const capabilityOwners = new Map();
   for (const item of byType.get('feature') || []) {
     const id = item.values.id || path.parse(item.source).name;
     const capability = capabilityPath(item.values.capabilityPath || sectionValue(item.body, '能力名称') || item.values.title || '');
+    const owner = capabilityOwners.get(capability);
+    if (owner) fail(`Feature ${id} 与 ${owner} 规范化后使用同一能力路径: ${capability}`);
+    capabilityOwners.set(capability, id);
     featureCaps.set(id, capability);
     if (item.nodeId) featureCaps.set(item.nodeId, capability);
   }
   const productDir = path.join(libraryDir, productName);
-  const existingStoryNames = new Map();
-  const existingStoryNamesByTitle = new Map();
+  const existingStoryPathsByTitle = new Map();
   for (const existing of walkFiles(productDir, (file) => file.includes(`${path.sep}UserStory${path.sep}`) && file.endsWith('.md'))) {
     try {
       const values = parseFrontmatter(fs.readFileSync(existing, 'utf8')).values;
-      const filename = path.basename(existing);
-      if (values.id) existingStoryNames.set(values.id, filename);
-      if (values.title) {
-        const titleKey = `${values.capability || ''}\u0000${values.title}`;
-        existingStoryNamesByTitle.set(titleKey, existingStoryNamesByTitle.has(titleKey) ? '' : filename);
-      }
+      if (!values.title || !values.capability) continue;
+      const titleKey = `${values.capability}\u0000${values.title.trim()}`;
+      existingStoryPathsByTitle.set(titleKey, existingStoryPathsByTitle.has(titleKey) ? '' : existing);
     } catch { /* validation reports malformed existing files */ }
   }
 
@@ -344,24 +346,18 @@ function exportProduct(args) {
     plans.push({ source: item.source, relative: path.join(...capability.split('/'), `${productShort}-${slug}-能力文档.md`), type: '能力文档', capability, id });
   }
 
-  const storySequence = new Map();
   for (const item of (byType.get('user-story') || []).sort((a, b) => (a.values.id || a.source).localeCompare(b.values.id || b.source))) {
     const id = item.values.id || path.parse(item.source).name;
     const featureId = (`${item.raw.join('\n')}\n${item.body}`.match(/feature-[0-9]+/g) || []).find((candidate) => featureCaps.has(candidate));
     if (!featureId) fail(`用户故事无法关联 Feature: ${item.source}`);
     const capability = featureCaps.get(featureId);
     const slug = capability.replaceAll('/', '-');
-    let filename = existingStoryNames.get(id) || existingStoryNamesByTitle.get(`${capability}\u0000${item.values.title || ''}`);
-    if (!filename) {
-      const storyDir = path.join(productDir, ...capability.split('/'), 'UserStory');
-      const used = walkFiles(storyDir, (file) => file.endsWith('.md')).map((file) => file.match(/用户故事([0-9]{2})/)?.[1]).filter(Boolean).map(Number);
-      const sequence = (storySequence.get(capability) || 0) + 1;
-      storySequence.set(capability, sequence);
-      const number = Math.max(0, ...used, sequence - 1) + 1;
-      if (number > 99) fail(`能力 ${capability} 的用户故事超过 99 条`);
-      filename = `${productShort}-${slug}-用户故事${String(number).padStart(2, '0')}.md`;
-    }
-    plans.push({ source: item.source, relative: path.join(...capability.split('/'), 'UserStory', filename), type: '用户故事', capability, id });
+    const title = (item.values.title || '').trim();
+    const filename = `${productShort}-${slug}-${storyFilenameStem(title)}.md`;
+    const titleKey = `${capability}\u0000${title}`;
+    const existingStoryPath = existingStoryPathsByTitle.get(titleKey);
+    if (existingStoryPath === '') fail(`产品库中存在同一能力下重名的用户故事: ${capability}/${item.values.title}`);
+    plans.push({ source: item.source, relative: path.join(...capability.split('/'), 'UserStory', filename), type: '用户故事', capability, id, title, existingStoryPath });
   }
 
   const idLinks = new Map();
@@ -385,13 +381,18 @@ function exportProduct(args) {
       statuses.push({ status, staged, target });
     }
     const plannedTargets = new Set(statuses.map((item) => path.resolve(item.target)));
-    const stale = walkFiles(productDir, (file) => file.endsWith('.md') && !plannedTargets.has(path.resolve(file)))
+    const storyRenames = plans
+      .filter((plan) => plan.existingStoryPath && path.resolve(plan.existingStoryPath) !== path.resolve(path.join(productDir, plan.relative)))
+      .map((plan) => ({ source: plan.existingStoryPath, target: path.join(productDir, plan.relative) }));
+    const renamedSources = new Set(storyRenames.map((item) => path.resolve(item.source)));
+    const stale = walkFiles(productDir, (file) => file.endsWith('.md') && !plannedTargets.has(path.resolve(file)) && !renamedSources.has(path.resolve(file)))
       .map((target) => ({ status: 'STALE', target }))
       .sort((a, b) => a.target.localeCompare(b.target));
 
     console.log(applyChanges ? 'EXPORT_STATUS=APPLYING' : 'EXPORT_STATUS=PREVIEW');
     for (const item of statuses) console.log(`${item.status}\t${path.relative(libraryDir, item.target)}`);
     for (const item of stale) console.log(`${item.status}\t${path.relative(libraryDir, item.target)}`);
+    for (const item of storyRenames) console.log(`RENAME\t${path.relative(libraryDir, item.source)}\t${path.relative(libraryDir, item.target)}`);
 
     if (!applyChanges) {
       if (stale.length) console.log('STALE 文件仅提示并保留；如需归档或删除，请单独处理。');
@@ -413,6 +414,7 @@ function exportProduct(args) {
         fs.copyFileSync(item.staged, item.target);
       }
 
+      for (const item of storyRenames) fs.rmSync(item.source, { force: true });
       updateArchitecture(archPath, productName, productShort, plans, epic.source, idLinks, referenceLabels);
       validateLibrary(scriptDir, libraryDir, bashExe);
     } catch (error) {

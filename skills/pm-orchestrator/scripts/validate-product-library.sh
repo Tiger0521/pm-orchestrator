@@ -126,6 +126,11 @@ valid_name() {
   node -e 'const value = process.argv[1] ?? ""; process.exit(/^[\u4E00-\u9FFF]+(?:-[\u4E00-\u9FFF]+)*$/u.test(value) ? 0 : 1)' "$name"
 }
 
+valid_story_title() {
+  local name="$1"
+  node -e 'const value = process.argv[1] ?? ""; process.exit(/^[\u4E00-\u9FFFA-Za-z0-9]+(?:-[\u4E00-\u9FFFA-Za-z0-9]+)*$/u.test(value) ? 0 : 1)' "$name"
+}
+
 valid_product_name() {
   local name="$1"
   # 产品全名：简称(2-6 汉字)＋全角：＋描述(汉字)，对应 spec 第 2 节。
@@ -156,8 +161,11 @@ validate_leaf() {
   [ -d "$story_dir" ] || { fail_issue "[层级] ${dir#"$LIBRARY_PATH"/}: 叶子能力缺少 UserStory"; return; }
   while IFS= read -r -d '' story; do
     file=$(basename -- "$story")
-    if [[ ! "$file" =~ ^${short}-${capability_slug}-用户故事[0-9]{2}(-[^[:space:]]+)?\.md$ ]]; then
-      fail_issue "[命名] ${story#"$LIBRARY_PATH"/}: 用户故事文件名不符合规范"
+    prefix="${short}-${capability_slug}-"
+    story_title="${file#"$prefix"}"
+    story_title="${story_title%.md}"
+    if [[ "$file" != "$prefix"*.md ]] || [[ "$story_title" != *故事 ]] || ! valid_story_title "$story_title"; then
+      fail_issue "[命名] ${story#"$LIBRARY_PATH"/}: 用户故事文件名应为 简称-能力路径-故事标题故事.md"
     fi
     validate_doc "$story" "$product" "用户故事" "$capability"
   done < <(find "$story_dir" -maxdepth 1 -type f -name '*.md' -print0)
@@ -187,7 +195,6 @@ validate_capability() {
 
 if [ "$#" -eq 1 ]; then
   LIBRARY_PATH=$(canonical_dir "$1") || { printf 'LIBRARY_STATUS=NOT_EXISTS\n' >&2; exit 2; }
-  [ "$(basename -- "$(dirname -- "$LIBRARY_PATH")")" = "product-library" ] || fail_issue "[定位] 产品库必须是 product-library/ 的一级子目录"
 else
   CONTAINER=$(find_container) || { printf 'LIBRARY_STATUS=NOT_FOUND\n'; exit 2; }
   CANDIDATES=()
@@ -215,6 +222,7 @@ if [ -f "$ARCH" ]; then
       short=""
       caps=0
       stories=0
+      in_story_index=0
       in_product=1
       next
     }
@@ -230,7 +238,8 @@ if [ -f "$ARCH" ]; then
       next
     }
     in_product && /^- \[\[.*能力文档/ { caps++ }
-    in_product && /^- \[\[.*用户故事/ { stories++ }
+    in_product && /^### 故事索引/ { in_story_index=1; next }
+    in_product && in_story_index && /^- \[\[/ { stories++ }
   ' "$ARCH" > "$TABLE_ROWS"
 fi
 

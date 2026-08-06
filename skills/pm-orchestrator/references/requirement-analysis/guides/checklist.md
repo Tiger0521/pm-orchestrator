@@ -204,11 +204,29 @@
 ## 用户确认
 
 - [ ] 用户已确认需求卡片和 Epic
+- [ ] 需求卡片 + Epic 已在 `artifactScope=requirement-epic` 中独立落盘，且该次 `persisted` 未被错误当作需求分析阶段完成信号
+- [ ] Feature 拆解只在正式需求卡片和 Epic 均存在后开始
 - [ ] 用户已确认 Feature
+- [ ] 至少存在一个已确认的 Feature，且其 `req_id`、`epic_id` 分别关联本次需求卡片和 Epic
 - [ ] 用户看到并确认的是完整 Feature 落盘预览，不是摘要草稿或字段覆盖清单
 - [ ] Feature 草稿与 `../templates/feature.md` 及 `render-doc.sh` 输出同结构、同字段、同正文内容
 - [ ] 用户已确认数据校验异常项（逐条核实或修正）
 - [ ] 用户已确认建设思路（设计主张及其内涵、价值、诚实边界）
+
+---
+
+## 阶段完成状态与产品库导出
+
+需求分析阶段完成条件区分三种状态并记录在 `phase-summary.md`：`requirement-documents-written`（需求分析全部文档已写入过程项目）、`product-library-export-pending`（已询问或等待用户决定是否导出产品库）、`product-library-exported`（用户确认后文档已实际导出到产品库）。
+
+- [ ] 需求卡片、Epic 和能力清单中的全部 Feature 均已写入过程项目后，阶段完成状态才为 `requirement-documents-written`
+- [ ] 尚有需求卡片、Epic 或 Feature 未完成时，未询问是否导出产品库
+- [ ] 产品库目标目录未配置时，提示先配置目标目录，未猜测目录或默认写入
+- [ ] 询问是否导出产品库时，展示了产品库目标目录和待导出文件清单，用户确认后才执行导出
+- [ ] 用户选择导出成功后，阶段完成状态已更新为 `product-library-exported`
+- [ ] 用户暂不导出时，阶段完成状态为 `product-library-export-pending`，需求分析仍可结束并进入下一阶段，未阻塞后续 Story 拆解
+- [ ] 导出失败时，明确说明“过程项目文档已经保存，但产品库导出失败”，未把两个状态混在一起
+- [ ] “已写入过程项目”与“已导出到产品库”措辞区分清晰，未用含义不明的“落盘”混用两者
 
 ---
 

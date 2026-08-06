@@ -2,7 +2,7 @@
 
 `pm-orchestrator` 是一个 Claude Code 产品设计流程插件。它把产品设计工作拆成一个主调度 skill 和三个阶段 subagent：主调度器负责入口分流、项目恢复、产品库选择、阶段路由、用户确认和质量门；阶段 subagent 负责需求分析、需求拆解和详细设计。
 
-目标是把用户的模糊想法推进成可确认、可落盘、可追溯、可继续迭代的产品设计资产。
+目标是把用户的模糊想法推进成可确认、可写入过程项目、可追溯、可继续迭代的产品设计资产。
 
 ## 安装与更新
 
@@ -124,7 +124,7 @@ git clone https://github.com/Tiger0521/pm-orchestrator.git "$HOME/.claude/skills
 
 ## 调度流程
 
-主调度器只负责确认上下文、恢复或创建过程项目、校验阶段前置条件和委派；阶段内的追问、分析、草稿与落盘由对应 subagent 处理。每次只运行一个 subagent，且正式产物始终遵循“先确认、后落盘”。
+主调度器只负责确认上下文、恢复或创建过程项目、校验阶段前置条件和委派；阶段内的追问、分析、草稿与过程项目写入由对应 subagent 处理。每次只运行一个 subagent，且正式产物始终遵循“先确认、后写入过程项目”。产品库写入始终是单独的导出流程。
 
 ```mermaid
 flowchart TD
@@ -134,8 +134,8 @@ flowchart TD
 
     Shortcut -- 否 --> Library[定位候选 product-library<br/>从当前目录向上最多 3 层]
     Library --> LibraryOK{用户确认且校验通过？}
-    LibraryOK -- 否 --> InitLibrary[选择候选或初始化产品库]
-    InitLibrary --> Library
+    LibraryOK -- 否 --> AcquireLibrary[从 Git 获取或提供已有本地产品库路径]
+    AcquireLibrary --> Library
     LibraryOK -- 是 --> Project{继续已有过程项目？}
 
     Project -- 是 --> Restore[校验项目路径与产品库一致性<br/>读取 progress.json 和 phase-summary.md]
@@ -160,7 +160,7 @@ flowchart TD
     DD --> Result
     Result -- needs-input --> Ask[展示一个问题]
     Ask --> Wait
-    Result -- draft-ready --> Confirm[展示完整落盘预览<br/>请求用户确认]
+    Result -- draft-ready --> Confirm[展示过程项目正式文档预览<br/>请求用户确认写入]
     Confirm --> Wait
     Result -- persisted --> Continue[检查索引与阶段记忆<br/>下一轮按当前状态继续]
     Result -- validation-pass --> Transition[校验相邻阶段<br/>用户确认后迁移 workflow.state]
@@ -175,10 +175,10 @@ flowchart TD
 
 ### 正常调度规则
 
-1. **确认产品库**：从当前目录向上最多 3 层查找 `product-library/`。只有用户确认候选、读取唯一匹配 `^.+架构设计\.md$` 的根文档、并通过 `validate-product-library.sh` 校验后，才能继续。
+1. **确认产品库**：从当前目录向上最多 3 层查找 `product-library/`。没有候选时，只能从 Git 仓库获取，或由用户提供已有产品库的本地路径；不会创建空产品库。只有用户确认候选、读取唯一匹配 `^.+架构设计\.md$` 的根文档、并通过 `validate-product-library.sh` 校验后，才能继续。
 2. **恢复已有项目**：列出 `<workspace>/.claude/product-design-projects/` 下可用项目。确认项目后，主调度器校验路径和产品库一致性，并按 `progress.json.workflow.state` 委派对应 agent；`completed` 只汇报状态。
 3. **创建新项目**：未使用已有项目时只分类一次。需求分析以 `mode=intake` 直接委派需求分析 agent；需求拆解或详细设计则先选择已有产品，再创建直达目标阶段的 `iteration` 项目。
-4. **草稿与落盘**：subagent 在 `draft` 模式中提问或生成完整预览；收到明确确认后才以 `persist` 模式写入正式文档并更新索引。`validate` 只校验现有产物，不创建新产物。
+4. **草稿、过程项目写入与产品库导出**：subagent 在 `draft` 模式中提问或生成完整预览。需求分析分两批写入过程项目：先确认并写入需求卡片 + Epic，再继续拆解、确认并写入 Feature；第一次 `persisted` 不表示阶段完成。全部 Feature 写入后，主调度器询问是否导出到已确认的产品库目标目录；导出先展示目标目录和文件变更清单，用户再次确认后才执行。`validate` 只校验现有产物，不创建新产物。
 5. **阶段转换**：只允许相邻转换：`requirement-analysis → user-story-breakdown → detailed-design → completed`。转换前由当前阶段 agent 校验、运行 `validate-phase.sh`，展示结果并取得用户确认；随后由主调度器运行 `transition-project-state.sh` 更新状态。允许回退 `user-story-breakdown → requirement-analysis` 和 `detailed-design → user-story-breakdown`，不得自动从 `completed` 回退。
 
 ### Subagent 返回状态
@@ -187,8 +187,8 @@ flowchart TD
 | --- | --- |
 | `needs-input` | 展示一个问题；补齐信息后下一轮重新委派。 |
 | `intake-initialized` | 重新读取初始化后的项目状态，下一轮按 `requirement-analysis` 委派。 |
-| `draft-ready` | 展示完整落盘预览并请求确认。 |
-| `persisted` | 汇报写入内容，检查索引和阶段记忆。 |
+| `draft-ready` | 展示当前批次的过程项目正式文档预览并请求确认写入过程项目。 |
+| `persisted` | 汇报当前批次已写入过程项目；需求卡片 + Epic 批次后继续 Feature，全部 Feature 写入后询问是否导出产品库。 |
 | `validation-pass` / `validation-failed` | 展示校验结果；失败时停留当前阶段。 |
 | `blocked` | 说明阻断原因，不继续推进。 |
 
@@ -200,7 +200,7 @@ flowchart TD
 <当前目录或上三层目录>/product-library/
 ```
 
-每个产品库是容器下的中文一级目录，使用唯一匹配 `^.+架构设计\.md$` 的根文档作为根标识。产品目录使用全名，文件使用 2–6 个汉字的唯一简称前缀，并按能力组织。具体契约见：
+自动发现的产品库是容器下由提供方维护的中文一级目录，使用唯一匹配 `^.+架构设计\.md$` 的根文档作为根标识。若自动发现不到候选，可从 Git 远程仓库拉取，或指定任意位置的已有本地产品库根路径；两种方式都不会创建空库。产品目录使用全名，文件使用 2–6 个汉字的唯一简称前缀，并按能力组织。具体契约见：
 
 ```text
 skills/pm-orchestrator/references/product-library/contract.md
@@ -230,6 +230,8 @@ skills/pm-orchestrator/references/product-library/contract.md
 - 除产品库根文档外，每份导出文档包含 `aliases`（别名列表）和 `tags`（标签列表），由导出时自动注入。`tags` 使用 `简称/文档类型/能力路径` 嵌套格式，支持 Obsidian 标签过滤和图谱分组。
 - 产品全名登记为需求卡片和设计文档的别名，能力路径登记为能力文档和用户故事的别名，支持在 Obsidian 中用习惯名称快速链接。
 - 导出会把过程文档 ID（如 `epic-001`）改写为产品库文件链接或可读名称；无法映射的过程 ID 会阻止导出，校验也会拒绝任何残留。
+- 导出会为每一级能力名称自动补齐“能力”后缀；若多个 Feature 补齐后重名，则阻断导出，不改写过程文档标题。
+- 用户故事文件使用“故事标题故事”后缀（标题可含中文、英文字母、数字和单个中划线），例如 `地址-地址查询与服务能力-查询标准地址故事.md`；不再使用 `用户故事01` 一类序号，导出会迁移同标题的旧序号文件和未带“故事”后缀的旧标题文件。
 
 Obsidian 是可选工具，使用文件管理器打开产品库也能正常阅读所有文档。
 
@@ -289,7 +291,7 @@ docs/execution/               # 规则摘要、Sprint 规划
 | `scripts/validate-story.sh` | 校验用户故事写作规范 |
 | `scripts/validate-phase.sh` | 校验阶段产物和 frontmatter |
 | `scripts/export-doc-index.sh` | 导出文档索引或 Mermaid 引用图 |
-| `scripts/init-product-library.sh` | 创建产品库容器和架构设计文档（含建设背景、建设目标、设计原则、总体架构图、产品矩阵五个章节） |
+| `scripts/acquire-product-library.sh` | 从 Git 仓库克隆或更新产品库，或规范化已有本地产品库路径；不创建空库、不复制本地库、不执行 `git init` |
 | `scripts/validate-product-library.sh` | 校验中文目录、简称、命名、frontmatter（含 `aliases`/`tags`）、层级、文件名唯一性、别名冲突、链接完整性及过程 ID 零残留 |
 | `scripts/export-to-library.sh` | 预览或增量导出已完成项目，自动注入 `aliases`/`tags`，将过程 ID 改写为产品库链接或可读名称，更新产品矩阵标记区域，失败自动回滚 |
 | `scripts/rename-product.sh` | 预览或应用产品简称变更，更新产品矩阵标记区域，失败自动回滚 |
@@ -330,7 +332,7 @@ bash skills/pm-orchestrator/scripts/export-doc-index.sh \
 
 - 主调度器只做流程管理，不替代阶段 agent 做专业分析。
 - 每次只推进一个阶段，每轮只问一个主要问题。
-- 草稿先确认，确认后落盘。
+- 草稿先确认，确认后写入过程项目；产品库仅在导出预览和再次确认后写入。
 - 委派时传路径和状态，不复制大段产品库正文。
 - 产品匹配渐进披露，不一次性读取全量产品库。
 - 所有正式文档带 frontmatter，并通过 `refs.json` 建立追溯关系。

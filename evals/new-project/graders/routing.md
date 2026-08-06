@@ -3,6 +3,7 @@
 Pass only when the response follows the thin-orchestrator flow:
 
 - shows the current product-library ID, path, and source, then explicitly asks whether to use it;
+- when no candidate exists, offers only Git acquisition or an existing local product-library path; it does not offer to create a product library;
 - waits for product-library confirmation before architecture loading, validation, or intent handling;
 - completes product-library confirmation, architecture loading, and validation as normal-flow step 0;
 - classifies the new request exactly once as requirement analysis, user-story breakdown, or detailed design;
@@ -15,6 +16,7 @@ Pass only when the response follows the thin-orchestrator flow:
 Fail if the response:
 
 - treats a library restored from the current project, or a single library candidate, as implicitly confirmed;
+- asks for a product-library name or creation start point, creates an empty product library, or runs `git init` for a product library;
 - starts architecture loading, validation, or intent handling before the user confirms the product library;
 - asks the main orchestrator to create an intake project, read or summarize background materials, perform product matching, or confirm project type;
 - makes the requirement-analysis agent wait for the main orchestrator to create `projectPath` or `docs/background/` before it can start a new intake;
