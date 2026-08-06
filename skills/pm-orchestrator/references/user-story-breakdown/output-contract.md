@@ -81,7 +81,7 @@ refs:
 - 每个 Story 与每条 AC 的状态均以 JSON 为准：`pending` 或 `confirmed`；决策节点额外允许且仅允许在用户明确选择时标为 `forced-skip`。
 - 会话恢复时，先读匹配的 Story JSON，从 `interview.current_node` 的已满足依赖之后继续；不得重问已确认节点。
 - 生成完整草稿或落盘预览时，正文必须从 JSON 的顶层字段生成，与后续脚本渲染同字段、同正文内容；不得用对话摘要替代。
-- `interview` 是草稿元数据，`render-story.sh` 忽略它。落盘确认前不得删除或重写其中已确认的盘问记录。
+- `interview` 是草稿元数据，`render-story.sh` 忽略它。落盘确认前不得删除或重写其中已确认的审阅记录。
 
 ## 记忆更新
 

@@ -1,6 +1,6 @@
 # 需求拆解阶段质量门
 
-阶段完成并推进到「详细设计」前，必须逐条通过以下校验。校验项分为文件存在性、Frontmatter 完整性、User Story 质量、验收标准质量、覆盖度、溯源矩阵、盘问状态、用户确认、记忆更新九类。
+阶段完成并推进到「详细设计」前，必须逐条通过以下校验。校验项分为文件存在性、Frontmatter 完整性、User Story 质量、验收标准质量、覆盖度、溯源矩阵、审阅状态、用户确认、记忆更新九类。
 
 ---
 
@@ -79,24 +79,24 @@
 ---
 
 
-## 盘问状态
+## 审阅状态
 
 - [ ] 每条已选 Story 都有对应的 `docs/_extracted/.stories/story-<nnn>.json`，且顶层 Story/AC 字段可用于渲染。
 - [ ] 每个最终字段可追溯到 `interview.fact_checks` 的已核实事实或 `interview.decision_tree` 的用户确认节点。
-- [ ] 所有适用核心节点（角色与三段式、颗粒度与边界、GWT 场景选择、优先级与估算、溯源与覆盖）与条件分支均为 `confirmed`；任何 `forced-skip` 都有用户明确跳过理由、受影响范围和验证条件。
-- [ ] 每个决策组的 `shared_understanding`（`story_card`、`gwt`、`priority_and_traceability`）均为 `confirmed`，不存在未处理的上游 Epic/Feature 冲突。
-- [ ] `interview.qa_log` 已按轮次记录润色后的追问和用户回答，保留全部业务信息量而非逐字照抄。
-- [ ] 盘问未越界到详细设计范畴（性能阈值、技术选型、数据模型、接口、延迟）；这类问题均记为“详细设计待定”而非盘问用户。
-- [ ] 会话恢复将从 `interview.current_node` 的已满足依赖之后继续，不重问已确认节点。
+- [ ] 每条 Story 的三块内容（三段式 `story_card`、GWT `gwt`、边界异常 `boundary_exception`）均已确认；任何 `forced-skip` 都有用户明确跳过理由、受影响范围和验证条件。
+- [ ] 每条 Story 的 `shared_understanding` 均为 `confirmed`，不存在未处理的上游 Epic/Feature 冲突。
+- [ ] 优先级继承 Feature、Story Points 为 AI 建议值（标注“建议值，待团队确认”），溯源矩阵由脚本自动生成，未逐条向用户盘问。
+- [ ] `interview.qa_log` 已按轮次记录润色后的审阅问题和用户修正，保留全部业务信息量而非逐字照抄。
+- [ ] 审阅未越界到详细设计范畴（性能阈值、技术选型、数据模型、接口、延迟）；这类问题均记为“详细设计待定”而非审阅用户。
+- [ ] 会话恢复将从 `interview.current_node` 的已满足依赖之后继续，不重问已确认内容。
 
 ---
 
 
 ## 用户确认
 
-- [ ] 用户已确认 Story 拆分方案（主干 Story 清单 + 异常分支补充）
-- [ ] 用户已确认优先级和 Story Points 建议
-- [ ] 用户已确认 GWT 验收标准
+- [ ] 用户已按 Feature 分组确认 Story 拆分方案（每条 Story 的三段式 + GWT 验收标准 + 边界异常）
+- [ ] 优先级与 Story Points 为自动附带建议值，用户已确认或认可（未逐条盘问）
 - [ ] 用户已确认溯源矩阵覆盖度
 - [ ] 用户看到并确认的是完整 Story 落盘预览，不是摘要草稿
 

@@ -1,6 +1,6 @@
 # 落盘指南
 
-本文件仅在 `mode=persist` 时读取。`instruction.md` 第 9 步引用本文件执行落盘流程。
+本文件仅在 `mode=persist` 时读取。`workflow.md` 第 6 步引用本文件执行落盘流程。
 
 当 `mode=persist` 时，将用户已确认的 Story 和溯源矩阵写入文件。落盘不是自动发生的，而是由主调度器在用户确认后以 `mode=persist` 重新调用时执行。**严禁 AI 用 Write 工具逐行写文件，必须走脚本**。
 
