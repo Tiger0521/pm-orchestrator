@@ -16,6 +16,8 @@
 
 **目的**：确认本轮可安全开始，且所有判断以 `productArchitectureDesignPath` 为最高产品设计标准。
 
+**`mode=fix-category` 例外**：跳过本步骤，直接进入第 2 步。fix-category 是完全独立的产品库修补模式，不涉及需求分析流程的任何检查、不需要过程项目上下文、不依赖产品库最高设计标准。
+
 **前置输入**：`mode`、`workflow.state`、`projectRoot`、适用时的 `projectPath`、产品库上下文、`productArchitectureDesignPath`、`interactionContract`；产品资产草稿或写入过程项目还包括 `artifactScope=requirement-epic | features`。
 
 **立即读取**：`guides/evidence-and-input.md`。按其中的路径边界、材料安全、事实来源和项目类型读取规则完成校验。
@@ -30,6 +32,7 @@
 | --- | --- | --- | --- |
 | `mode=intake` 且无 `projectPath` | 新需求 intake | `workflows/intake.md` | `intake-initialized` |
 | `mode=intake` 且 `workflow.state=collect-background` | 恢复 intake | `workflows/intake.md` | `intake-initialized` |
+| `mode=fix-category` | 能力分类修补 | `workflows/fix-category.md` | `fix-category-completed` 或 `blocked` |
 | `workflow.state=requirement-analysis` 且 `mode=draft`，并且 `task` 明确要求诊断报告或替代方案对比 | 诊断草稿 | `workflows/diagnostic.md` | `needs-input` 或 `draft-ready` |
 | `workflow.state=requirement-analysis` 且 `mode=persist`，并且 `task` 是已确认诊断报告或替代方案的过程项目写入 | 诊断过程项目写入 | `workflows/diagnostic.md` | `persisted` |
 | `workflow.state=requirement-analysis` 且 `mode=draft` | 当前需求资产批次草稿 | `workflows/draft.md` | `needs-input` 或携带当前 `artifactScope` 的 `draft-ready` |
@@ -43,11 +46,19 @@
 
 当第 2 步选中 `workflows/intake.md` 时，背景材料收集是产品匹配的前置必需：必须先读取 `<projectPath>/docs/background/` 中的背景材料，或由用户明确跳过并记录“无前置背景材料”，不得虚构领域事实；未完成收集前不得进入产品匹配。收集与跳过流程以 `workflows/intake.md` 第 2 步为准，产品匹配以 `guides/product-matching.md` 为准。
 
-当第 2 步选中 `workflows/draft.md` 时，提问是该工作流的核心执行动作，且每一次需要用户回答的追问都必须按以下顺序完成：先读取 `guides/question-bank.md`，根据当前字段缺口决定“问什么”；再读取 `guides/quality-and-interaction.md`，决定理解回执、追问深度、字段覆盖与范围控制；最后依照 handoff 中的 `interactionContract` 组织并只发送一个主问题。`guides/question-bank.md` 和 `guides/quality-and-interaction.md` 是草稿工作流的按需叶子参考，不是可单独选择的顶层路由；`intake`、`persist` 与 `validate` 不因本规则加载它们。
+当第 2 步选中 `workflows/draft.md` 时，提问是该工作流的核心执行动作，且每一次需要用户回答的追问都必须按以下顺序完成：先读取 `guides/question-bank.md`，根据当前字段缺口决定”问什么”；再读取 `guides/quality-and-interaction.md`，决定理解回执、追问深度、字段覆盖与范围控制；最后依照 handoff 中的 `interactionContract` 组织并只发送一个主问题。`guides/question-bank.md` 和 `guides/quality-and-interaction.md` 是草稿工作流的按需叶子参考，不是可单独选择的顶层路由；`intake`、`persist` 与 `validate` 不因本规则加载它们。
+
+当第 2 步选中 `workflows/draft.md` 且 `artifactScope=features` 时，在能力清单确认后（第 7 步）、详细字段追问前（第 8 步），必须执行能力分类判断：读取 `guides/capability-classification.md`，按其中的分类判断流程 AI 自主判断分类、展示分类建议、等待用户确认，并将分类方案记录到字段 JSON 和 `phase-summary.md`。能力分类是 `features` 批次的标准步骤，不是可选项，且必须在详细字段追问前完成以引导后续追问。
+
+当第 2 步选中 `workflows/persist.md` 且 `artifactScope=features` 时，在渲染文档后、范式校验前，必须应用能力分类落盘：读取 `phase-summary.md` 中的分类方案和字段 JSON 中的分类标记，在过程项目 Feature 文档的 frontmatter 添加 `category` 字段，并在”需求背景”章节末尾添加同类能力引用。分类信息的应用规则见 `guides/capability-classification.md`。
+
+当第 2 步选中 `workflows/fix-category.md` 时，这是独立的能力分类修补模式，不依赖过程项目状态，只操作产品库目标目录。必须传入 `productLibraryPath`；不读取 `projectPath`、不修改 `workflow.state`、不涉及其他工作流。
 
 ## 第 4 步：处理工作流返回状态
 
 - `needs-input`：主调度器只转发一个问题；下一轮重新从第 1 步进入同一工作流。
 - `intake-initialized`：下一轮以 `workflow.state=requirement-analysis`、`mode=draft`、`artifactScope=requirement-epic` 重新进入本管线。
 - `draft-ready`：表示当前 `artifactScope` 已形成过程项目正式文档预览。主调度器展示该批次预览并请求确认写入过程项目；用户确认后，下一轮以相同 `artifactScope` 进入 persist 工作流。
-- `persisted`：`artifactScope=requirement-epic` 时返回 `nextAction=draft-features`（对外措辞“需求卡片和 Epic 已写入过程项目，接下来继续拆解 Feature”），主调度器下一轮继续 Feature 草稿，本批次不询问是否导出产品库；`artifactScope=features` 时返回 `nextAction=offer-product-library-export`，把阶段完成状态设为 `requirement-documents-written`，由主调度器进入产品库导出引导、询问是否导出到产品库目标目录。导出引导的分支、状态与措辞以 `workflows/persist.md` 和主调度器协议为准；本 agent 在 `features` persist 完成后不自行推进阶段完成状态，也不隐式推进 `workflow.state`。`validation-pass`、`validation-failed`、`blocked` 按结果处理。
+- `persisted`：`artifactScope=requirement-epic` 时返回 `nextAction=draft-features`（对外措辞”需求卡片和 Epic 已写入过程项目，接下来继续拆解 Feature”），主调度器下一轮继续 Feature 草稿，本批次不询问是否导出产品库；`artifactScope=features` 时返回 `nextAction=offer-product-library-export`，把阶段完成状态设为 `requirement-documents-written`，由主调度器进入产品库导出引导、询问是否导出到产品库目标目录。导出引导的分支、状态与措辞以 `workflows/persist.md` 和主调度器协议为准；本 agent 在 `features` persist 完成后不自行推进阶段完成状态，也不隐式推进 `workflow.state`。
+- `fix-category-completed`：能力分类修补完成。主调度器展示操作摘要；不影响过程项目状态，不推进工作流。
+- `validation-pass`、`validation-failed`、`blocked` 按结果处理。

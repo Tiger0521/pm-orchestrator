@@ -17,10 +17,11 @@
 #   docs/background/ 下用户已放入的背景材料，并合并项目模板。
 #
 # 用法：
-#   bash init-project.sh <project_id> <project_name> <description> <project_type> <selected_product_library_id> <selected_product_library_path> <matched_product_id> <product_library_match> <template_dir> <target_dir> [initial_workflow_state] [source_product_id]
+#   bash init-project.sh <project_id> <project_name> <product_short_name> <description> <project_type> <selected_product_library_id> <selected_product_library_path> <matched_product_id> <product_library_match> <template_dir> <target_dir> [initial_workflow_state] [source_product_id]
 #
 #   project_id            : 匹配 ^[a-z0-9][a-z0-9-]{0,62}$
 #   project_name          : 项目名称（可含任意字符，写入 JSON 时自动转义）
+#   product_short_name    : 产品简称（2-5 个字，可含中文、字母、数字）
 #   description           : 需求描述（可含任意字符/多行，写入 JSON 时自动转义）
 #   project_type          : new | iteration | refactor
 #   selected_product_library_id   : 本轮确认的产品库目录名（可为中文，可为空）
@@ -39,22 +40,29 @@ set -euo pipefail
 
 project_id="${1:?missing project_id}"
 project_name="${2:?missing project_name}"
-description="${3:?missing description}"
-project_type="${4:?missing project_type}"
-selected_product_library_id="${5:-}"  # can be empty
-selected_product_library_path="${6:-}"  # can be empty
-matched_product_id="${7:-}"  # can be empty
-product_library_match="${8:-}"  # can be empty (high|medium|low|none)
-template_dir="${9:?missing template_dir}"
-target_dir="${10:?missing target_dir}"
-initial_workflow_state="${11:-requirement-analysis}"
-source_product_id="${12:-}"
+product_short_name="${3:?missing product_short_name}"
+description="${4:?missing description}"
+project_type="${5:?missing project_type}"
+selected_product_library_id="${6:-}"  # can be empty
+selected_product_library_path="${7:-}"  # can be empty
+matched_product_id="${8:-}"  # can be empty
+product_library_match="${9:-}"  # can be empty (high|medium|low|none)
+template_dir="${10:?missing template_dir}"
+target_dir="${11:?missing target_dir}"
+initial_workflow_state="${12:-requirement-analysis}"
+source_product_id="${13:-}"
 
 # ---- 校验 ----
 
 # project_id 格式（与 SKILL.md 一致）
 if ! printf '%s' "$project_id" | grep -Eq '^[a-z0-9][a-z0-9-]{0,62}$'; then
   echo "ERROR: invalid project_id (need ^[a-z0-9][a-z0-9-]{0,62}\$): $project_id" >&2
+  exit 2
+fi
+
+# 产品简称格式校验：2-5 个字，可包含中文、字母、数字
+if [ -z "$product_short_name" ]; then
+  echo "ERROR: product_short_name cannot be empty" >&2
   exit 2
 fi
 
@@ -84,6 +92,21 @@ if [ -n "$selected_product_library_path" ]; then
   if [ "$(basename "$selected_product_library_path")" != "$selected_product_library_id" ]; then
     echo "ERROR: selected product library id must equal directory name: $selected_product_library_id" >&2
     exit 3
+  fi
+
+  # ---- 产品库重名校验 ----
+
+  # 检查产品库中是否已存在同名产品目录
+  if [ -d "$selected_product_library_path/$product_name" ]; then
+    echo "WARNING: product with same name already exists in library: $product_name" >&2
+    echo "DUPLICATE_PRODUCT_NAME" >&2
+  fi
+
+  # 检查是否存在以产品简称开头的目录
+  duplicate_count=$(find "$selected_product_library_path" -maxdepth 1 -type d -name "${product_short_name}*" 2>/dev/null | wc -l || echo 0)
+  if [ "$duplicate_count" -gt 0 ]; then
+    echo "WARNING: found $duplicate_count directories starting with product short name: $product_short_name" >&2
+    echo "DUPLICATE_SHORT_NAME" >&2
   fi
 elif [ -n "$selected_product_library_id" ]; then
   echo "ERROR: selected_product_library_id requires an explicit selected_product_library_path" >&2
@@ -169,6 +192,7 @@ json_escape() {
 }
 
 esc_name=$(json_escape "$project_name")
+esc_short_name=$(json_escape "$product_short_name")
 esc_desc=$(json_escape "$description")
 esc_library_id=$(json_escape "$selected_product_library_id")
 esc_library_path=$(json_escape "$selected_product_library_path")
@@ -192,6 +216,7 @@ printf '{
   "schemaVersion": 2,
   "projectId": "%s",
   "projectName": "%s",
+  "productShortName": "%s",
   "projectType": "%s",
   "selectedProductLibraryId": "%s",
   "selectedProductLibraryPath": "%s",
@@ -227,7 +252,7 @@ printf '{
   },
   "lastUpdated": "%s"
 }
-' "$project_id" "$esc_name" "$project_type" "$esc_library_id" "$esc_library_path" "$esc_matched" "$esc_match" "$esc_source_product" "$esc_desc" "$initial_workflow_state" "$ts" "$req_status" "$req_time" "$req_time" "$story_status" "$story_time" "$story_time" "$design_status" "$design_time" "$design_time" "$ts" > "$target_dir/progress.json"
+' "$project_id" "$esc_name" "$esc_short_name" "$project_type" "$esc_library_id" "$esc_library_path" "$esc_matched" "$esc_match" "$esc_source_product" "$esc_desc" "$initial_workflow_state" "$ts" "$req_status" "$req_time" "$req_time" "$story_status" "$story_time" "$story_time" "$design_status" "$design_time" "$design_time" "$ts" > "$target_dir/progress.json"
 printf '{
   "projectId": "%s",
   "lastUpdated": "%s",

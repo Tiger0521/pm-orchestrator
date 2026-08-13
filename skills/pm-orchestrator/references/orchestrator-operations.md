@@ -4,7 +4,7 @@
 
 ## Subagent 委派上下文
 
-`type` / `subagent_type` 必须使用完整名称：`pm-orchestrator:requirement-analyst`、`pm-orchestrator:story-breakdown-analyst` 或 `pm-orchestrator:detailed-design-designer`。
+`type` / `subagent_type` 必须使用完整名称：`pm-orchestrator:requirement-analyst`、`pm-orchestrator:story-breakdown-analyst`、`pm-orchestrator:detailed-design-designer` 或 `pm-orchestrator:story-map-designer`。
 
 ```yaml
 projectPath: <canonical-absolute-project-path；首次新需求 mode=intake 时省略>
@@ -48,6 +48,7 @@ interactionContract:
 | `draft` | 产出问题、诊断、草稿或建议，不写过程项目正式文档 |
 | `persist` | 用户确认完整草稿后，仅写入过程项目正式文档并更新项目内索引 |
 | `validate` | 对照 checklist 校验现有产物，不创建产出 |
+| `generate` | 仅由 `story-map-designer` 处理用户故事地图生成，从产品库读取输入，不写正式文件 |
 
 默认使用 `draft`，一次委派只使用一个 mode。除首次新需求 `mode=intake` 外，规范化 `projectRoot`、`projectPath` 和所有 `outputTargets`；项目必须是当前工作区项目根的直接子目录，输出必须位于项目内，否则返回 `blocked`。首次新需求只校验 `projectRoot`，由 `requirement-analyst` 通过 `prepare-intake.sh` 创建项目后再派生并校验其余路径。
 
@@ -71,6 +72,9 @@ interactionContract:
 | `persisted` | 汇报当前批次已写入过程项目；需求分析按 `artifactScope` 决定继续 Feature 或询问是否导出到产品库 |
 | `validation-pass` | 展示校验结果并请求阶段操作确认 |
 | `validation-failed` | 汇报缺失项，停留当前阶段 |
+| `map-draft-ready` | 展示故事地图草稿预览并请求确认写入产品库 |
+| `map-persisted` | 汇报已写入产品库的单个地图文件（含 `target` 标识）。**必须以 `mode=generate` 重新委派**，agent 会扫描已落盘文件自动进入下一个能力或总览 |
+| `map-complete` | 全部能力地图和总览已生成并落盘，故事地图生成流程结束 |
 | `blocked` | 停止推进，解释阻断原因 |
 
 选项与提问格式见 `references/orchestrator/output-format.md`。需求分析输出需求卡片、Epic 或 Feature 前，逐字段展示完整内容及“已确认 / 待验证 / 缺失”状态。

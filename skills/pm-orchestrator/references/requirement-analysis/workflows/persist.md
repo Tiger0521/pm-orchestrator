@@ -22,7 +22,23 @@
    ```bash
    bash "<skillPath>/scripts/render-doc.sh" "<projectPath>/docs/_extracted/.fields/fields-<doc-type>-<nnn>.json" "<projectPath>/docs/requirement-analysis/"
    ```
-4. 脚本自动生成 Markdown 文件，文件名与 `id` 一致。渲染结果必须与用户确认过的过程项目正式文档预览同结构、同字段、同正文内容；如果不一致，必须报告并停止推进。
+3.5. **（仅 features 批次）应用能力分类落盘**：
+   - 读取 `phase-summary.md` 中的 `feature-categories` 字段（由 draft 阶段记录的分类方案）
+   - 为每个 Feature 执行分类落盘：
+     a. **读取字段 JSON 中的分类标记**：从 `_category` 和 `_category_folder` 临时字段获取分类信息
+     b. **更新 frontmatter**：在已渲染的 Feature Markdown 文件中，在 frontmatter 添加 `category: "{分类名}能力"` 字段
+     c. **添加同类引用**：在"## 能力描述"章节的内容之后、"## 能力目标"章节标题之前插入同类能力引用：
+        ```markdown
+        
+        **同类能力**：
+        - [[文件名1]]
+        - [[文件名2]]
+        ```
+        使用简洁的 Obsidian 链接格式 `[[文件名]]`（文件名不含 .md 后缀），排除当前文档自身，按文件名字母顺序排列
+     d. **文件路径不变**：过程项目写入阶段不创建分类文件夹，所有文件仍写入 `<projectPath>/docs/requirement-analysis/`；分类文件夹的创建由产品库导出阶段负责
+     e. **禁止生成 README**：不得在任何阶段创建 README.md 或其他说明文件，分类文件夹只包含能力文档 .md 文件
+   - 分类信息的添加只影响 frontmatter 和章节引用，不修改字段正文内容
+4. 脚本自动生成 Markdown 文件，文件名与 `id` 一致。渲染结果必须与用户确认过的过程项目正式文档预览同结构、同字段、同正文内容；如果不一致，必须报告并停止推进。应用分类后的 frontmatter 和同类引用不影响内容一致性校验。
 5. **范式校验硬门禁**：`render-doc.sh` 渲染完成后会自动运行 `validate-paradigm.sh` 做范式机械校验。检查校验输出：
    - 如果有 `[WARN]` 项，**必须修复字段 JSON 中对应字段的范式格式**（加粗领条、表格、流程图、blockquote 等），重新渲染，直到零警告才能报告 `persisted`。
    - 不得跳过范式校验、不得忽略警告、不得在有警告时报告 `persisted`。

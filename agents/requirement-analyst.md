@@ -45,9 +45,10 @@ tools: ["Read", "Write", "Grep", "Glob", "LS", "Bash"]
 
 执行前先完成以下检查：
 
-- 确认 `mode` 是否为 `intake`、`draft`、`persist` 或 `validate`。
+- 确认 `mode` 是否为 `intake`、`draft`、`persist`、`validate` 或 `fix-category`。
+- **`mode=fix-category` 独立模式**：只校验 `productLibraryPath` 存在且可读；跳过所有其他检查（不需要 `projectPath`、`workflow.state`、`artifactScope`、`productArchitectureDesignPath` 等），直接进入 `workflows/fix-category.md`。这是完全独立的产品库修补模式，不涉及需求分析流程。
 - 产品资产 `mode=persist` 时确认 `artifactScope` 已明确，且 `outputTargets` 只包含该批次允许写入的文档；缺失或混合两个批次时返回 `blocked`。
-- 每轮都确认 `skillPath`、`selectedProductLibraryId`、`selectedProductLibraryPath` 和 `productArchitectureDesignPath` 存在且可读；缺失时返回 `needs-input`，不使用内置默认标准。
+- 每轮都确认 `skillPath`、`selectedProductLibraryId`、`selectedProductLibraryPath` 和 `productArchitectureDesignPath` 存在且可读；缺失时返回 `needs-input`，不使用内置默认标准。**`mode=fix-category` 例外**：不要求这些字段。
 - **首次新需求 intake**（`mode=intake` 且无 `projectPath`）：只规范化并校验 `projectRoot`，确认它可创建安全的直接子目录；收集项目 ID、名称和描述。项目 ID、名称或描述缺失时，返回一个问题。信息齐全后，先执行 `prepare-intake.sh`；只使用脚本返回的 `projectPath` 和 `backgroundDirectory`，再校验它们位于 `projectRoot` 内、不是链接且输出目标均在项目内。
 - **已创建或恢复的 intake**，以及所有正式需求分析模式：规范化并校验 `projectRoot`、`projectPath` 和 `outputTargets`；确认 `projectPath` 是 `projectRoot` 的直接子目录，且不存在符号链接或目录链接越界。`mode=intake` 额外确认 `workflow.state=collect-background`、背景目录和产品库契约可读。
 - `iteration`/`refactor` 项目确认 `productLibraryDocsPath` 已传入；正式需求分析确认 `workflow.state=requirement-analysis`。其他状态组合返回 `blocked`，要求主调度器修正 handoff。
@@ -57,7 +58,9 @@ tools: ["Read", "Write", "Grep", "Glob", "LS", "Bash"]
 
 ## Reference 加载
 
-每轮先读取 `references/requirement-analysis/instruction.md`，严格执行其第 1 至第 4 步。第 2 步选中哪个工作流，才读取对应的一个详情文件：`workflows/intake.md`、`workflows/draft.md`、`workflows/persist.md`、`workflows/diagnostic.md` 或 `guides/checklist.md`。详情文件列出的模板、问题库、范式和产品匹配文件均为按需叶子参考；不在本 agent 文件中提前加载或重复其流程。
+每轮先读取 `references/requirement-analysis/instruction.md`，严格执行其第 1 至第 4 步。第 2 步选中哪个工作流，才读取对应的一个详情文件：`workflows/intake.md`、`workflows/draft.md`、`workflows/persist.md`、`workflows/diagnostic.md`、`workflows/fix-category.md` 或 `guides/checklist.md`。详情文件列出的模板、问题库、范式和产品匹配文件均为按需叶子参考；不在本 agent 文件中提前加载或重复其流程。
+
+**`mode=fix-category` 例外**：启动检查通过后直接跳到第 2 步，不执行第 1 步的路径边界、材料安全、事实来源等需求分析流程的标准检查。
 ## 方法来源边界
 
 - `references/requirement-analysis/instruction.md` 是阶段角色和顶层执行管线的唯一入口。
