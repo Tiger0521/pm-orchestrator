@@ -325,7 +325,7 @@ function exportProduct(args) {
   }
   const productDir = path.join(libraryDir, productName);
   const existingStoryPathsByTitle = new Map();
-  for (const existing of walkFiles(productDir, (file) => file.includes(`${path.sep}UserStory${path.sep}`) && file.endsWith('.md'))) {
+  for (const existing of walkFiles(productDir, (file) => file.includes(`${path.sep}stories${path.sep}`) && file.endsWith('.md'))) {
     try {
       const values = parseFrontmatter(fs.readFileSync(existing, 'utf8')).values;
       if (!values.title || !values.capability) continue;
@@ -342,8 +342,11 @@ function exportProduct(args) {
   for (const item of (byType.get('feature') || []).sort((a, b) => (a.values.id || a.source).localeCompare(b.values.id || b.source))) {
     const id = item.values.id || path.parse(item.source).name;
     const capability = featureCaps.get(id);
-    const slug = capability.replaceAll('/', '-');
-    plans.push({ source: item.source, relative: path.join(...capability.split('/'), `${productShort}-${slug}-能力文档.md`), type: '能力文档', capability, id });
+    const capabilityParts = capability.split('/');
+    const capabilityLeaf = capabilityParts[capabilityParts.length - 1].replace(/能力$/, '');
+    const categoryFolder = capabilityParts.length > 1 ? capabilityParts.slice(0, -1).join('/') : '';
+    const capabilityFolder = categoryFolder ? path.join(categoryFolder, capabilityLeaf) : capabilityLeaf;
+    plans.push({ source: item.source, relative: path.join(capabilityFolder, `${capabilityLeaf}-能力文档.md`), type: '能力文档', capability, id, capabilityLeaf });
   }
 
   for (const item of (byType.get('user-story') || []).sort((a, b) => (a.values.id || a.source).localeCompare(b.values.id || b.source))) {
@@ -351,13 +354,16 @@ function exportProduct(args) {
     const featureId = (`${item.raw.join('\n')}\n${item.body}`.match(/feature-[0-9]+/g) || []).find((candidate) => featureCaps.has(candidate));
     if (!featureId) fail(`用户故事无法关联 Feature: ${item.source}`);
     const capability = featureCaps.get(featureId);
-    const slug = capability.replaceAll('/', '-');
+    const capabilityParts = capability.split('/');
+    const capabilityLeaf = capabilityParts[capabilityParts.length - 1].replace(/能力$/, '');
+    const categoryFolder = capabilityParts.length > 1 ? capabilityParts.slice(0, -1).join('/') : '';
+    const capabilityFolder = categoryFolder ? path.join(categoryFolder, capabilityLeaf) : capabilityLeaf;
     const title = (item.values.title || '').trim();
-    const filename = `${productShort}-${slug}-${storyFilenameStem(title)}.md`;
+    const filename = `${storyFilenameStem(title)}.md`;
     const titleKey = `${capability}\u0000${title}`;
     const existingStoryPath = existingStoryPathsByTitle.get(titleKey);
     if (existingStoryPath === '') fail(`产品库中存在同一能力下重名的用户故事: ${capability}/${item.values.title}`);
-    plans.push({ source: item.source, relative: path.join(...capability.split('/'), 'UserStory', filename), type: '用户故事', capability, id, title, existingStoryPath });
+    plans.push({ source: item.source, relative: path.join(capabilityFolder, 'stories', filename), type: '用户故事', capability, id, title, existingStoryPath });
   }
 
   const idLinks = new Map();
@@ -406,7 +412,11 @@ function exportProduct(args) {
     try {
       fs.mkdirSync(productDir, { recursive: true });
       for (const capability of new Set(featureCaps.values())) {
-        fs.mkdirSync(path.join(productDir, ...capability.split('/'), 'UserStory'), { recursive: true });
+        const capabilityParts = capability.split('/');
+        const capabilityLeaf = capabilityParts[capabilityParts.length - 1].replace(/能力$/, '');
+        const categoryFolder = capabilityParts.length > 1 ? capabilityParts.slice(0, -1).join('/') : '';
+        const capabilityFolder = categoryFolder ? path.join(categoryFolder, capabilityLeaf) : capabilityLeaf;
+        fs.mkdirSync(path.join(productDir, capabilityFolder, 'stories'), { recursive: true });
       }
       for (const item of statuses) {
         if (item.status === 'UNCHANGED') continue;
