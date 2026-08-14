@@ -4,11 +4,11 @@
 
 ## 产出文档
 
-需求拆解阶段产出两类正式文档：User Story（用户价值层）和溯源矩阵（追溯层）。每份文档通过 frontmatter 建立追溯关系，落盘到 `docs/requirement-analysis/`，并与上游 Feature 同层管理。
+需求拆解阶段产出两类正式文档：User Story（用户价值层）和溯源矩阵（追溯层）。User Story 直接写入产品库，溯源矩阵留在过程项目。每份文档通过 frontmatter 建立追溯关系。
 
 ### User Story 文档
 
-文件路径：`docs/requirement-analysis/feature-<feature-nnn>/story-<nnn>.md`。每条 Story 必须写入其唯一 `implements` 引用所指 Feature 的子目录；不得写入 `docs/design/`、`docs/requirement-analysis/` 根层或其他 Feature 的目录。
+文件路径：`<产品目录>/<能力路径>/UserStory/网资-能力-故事标题故事.md`。每条 Story 必须写入其唯一归属 Feature 对应能力路径下的 `UserStory/` 子目录；不得写入过程项目 `docs/` 或其他能力的目录。
 
 | 字段 | 内容要求 |
 | ---- | -------- |
@@ -17,7 +17,7 @@
 | 优先级 | P0 / P1 / P2，继承自 Feature 优先级，可在同 Feature 内调整 |
 | Story Points 建议 | 1 / 2 / 3 / 5 / 8 / 13，附注“建议值，待团队确认” |
 | 验收标准 | 3-8 条 GWT，覆盖正常路径 + 异常路径 + 边界场景 |
-| 关联 Feature | 通过 frontmatter `refs` 的 `implements` 关系回引 Feature |
+| 关联 Feature | 通过继承式 ID（`<简称>-EPIC-F<nnn>-S<nnn>`）和 `capability` 字段回引所属 Feature |
 
 每条 Story 可独立文件，也可合并为清单。独立文件便于版本管理和 Sprint 分配；合并文件适合 Story 数量较少（≤3 条）的 Feature。
 
@@ -38,14 +38,16 @@ User Story 文档：
 
 ```yaml
 ---
-id: "story-001"
-type: "user-story"
-projectId: "<project-id>"
-title: "<Story 标题>"
-status: "draft"
-refs:
-  - id: "<feature-id>"
-    relation: "implements"
+id: "网资-EPIC-F01-S01"
+product: "网资：网络资源全生命周期管理"
+type: "用户故事"
+capability: "设备领用能力"
+aliases:
+  - 设备领用能力 创建模型配置
+tags:
+  - 网资
+  - 用户故事
+  - 设备领用能力
 ---
 ```
 
@@ -66,12 +68,12 @@ refs:
 
 ### ID 分配规则
 
-遵循 `../shared/traceability-model.md` 的统一规范：
+遵循 `../shared/traceability-model.md` 的统一规范，使用继承式产品库 ID（`<简称>-EPIC-F<nnn>-S<nnn>`）：
 
-1. 落盘前同时扫描 `refs.json.nodes`、`docs/requirement-analysis/matrix-*.md` 和 `docs/requirement-analysis/feature-*/story-*.md` 中的 frontmatter ID。
-2. 按文档类型取已使用的最大三位序号再加一（如已有 `story-001` 和 `story-003`，下一个是 `story-004`）。
+1. 落盘前扫描产品库中当前 Feature 的故事文档（`<产品目录>/<能力路径>/UserStory/*.md`）的 frontmatter ID。
+2. 按文档类型取已使用的最大两位序号再加一（如已有 `网资-EPIC-F01-S01` 和 `网资-EPIC-F01-S03`，下一个是 `网资-EPIC-F01-S04`）。
 3. ID 一经分配不得复用；更新现有文档时沿用原 ID。
-4. 文件名必须与 ID 一致（如 `story-004` 写入 `story-004.md`）。
+4. 文件名使用产品库文件名格式（如 `网资-能力-故事标题故事.md`）。
 
 ## 草稿状态与恢复
 
@@ -89,9 +91,13 @@ refs:
 
 | 文件 | 更新内容 |
 | ---- | -------- |
-| `refs.json` | 注册新文档节点（story-*/matrix-*）和引用边（Story implements Feature、Matrix references Feature） |
+| `refs.json` | 注册新文档节点（story-*/matrix-*，`path` 指向产品库路径，含 `libraryId`/`contentHash`/`lastSynced`）和引用边（Story implements Feature、Matrix references Feature） |
 | `facts.json` | 记录已确认的角色、规则、流程步骤等结构化事实 |
 | `decision-log.md` | 记录 Story 拆分方案、颗粒度调整、优先级排序等决策及理由 |
 | `tracking-log.md` | 记录依赖关系、未验证假设、新发现的风险和未决问题 |
 | `phase-summary.md` | 追加本阶段恢复摘要：产物清单（Story 数量、矩阵）、关键拆分决策、遗留问题和下一步 |
 | `progress.json` | 仅更新当前阶段和顶层 `lastUpdated`；不修改 `workflow.state`、顶层 `status` 或阶段转换字段 |
+
+## 落盘完成后的去向
+
+本批 Story 与溯源矩阵落盘完成并返回 `persisted` 后，本阶段产物已在产品库中就绪。**主调度器下一步直接进入用户故事地图生成**：以 `mode=generate` 委派 `story-map-designer`，基于产品库中已落盘的 Story 逐个能力构建地图，不提供"继续详细设计"等备选去向。该流程由主调度器在 `persisted` 返回后发起，本 agent 不需要自行跳转或生成地图；用户明确要求继续详细设计时，由主调度器按阶段转换协议处理。

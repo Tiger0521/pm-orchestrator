@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
+#
+# [已废弃] export-to-library.sh - 从过程项目导出到产品库。
+#
+# 此脚本已废弃。persist 流程现已直接写入产品库格式，不再需要独立的导出步骤。
+# 旧项目如需迁移，请使用独立的迁移脚本 backfill-library-ids.mjs。
+#
+# 保留此文件仅用于向后兼容旧项目的迁移需求。新项目不应使用此脚本。
+#
 # Preview or apply an incremental export to a v2 product library.
-
+#
 set -euo pipefail
 [ "$#" -ge 4 ] && [ "$#" -le 5 ] || {
   echo "Usage: bash export-to-library.sh <项目目录> <产品库目录> <产品全名> <产品简称> [--apply]" >&2

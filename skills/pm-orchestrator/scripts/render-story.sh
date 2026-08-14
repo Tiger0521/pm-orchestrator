@@ -1,48 +1,34 @@
 #!/usr/bin/env bash
 #
-# render-story.sh - 批量渲染 Story JSON 为 Markdown，自动分配 ID，自动校验。
+# render-story.sh - 批量渲染 Story JSON 为 Markdown，写入产品库，自动分配继承式 ID，自动校验。
 #
 # 跨平台：通过 Claude Code 的 Bash 工具运行，Windows(Git Bash)/macOS/Linux 通用。
 # 只用 bash + grep，无外部依赖（不依赖 jq）。
 #
 # 用法：
-#   bash render-story.sh <stories_json_dir> <output_dir>
+#   bash render-story.sh <stories_json_dir> <output_dir> <产品简称> <产品全名> <能力路径>
 #
 #   stories_json_dir : 存放 story-*.json 的目录（通常 docs/_extracted/.stories/）
-#   output_dir       : 需求分析目录（通常 docs/requirement-analysis/；按 featureId 建子目录）
+#   output_dir       : 产品库中产品目录的绝对路径
+#   产品简称         : 如 网资
+#   产品全名         : 如 网资：网络资源全生命周期管理
+#   能力路径         : Feature 的能力路径（如 设备管理能力/领用审批能力）
 #
 # 工作流程：
-#   1. 扫描 output_dir 中已有的 story-*.md，取最大序号
-#   2. 遍历 stories_json_dir 中的 story-*.json（按文件名排序）
-#   3. 为每个 JSON 分配下一个可用 ID（story-<nnn>）
-#   4. 读取 JSON 字段，渲染 Markdown，写入 output_dir/story-<nnn>.md
-#   5. 对每个渲染结果运行 validate-story.sh 做写作规范校验
-#
-# Story JSON 字段结构：
-#   {
-#     "id": "story-001",          // 被脚本自动分配的 ID 覆盖
-#     "type": "user-story",
-#     "projectId": "model-config",
-#     "title": "创建模型配置",
-#     "featureId": "feature-001",
-#     "role": "算法工程师",
-#     "goal": "创建新的模型配置",
-#     "value": "快速启用模型进行实验",
-#     "priority": "P0",
-#     "storyPoints": "3",
-#     "acCount": "4",
-#     "ac_1_keyword": "成功创建",
-#     "ac_1_given": "...",
-#     "ac_1_when": "...",
-#     "ac_1_then": "...",
-#     "ac_2_keyword": "...",
-#     ...
-#   }
+#   1. 从能力文档的 frontmatter id 读取 Feature 的产品库 ID（如 网资-EPIC-F01）
+#   2. 扫描 UserStory 目录中已有的故事文档，取最大序号
+#   3. 遍历 stories_json_dir 中的 story-*.json（按文件名排序）
+#   4. 为每个 JSON 分配下一个可用 ID（<简称>-EPIC-F<nnn>-S<nnn>）
+#   5. 读取 JSON 字段，渲染 Markdown，写入产品库 UserStory 目录
+#   6. 对每个渲染结果运行 validate-story.sh 做写作规范校验
 #
 set -euo pipefail
 
 stories_dir="${1:?missing stories_json_dir}"
 output_dir="${2:?missing output_dir}"
+product_short="${3:?missing 产品简称}"
+product_full="${4:?missing 产品全名}"
+capability_path="${5:?missing 能力路径}"
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [ ! -d "$stories_dir" ]; then
@@ -51,6 +37,16 @@ if [ ! -d "$stories_dir" ]; then
 fi
 
 mkdir -p "$output_dir"
+output_dir_abs="$(cd -P "$output_dir" 2>/dev/null && pwd)" || {
+  echo "ERROR: cannot resolve output_dir: $output_dir" >&2
+  exit 2
+}
+
+capability_slug="${capability_path//\//-}"
+capability_dir="$output_dir_abs/${capability_path}"
+feature_doc="$capability_dir/${product_short}-${capability_slug}-能力文档.md"
+story_dir="$capability_dir/UserStory"
+mkdir -p "$story_dir"
 
 # ---- JSON 值提取（不依赖 jq） ----
 json_val() {
@@ -63,45 +59,65 @@ json_val() {
   val="${val%\"}"        # 去掉末尾 "（无逗号情况）
   val="${val%\",}"       # 去掉末尾 ",（有逗号情况）
   # 反转义
-  val="${val//\\\\/\\}"  # \\ → \
+  val="${val//\\\\/\\}"  # \\ -> \
   val="${val//\\n/
-}"                       # \n → 换行
-  val="${val//\\t/	}"   # \t → tab
-  val="${val//\\\"/\"}"  # \" → "
+}"                       # \n -> 换行
+  val="${val//\\t/	}"   # \t -> tab
+  val="${val//\\\"/\"}"  # \" -> "
   echo "$val"
 }
 
-# ---- 自动分配 ID ----
-allocate_next_id() {
-  local root="$1"
-  local prefix="$2"
-  local max_num=0
-
-  while IFS= read -r -d '' f; do
-    local fname num
-    fname=$(basename "$f")
-    num=${fname#"${prefix}-"}
-    num=${num%.md}
-    [[ "$num" =~ ^[0-9]+$ ]] || continue
-    num=$((10#$num))
-    if [ "$num" -gt "$max_num" ]; then
-      max_num="$num"
-    fi
-  done < <(find "$root" -type f -name "${prefix}-*.md" -print0)
-
-  printf "%s-%03d" "$prefix" "$((max_num + 1))"
+# ---- 从 frontmatter 读取 id 字段 ----
+read_frontmatter_id() {
+  local file="$1"
+  [ -f "$file" ] || { printf ''; return; }
+  awk '
+    NR == 1 { sub(/^\xef\xbb\xbf/, ""); if ($0 != "---") exit; in_fm=1; next }
+    in_fm && $0 == "---" { exit }
+    in_fm && index($0, "id:") == 1 { sub("^[^:]+:[[:space:]]*", ""); gsub(/^["\x27]|["\x27]$/, ""); print; exit }
+  ' "$file"
 }
+
+# ---- 读取 Feature 的产品库 ID ----
+feature_library_id=$(read_frontmatter_id "$feature_doc")
+if [ -z "$feature_library_id" ]; then
+  echo "ERROR: 无法从能力文档读取 Feature 产品库 ID: $feature_doc" >&2
+  exit 2
+fi
+
+# ---- 自动分配故事 ID ----
+# 扫描 UserStory 目录中已有文档的 frontmatter id，取同一 Feature 下最大序号 +1
+allocate_next_story_id() {
+  local feat_id="$1"
+  local max_num=0 num id_val
+  while IFS= read -r -d '' f; do
+    id_val=$(read_frontmatter_id "$f")
+    if [[ "$id_val" =~ ^${feat_id}-S([0-9]+)$ ]]; then
+      num=$((10#${BASH_REMATCH[1]}))
+      [ "$num" -gt "$max_num" ] && max_num="$num"
+    fi
+  done < <(find "$story_dir" -type f -name '*.md' -print0 2>/dev/null)
+  printf "%s-S%02d" "$feat_id" "$((max_num + 1))"
+}
+
+# ---- 故事标题转文件名 ----
+# 标题只能包含中文、英文字母、数字和单个中划线
+story_filename_stem() {
+  local title="$1"
+  local value
+  value="${title%故事}"
+  printf '%s故事' "$value"
+}
+
 # ---- 渲染单个 Story ----
 render_one_story() {
   local json_file="$1"
   local story_id="$2"
   local out_file="$3"
 
-  local project_id title feature_id role goal value priority sp ac_count
+  local title role goal value priority sp ac_count
 
-  project_id=$(json_val "projectId" "$json_file")
   title=$(json_val "title" "$json_file")
-  feature_id=$(json_val "featureId" "$json_file")
   role=$(json_val "role" "$json_file")
   goal=$(json_val "goal" "$json_file")
   value=$(json_val "value" "$json_file")
@@ -116,35 +132,29 @@ render_one_story() {
 
   # 渲染 frontmatter + 标题 + 三段式
   {
-    cat <<FRONTMATTER
----
-id: "$story_id"
-type: "user-story"
-projectId: "$project_id"
-title: "$title"
-status: "draft"
-refs:
-  - id: "$feature_id"
-    relation: "implements"
----
-
-# $title
-
-## 用户故事
-
-作为 **$role**，我想要 **$goal**，以便于 **$value**。
-
-## 优先级
-
-$priority
-
-## Story Points 建议
-
-${sp}（建议值，待团队确认）
-
-## 验收标准
-
-FRONTMATTER
+    # 产品库 frontmatter
+    printf '%s\n' '---'
+    printf 'id: "%s"\n' "$story_id"
+    printf 'product: "%s"\n' "$product_full"
+    printf '%s\n' 'type: "用户故事"'
+    printf 'capability: "%s"\n' "$capability_path"
+    printf '%s\n' 'aliases:'
+    printf '  - %s %s\n' "$capability_path" "$title"
+    printf '%s\n' 'tags:'
+    printf '  - %s\n' "$product_short"
+    printf '%s\n' '  - 用户故事'
+    printf '  - %s\n' "$capability_path"
+    printf '%s\n' '---'
+    printf '\n'
+    printf '<!-- ID: %s -->\n' "$story_id"
+    printf '\n'
+    printf '# %s\n' "$title"
+    printf '\n'
+    printf '## 用户故事\n\n'
+    printf '作为 **%s**，我想要 **%s**，以便于 **%s**。\n' "$role" "$goal" "$value"
+    printf '\n## 优先级\n\n%s\n' "$priority"
+    printf '\n## Story Points 建议\n\n%s（建议值，待团队确认）\n' "$sp"
+    printf '\n## 验收标准\n\n'
 
     # 渲染 AC 列表
     local i=1
@@ -154,22 +164,21 @@ FRONTMATTER
       given=$(json_val "ac_${i}_given" "$json_file")
       when=$(json_val "ac_${i}_when" "$json_file")
       then=$(json_val "ac_${i}_then" "$json_file")
-      echo "${i}. **${kw}**：Given ${given}，When ${when}，Then ${then}"
+      printf '%d. **%s**：Given %s，When %s，Then %s\n' "$i" "$kw" "$given" "$when" "$then"
       i=$((i + 1))
     done
 
-    # 渲染关联 Feature
-    echo ""
-    echo "## 关联 Feature"
-    echo ""
-    echo "本 Story 实现 [[${feature_id}]]。"
+    # 渲染关联 Feature（使用产品库文件名引用）
+    printf '\n## 关联 Feature\n\n'
+    printf '本 Story 实现 [[%s-%s-能力文档]]。\n' "$product_short" "$capability_slug"
   } > "$out_file"
 }
 
 # ---- 主流程 ----
 echo "=== Story 批量渲染 ==="
 echo "输入目录: $stories_dir"
-echo "输出目录: $output_dir"
+echo "输出目录: $story_dir"
+echo "Feature ID: $feature_library_id"
 echo ""
 
 # 收集所有 story-*.json
@@ -191,41 +200,35 @@ rendered_count=0
 validation_failed=0
 
 for json_file in "${sorted_files[@]}"; do
-  # 分配 ID
-  story_id=$(json_val "id" "$json_file")
-  feature_id=$(json_val "featureId" "$json_file")
-  if [[ ! "$feature_id" =~ ^feature-[0-9]{3,}$ ]]; then
-    echo "ERROR: $(basename "$json_file") has invalid featureId: $feature_id" >&2
-    exit 2
-  fi
-  if [[ ! "$story_id" =~ ^story-[0-9]{3,}$ ]]; then
-    story_id=$(allocate_next_id "$output_dir" "story")
+  # 读取标题
+  title=$(json_val "title" "$json_file")
+
+  # 计算文件名
+  filename_stem=$(story_filename_stem "$title")
+  out_file="$story_dir/${product_short}-${capability_slug}-${filename_stem}.md"
+
+  # 分配 ID：如果文件已存在，沿用原 ID；否则分配新 ID
+  existing_id=$(read_frontmatter_id "$out_file")
+  if [ -n "$existing_id" ]; then
+    story_id="$existing_id"
+  else
+    story_id=$(allocate_next_story_id "$feature_library_id")
   fi
 
-  out_dir="$output_dir/$feature_id"
-  out_file="$out_dir/${story_id}.md"
-  mkdir -p "$out_dir"
-  existing_path=$(find "$output_dir" -type f -name "${story_id}.md" -print -quit)
-  if [ -n "$existing_path" ] && [ "$existing_path" != "$out_file" ]; then
-    echo "ERROR: $story_id already belongs to a different Feature directory: $existing_path" >&2
-    exit 2
-  fi
-  tmp_file=$(mktemp "$out_dir/.${story_id}.XXXXXX")
-  # 预占 ID（创建临时文件防止 ID 冲突）
+  echo "渲染: $(basename "$json_file") -> $(basename "$out_file") ($story_id)"
 
-  echo "渲染: $(basename "$json_file") → ${story_id}.md"
-
-  # 渲染
+  # 渲染到临时文件
+  tmp_file=$(mktemp "$story_dir/.story.XXXXXX")
   render_one_story "$json_file" "$story_id" "$tmp_file"
   rendered_count=$((rendered_count + 1))
 
   # 校验
-  echo "  校验: ${story_id}.md"
+  echo "  校验: $(basename "$out_file")"
   if bash "$script_dir/validate-story.sh" "$tmp_file"; then
-    echo "  [OK] ${story_id} 校验通过"
+    echo "  [OK] $story_id 校验通过"
     mv -f "$tmp_file" "$out_file"
   else
-    echo "  [FAIL] ${story_id} 校验未通过（详见上方警告）"
+    echo "  [FAIL] $story_id 校验未通过（详见上方警告）"
     rm -f "$tmp_file"
     validation_failed=$((validation_failed + 1))
   fi

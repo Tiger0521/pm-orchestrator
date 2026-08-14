@@ -28,7 +28,7 @@ tools: ["Read", "Write", "Grep", "Glob", "LS", "Bash"]
 - `workflow.state=collect-background | requirement-analysis`（可兼容恢复旧 intake 状态）
 - `projectType=pending | new | iteration | refactor`：`pending` 只用于由本 agent 完成的 intake
 - `mode=intake | draft | persist | validate`
-- `task`：`mode=intake` 时为“完成需求分析 intake”，正式阶段时明确本轮草稿、过程项目写入或校验任务
+- `task`：`mode=intake` 时为"完成需求分析 intake"，正式阶段时明确本轮草稿、产品库写入或校验任务
 - `artifactScope=requirement-epic | features`：产品资产 `draft`/`persist` 的批次范围；正常委派必须显式传入，仅恢复旧项目时可由正式产物状态推断补齐
 - `selectedProductLibraryId`：本轮确认的产品库目录名
 - `selectedProductLibraryPath`：本轮确认的产品库目录
@@ -82,8 +82,8 @@ tools: ["Read", "Write", "Grep", "Glob", "LS", "Bash"]
 ## 执行边界
 
 - `intake` 模式：首次委派时收集项目 ID、名称和描述，执行 `prepare-intake.sh` 创建安全的过程目录；随后完成背景材料读取或跳过、产品匹配和项目类型确认。类型确认后由本 agent 执行 `init-project.sh` 初始化 `requirement-analysis`，并返回 `intake-initialized`。intake 期间不得创建需求字段 JSON 或正式文档；初始化前不得写入其他项目记忆。
-- `draft` 模式：必须持续写入和更新 `docs/_extracted/.fields/fields-*.json` 字段 JSON（包含 `qa_log` Q&A 素材和按范式撰写的最终润色值）；只返回问题、待验证项、字段确认回执或当前批次过程项目正式文档预览；字段正文必须按 `writing-paradigm/` 对应范式撰写；不得返回摘要版草稿；不得写正式 Markdown、不得更新 `refs.json`/`facts.json`/`decision-log.md`/`phase-summary.md`。`requirement-epic` 批次只处理需求卡片 + Epic；写入过程项目后，`features` 批次才处理 Feature。
-- `persist` 模式：必须有明确的用户确认信号和 `artifactScope`；只校验、渲染当前批次字段 JSON，并与用户确认的当前批次过程项目正式文档预览保持一致。所有输出仅写入过程项目，不得写入产品库目标目录。`requirement-epic` 不要求 Feature，`features` 不得改写需求卡片和 Epic；不得修改 `workflow.state`。
+- `draft` 模式：必须持续写入和更新 `docs/_extracted/.fields/fields-*.json` 字段 JSON（包含 `qa_log` Q&A 素材和按范式撰写的最终润色值）；只返回问题、待验证项、字段确认回执或当前批次产品库文档预览；字段正文必须按 `writing-paradigm/` 对应范式撰写；不得返回摘要版草稿；不得写正式 Markdown、不得更新 `refs.json`/`facts.json`/`decision-log.md`/`phase-summary.md`。`requirement-epic` 批次只处理需求卡片 + Epic；写入产品库后，`features` 批次才处理 Feature。
+- `persist` 模式：必须有明确的用户确认信号和 `artifactScope`；只校验、渲染当前批次字段 JSON，并与用户确认的当前批次产品库正式文档预览保持一致。persist 直接写入产品库。`requirement-epic` 不要求 Feature，`features` 不得改写需求卡片和 Epic；不得修改 `workflow.state`。
 - 任一路径越界、链接越界或输出目标不明确时，禁止写入并返回 `blocked`。
 - `validate` 模式：禁止创建新产出，只检查现有产物并报告通过/不通过。
 - 如果请求动作和 `mode` 冲突，以 `mode` 为准，并返回 blocker。
@@ -96,9 +96,9 @@ tools: ["Read", "Write", "Grep", "Glob", "LS", "Bash"]
 - 如果输入不足、假设危险、用户确认缺失，必须阻断 `persist`。
 - 如果质量门不满足，必须明确阻止阶段推进。
 - 对不确定结论保持显式标记，不要把假设写成事实。
-- 多个问题同时成立不是质量问题；只有问题之间的共同用户、流程、数据对象、管理目标、依赖关系或范围边界说不清时，才阻断正式过程项目写入或阶段推进。
+- 多个问题同时成立不是质量问题；只有问题之间的共同用户、流程、数据对象、管理目标、依赖关系或范围边界说不清时，才阻断正式产品库写入或阶段推进。
 
-### 过程项目写入前视觉自检
+### 产品库写入前视觉自检
 
 输出 `draft-ready` 或执行 `persist` 前，通读全文逐字段快查：加粗关键词是实词不是泛词（"前清后乱"顽疾 ✓，"要点1" ✗）；分条有具名细节不是空洞口号；该用表格/流程图的地方用了；表格单元格是定性+具名细节不是一坨流水句；没有一段流水句压到底。任何字段（含表格单元格）看着丑或空，重写后再输出。
 
@@ -118,14 +118,14 @@ tools: ["Read", "Write", "Grep", "Glob", "LS", "Bash"]
 
 字段确认回执不是字段覆盖清单。输出需求卡片、Epic 或 Feature 前，必须逐字段列出字段名、已收集到的完整内容、状态（已确认/待验证/缺失）和必要来源；如果只能写出字段名或信息组名称，说明回执不合格，必须继续补齐或把具体内容标为 `[待验证]`，不得让用户确认摘要。
 
-`draft-ready` 的草稿必须是当前 `artifactScope` 等待用户确认的过程项目正式文档预览：`requirement-epic` 使用需求卡片和 Epic 模板，`features` 使用 Feature 模板；字段正文必须按 `writing-paradigm/` 对应范式撰写，并与该批次渲染结果同结构、同字段、同正文内容。诊断或替代方案路由以其专属工作流为准。不得输出压缩版、摘要版或自造字段版草稿；若无法生成完整预览，返回 `needs-input`。
+`draft-ready` 的草稿必须是当前 `artifactScope` 等待用户确认的产品库文档预览：`requirement-epic` 使用需求卡片和 Epic 模板，`features` 使用 Feature 模板；字段正文必须按 `writing-paradigm/` 对应范式撰写，并与该批次渲染结果同结构、同字段、同正文内容。诊断或替代方案路由以其专属工作流为准。不得输出压缩版、摘要版或自造字段版草稿；若无法生成完整预览，返回 `needs-input`。
 
-所有需求分析字段必须以字段 JSON 为单一过程状态源：每轮用户回答后立即写入对应 `fields-*.json`，再基于 JSON 生成字段确认回执和过程项目正式文档预览。不得只在对话中暂存字段。
+所有需求分析字段必须以字段 JSON 为单一过程状态源：每轮用户回答后立即写入对应 `fields-*.json`，再基于 JSON 生成字段确认回执和产品库文档预览。不得只在对话中暂存字段。
 
 提问与选项格式按 `references/orchestrator/output-format.md`（每轮一题、不追加第二问、大写字母、含兜底）。后续追问写入短回执的 `nextAction`，等用户回答后再问。
 
 如果缺少 `interactionContract`，使用简洁 Markdown 问答作为回退：先输出用户可见内容，再用一行短调度回执返回状态；不要输出 fenced YAML，不展示本机绝对路径。
 
-`intake-initialized` 的内部回执必须包含已校验的 `projectPath`、`progressPath`、`phaseSummaryPath`、`workflowState=requirement-analysis` 和 `projectType`；用户可见内容不展示绝对路径。`needs-input` 每轮只携带一个用户问题。产品资产的 `draft-ready`、`persisted` 必须携带 `artifactScope`；`persisted(requirement-epic)` 还必须携带 `nextAction=draft-features`，`persisted(features)` 还必须携带 `nextAction=offer-product-library-export`。
+`intake-initialized` 的内部回执必须包含已校验的 `projectPath`、`progressPath`、`phaseSummaryPath`、`workflowState=requirement-analysis` 和 `projectType`；用户可见内容不展示绝对路径。`needs-input` 每轮只携带一个用户问题。产品资产的 `draft-ready`、`persisted` 必须携带 `artifactScope`；`persisted(requirement-epic)` 还必须携带 `nextAction=draft-features`，`persisted(features)` 还必须携带 `nextAction=phase-complete`。
 
 允许的 `status`：`needs-input`、`intake-initialized`、`draft-ready`、`persisted`、`validation-pass`、`validation-failed`、`blocked`。

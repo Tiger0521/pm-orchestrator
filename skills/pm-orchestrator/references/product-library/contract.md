@@ -84,10 +84,11 @@ product-library/<产品库名称>/
 
 ## 5. Frontmatter
 
-除匹配正则的产品库根文档外，每份 Markdown 必须包含 `product`、`type`、`aliases` 和 `tags`；能力文档和用户故事还必须包含 `capability`。
+除匹配正则的产品库根文档外，每份 Markdown 必须包含 `id`、`product`、`type`、`aliases` 和 `tags`；能力文档和用户故事还必须包含 `capability`。
 
 ```yaml
 ---
+id: "网资-EPIC-F01"
 product: 网络资源全生命周期管理
 type: 能力文档
 capability: 设备领用能力/领用审批能力
@@ -100,7 +101,7 @@ tags:
 ---
 ```
 
-`type` 只允许 `需求卡片 | 设计文档 | 能力文档 | 用户故事`。`capability` 使用相对于产品目录的能力路径，不包含产品目录名。`aliases` 和 `tags` 均为 YAML 列表，由导出脚本自动注入。产品库不得保留过程空间的 `id`、`projectId`、`refs` 或 `status`。导出时必须把正文和保留 frontmatter 中的过程 ID 全量转换为产品库文件名或可读名称：Wiki 链接（含显示文本、章节/块锚点和路径形式）及 Markdown 链接指向已导出文档时改为产品库 Wiki 链接；指向未导出过程文档时降级为显示文本或 `refs.json` 中的文档标题；任何无法映射的过程 ID 都必须阻止导出。校验脚本会拒绝仍含过程 ID 的产品库。
+`type` 只允许 `需求卡片 | 设计文档 | 能力文档 | 用户故事`。`capability` 使用相对于产品目录的能力路径，不包含产品目录名。`aliases` 和 `tags` 均为 YAML 列表，由渲染脚本自动注入。`id` 使用继承式产品库 ID（格式见 `references/shared/traceability-model.md` 的"产品库 ID"章节）。产品库不得保留过程空间的 `projectId`、`refs` 或 `status`。`id` 字段是产品库 ID，不是过程 ID。校验脚本会拒绝 frontmatter `id` 字段以外的过程 ID。
 
 `aliases` 和 `tags` 的取值规则：
 
@@ -123,13 +124,14 @@ tags:
 - 导出脚本自动注入 `aliases` 和 `tags`；`product` 字段用于搜索和图谱分组，`tags` 用于标签过滤，`aliases` 用于别名链接。
 - 校验脚本检测全库同名文件和别名冲突。
 
-项目工作区是过程空间；产品库是用户选择从阶段文档完整的过程项目导出的正式只读资产。需求分析阶段的需求卡片、Epic 和能力清单中的全部 Feature 均已写入过程项目后，主调度器必须询问是否导出到产品库目标目录；用户选择导出时，先预览变更并再次确认后才执行。正常阶段的 `mode=persist` 不得直接写产品库。产品库导出是需求分析阶段的收尾动作，不阻塞后续 Story 拆解：用户暂不导出时需求分析仍可结束并进入下一阶段，只需保留“产品库待导出”状态。
+产品库是正式资产，`mode=persist` 时直接写入产品库。过程空间只保留草稿态数据（字段 JSON、故事 JSON、背景材料）和项目记忆文件。不再有独立的导出步骤。
 
 ## 7. 脚本职责
 
 - `acquire-product-library.sh`：从 Git 仓库克隆或更新产品库，或规范化用户提供的已有本地产品库路径；不创建空产品库、不复制本地库、不执行 `git init`。
-- `validate-product-library.sh`：定位或校验目录、简称、命名、frontmatter（含 `aliases`/`tags` 格式）、层级、文件名唯一性、别名冲突和链接完整性。
-- `export-to-library.sh`：读取 `refs.json` 和正式产物，转换名称与 frontmatter（注入 `aliases`/`tags`），预览后增量写入并更新产品矩阵标记区域。
+- `validate-product-library.sh`：定位或校验目录、简称、命名、frontmatter（含 `id` 必填与格式校验、`aliases`/`tags` 格式）、层级、文件名唯一性、别名冲突和链接完整性。
+- `export-to-library.sh`：已废弃。persist 直接写入产品库，不再需要导出步骤。旧项目迁移使用 `backfill-library-ids.mjs`。
+- `product-library-tools.mjs reconcile`：扫描产品库、计算 SHA-256 哈希、比对 `refs.json`、输出变更报告、更新哈希。
 - `rename-product.sh`：预览简称变更，确认后批量改名、更新链接和产品矩阵标记区域，失败时回滚。
 
-导出和改简称默认只预览；只有用户确认后才使用 `--apply`。导出时新文件创建、变化文件覆盖、相同文件跳过；项目已不再导出但产品库仍存在的文件标记为 `STALE` 并保留，不自动删除，能力数和用户故事数在处置前仍包含这些文件。写入后必须校验。简称变更前校验格式与唯一性，`product` 始终保存产品全名。
+改简称默认只预览；只有用户确认后才使用 `--apply`。写入后必须校验。简称变更前校验格式与唯一性，`product` 始终保存产品全名。

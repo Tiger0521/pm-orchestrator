@@ -8,7 +8,7 @@
 # 用法：
 #   bash validate-paradigm.sh <markdown_file>
 #
-#   markdown_file : 渲染后的 Markdown 文档（req-*.md / epic-*.md / feature-*.md）
+#   markdown_file : 渲染后的 Markdown 文档（产品库格式：*需求卡片.md / *设计文档.md / *能力文档.md）
 #
 # 校验内容：
 #   1. 分条列点是否使用 **加粗关键词** 领条（而非纯编号或无加粗标签）
@@ -16,6 +16,10 @@
 #   3. 范式 D 字段（现状描述、核心场景）是否有流程图代码块
 #   4. 范式 B 字段（产品定位）是否有 blockquote 核心论断
 #   5. 范式 F 字段（问题本质还原）是否有"这说明/因此/这意味着"过渡词
+#
+# 注意：范式校验只针对正文内容，不校验 frontmatter 字段。
+# doc_type 从 frontmatter type 字段提取（产品库类型：需求卡片/设计文档/能力文档）。
+# doc_id 从 frontmatter id 字段提取（继承式产品库 ID，如 网资-EPIC-F01）。
 #
 # 退出码：0 全部通过；1 有警告（建议修正但不阻断）；2 文件问题。
 #
@@ -149,7 +153,7 @@ check_paradigm_a() {
 # ---- 按文档类型路由校验 ----
 
 case "$doc_type" in
-  requirement-card)
+  需求卡片)
     echo "--- 需求卡片范式校验 ---"
     check_table "需求基本信息" "需求基本信息"
     check_flowchart "现状描述" "现状描述"
@@ -157,7 +161,7 @@ case "$doc_type" in
     check_transition "问题本质还原" "问题本质还原"
     check_table "需求评估结果" "需求评估结果"
     ;;
-  epic)
+  设计文档)
     echo "--- Epic 范式校验 ---"
     check_blockquote "产品定位" "产品定位"
     check_paradigm_a "产品目标" "产品目标"
@@ -184,7 +188,7 @@ case "$doc_type" in
       warnings=$((warnings + 1))
     fi
     ;;
-  feature)
+  能力文档)
     echo "--- Feature 范式校验 ---"
     check_transition "能力描述" "能力描述"
     check_paradigm_a "能力目标" "能力目标"

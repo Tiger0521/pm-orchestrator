@@ -97,17 +97,42 @@ fm_has_list() {
   ' "$file"
 }
 
+validate_library_id() {
+  local id="$1" short="$2" doc_type="$3"
+  [ -n "$short" ] || return 0
+  node -e '
+    const id = process.argv[1];
+    const short = process.argv[2];
+    const docType = process.argv[3];
+    const patterns = {
+      "需求卡片": `^${short}-REQ$`,
+      "设计文档": `^${short}-EPIC$`,
+      "能力文档": `^${short}-EPIC-F\\d{2,}$`,
+      "用户故事": `^${short}-EPIC-F\\d{2,}-S\\d{2,}$`
+    };
+    const pattern = patterns[docType];
+    if (!pattern) process.exit(0);
+    process.exit(new RegExp(pattern, "u").test(id) ? 0 : 1);
+  ' "$id" "$short" "$doc_type"
+}
+
 validate_doc() {
-  local file="$1" product="$2" expected_type="$3" expected_capability="${4:-}"
-  local actual_product actual_type actual_capability rel
+  local file="$1" product="$2" expected_type="$3" expected_capability="${4:-}" short="${5:-}"
+  local actual_id actual_product actual_type actual_capability rel
   rel="${file#"$LIBRARY_PATH"/}"
   if [ "$(head -n 1 "$file" | tr -d '\r' | sed 's/^\xef\xbb\xbf//')" != "---" ]; then
     fail_issue "[frontmatter] $rel: 缺少起始 ---"
     return
   fi
+  actual_id=$(strip_quotes "$(fm_value "$file" id)")
   actual_product=$(strip_quotes "$(fm_value "$file" product)")
   actual_type=$(strip_quotes "$(fm_value "$file" type)")
   actual_capability=$(strip_quotes "$(fm_value "$file" capability)")
+  if [ -z "$actual_id" ]; then
+    fail_issue "[frontmatter] $rel: 缺少 id 字段"
+  elif [ -n "$short" ] && ! validate_library_id "$actual_id" "$short" "$expected_type"; then
+    fail_issue "[frontmatter] $rel: id 格式不合法（应为 ${short}-REQ/${short}-EPIC/${short}-EPIC-F<nnn>/${short}-EPIC-F<nnn>-S<nnn> 之一）: $actual_id"
+  fi
   [ "$actual_product" = "$product" ] || fail_issue "[frontmatter] $rel: product 应为 $product"
   [ "$actual_type" = "$expected_type" ] || fail_issue "[frontmatter] $rel: type 应为 $expected_type"
   if [ -n "$expected_capability" ]; then
@@ -156,7 +181,7 @@ validate_leaf() {
   doc_count=$(find "$dir" -maxdepth 1 -type f -name '*-能力文档.md' | wc -l | tr -d '[:space:]')
   [ "$doc_count" -eq 1 ] || fail_issue "[层级] ${dir#"$LIBRARY_PATH"/}: 叶子能力必须有且仅有一份能力文档"
   expected="$dir/$short-$capability_slug-能力文档.md"
-  if [ -f "$expected" ]; then validate_doc "$expected" "$product" "能力文档" "$capability"; else fail_issue "[命名] 缺少 ${expected#"$LIBRARY_PATH"/}"; fi
+  if [ -f "$expected" ]; then validate_doc "$expected" "$product" "能力文档" "$capability" "$short"; else fail_issue "[命名] 缺少 ${expected#"$LIBRARY_PATH"/}"; fi
   story_dir="$dir/UserStory"
   [ -d "$story_dir" ] || { fail_issue "[层级] ${dir#"$LIBRARY_PATH"/}: 叶子能力缺少 UserStory"; return; }
   while IFS= read -r -d '' story; do
@@ -167,7 +192,7 @@ validate_leaf() {
     if [[ "$file" != "$prefix"*.md ]] || [[ "$story_title" != *故事 ]] || ! valid_story_title "$story_title"; then
       fail_issue "[命名] ${story#"$LIBRARY_PATH"/}: 用户故事文件名应为 简称-能力路径-故事标题故事.md"
     fi
-    validate_doc "$story" "$product" "用户故事" "$capability"
+    validate_doc "$story" "$product" "用户故事" "$capability" "$short"
   done < <(find "$story_dir" -maxdepth 1 -type f -name '*.md' -print0)
   while IFS= read -r -d '' file; do fail_issue "[层级] ${file#"$LIBRARY_PATH"/}: UserStory 内不得有子目录"; done < <(find "$story_dir" -mindepth 1 -maxdepth 1 -type d -print0)
 }
@@ -264,8 +289,8 @@ while IFS= read -r -d '' product_dir; do
   if [ -z "$short" ]; then fail_issue "[产品矩阵] 产品目录未登记: $product"; continue; fi
   [ -f "$product_dir/$short-需求卡片.md" ] || fail_issue "[命名] $product 缺少 $short-需求卡片.md"
   [ -f "$product_dir/$short-设计文档.md" ] || fail_issue "[命名] $product 缺少 $short-设计文档.md"
-  [ -f "$product_dir/$short-需求卡片.md" ] && validate_doc "$product_dir/$short-需求卡片.md" "$product" "需求卡片"
-  [ -f "$product_dir/$short-设计文档.md" ] && validate_doc "$product_dir/$short-设计文档.md" "$product" "设计文档"
+  [ -f "$product_dir/$short-需求卡片.md" ] && validate_doc "$product_dir/$short-需求卡片.md" "$product" "需求卡片" "" "$short"
+  [ -f "$product_dir/$short-设计文档.md" ] && validate_doc "$product_dir/$short-设计文档.md" "$product" "设计文档" "" "$short"
   while IFS= read -r -d '' file; do
     base=$(basename -- "$file")
     [ "$base" = "$short-需求卡片.md" ] || [ "$base" = "$short-设计文档.md" ] || fail_issue "[命名] ${file#"$LIBRARY_PATH"/}: 产品根目录不允许其他 Markdown"
@@ -295,11 +320,11 @@ while IFS= read -r -d '' file; do
 done < <(find "$LIBRARY_PATH" -type f -name '*.md' ! -path "$ARCH" -print0)
 
 # Product libraries are formal assets, so process-space IDs such as epic-001 must
-# never remain in either frontmatter or document bodies.
+# never remain in either frontmatter (excluding the id field) or document bodies.
 while IFS= read -r -d '' file; do
   rel="${file#"$LIBRARY_PATH"/}"
-  process_ids=$(node -e 'const fs = require("fs"); const text = fs.readFileSync(process.argv[1], "utf8"); const ids = [...new Set([...text.matchAll(/\b(?:req|diagnostic|epic|feature|story|matrix|flow|proto|contract|rules|sprint)-\d+\b/gi)].map((match) => match[0]))]; process.stdout.write(ids.join(", "));' "$file")
-  [ -z "$process_ids" ] || fail_issue "[过程 ID] $rel: 产品库不得保留过程文档 ID: $process_ids"
+  process_ids=$(node -e 'const fs = require("fs"); let text = fs.readFileSync(process.argv[1], "utf8"); text = text.replace(/^id:[^\n]*$/m, ""); const ids = [...new Set([...text.matchAll(/\b(?:req|diagnostic|epic|feature|story|matrix|flow|proto|contract|rules|sprint)-\d+\b/gi)].map((match) => match[0]))]; process.stdout.write(ids.join(", "));' "$file")
+  [ -z "$process_ids" ] || fail_issue "[过程 ID] $rel: 产品库不得保留过程文档 ID（frontmatter id 字段除外）: $process_ids"
 done < <(find "$LIBRARY_PATH" -type f -name '*.md' -print0)
 
 # Alias conflict: check no alias points to multiple files

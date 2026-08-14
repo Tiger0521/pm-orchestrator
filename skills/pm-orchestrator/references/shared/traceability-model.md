@@ -56,8 +56,10 @@ Sprint   ──contains─────▶ User Story
       "id": "epic-001",
       "type": "epic",
       "title": "...",
-      "path": "docs/requirement-analysis/epic-001.md",
-      "status": "approved"
+      "path": "product-library/<产品库名>/<产品全名>/网资-设计文档.md",
+      "libraryId": "网资-EPIC",
+      "contentHash": "a3f5c2e1b9d8...",
+      "lastSynced": "2026-08-14T10:30:00"
     }
   ],
   "edges": [
@@ -70,11 +72,21 @@ Sprint   ──contains─────▶ User Story
 }
 ```
 
+- `id`：过程空间 ID（`req-001`、`epic-001` 等），注册时分配。
+- `path`：指向产品库路径（不再指向过程空间 `docs/`）。
+- `libraryId`：产品库继承式 ID，persist 时建立映射。
+- `contentHash`：文件全文 SHA-256 哈希，由对账脚本计算并更新。
+- `lastSynced`：上次同步时间戳。
+
+恢复已有项目时必须先运行对账脚本（`product-library-tools.mjs reconcile`），由脚本扫描产品库、计算哈希、与 `refs.json` 中的 `contentHash` 比对并输出变更报告；AI 只读报告标记为 `changed`/`new` 的文档，跳过 `unchanged`。
+
 ---
 
 ## Frontmatter 规范
 
-每份产出文档统一包含以下 frontmatter：
+### 过程空间 frontmatter
+
+过程空间文档（草稿态数据、项目记忆文件）统一包含以下 frontmatter：
 
 ```yaml
 ---
@@ -90,6 +102,30 @@ refs:
 ```
 
 需求卡片是追溯链起点，允许 `refs: []`。Epic 必须通过 `derived-from` 引用需求卡片；Feature 必须通过 `belongs-to` 引用 Epic，并可通过 `references` 回引需求卡片。
+
+### 产品库 frontmatter
+
+产品库文档统一包含以下 frontmatter：
+
+```yaml
+---
+id: "<继承式产品库ID>"
+product: "<产品全名>"
+type: "<需求卡片 | 设计文档 | 能力文档 | 用户故事>"
+capability: "<能力路径>"
+aliases:
+  - <别名>
+tags:
+  - <标签>
+---
+```
+
+- `id`：继承式产品库 ID（格式见下文"产品库 ID"章节），不是过程 ID。
+- `product`：产品全名。
+- `type`：`需求卡片 | 设计文档 | 能力文档 | 用户故事`。
+- `capability`：能力文档和用户故事必填，需求卡片和设计文档无此字段。
+- `aliases`/`tags`：YAML 列表，由渲染脚本注入。
+- 产品库不得保留过程空间的 `projectId`、`refs` 或 `status`。
 
 ## ID 分配规则
 
@@ -108,6 +144,34 @@ refs:
 ```
 
 > 说明：正文 `[[doc-id]]` 供人阅读与 Obsidian 双向链接使用；机器溯源链仍由 frontmatter `refs` + `refs.json` 维护，两者解耦。
+
+---
+
+## 产品库 ID
+
+产品库文档使用继承式 ID，与过程空间 ID 独立。
+
+### 格式
+
+| 文档类型 | ID 格式 | 示例 |
+|---|---|---|
+| 需求卡片 | `<简称>-REQ` | `网资-REQ` |
+| 设计文档(Epic) | `<简称>-EPIC` | `网资-EPIC` |
+| 能力文档(Feature) | `<简称>-EPIC-F<nnn>` | `网资-EPIC-F01` |
+| 用户故事 | `<简称>-EPIC-F<nnn>-S<nnn>` | `网资-EPIC-F01-S01` |
+
+### 分配规则
+
+1. persist 时由渲染脚本分配。
+2. 扫描产品库中当前产品的同类型文档，取最大序号 +1。
+3. ID 一经分配不变；更新现有文档时沿用原 ID。
+4. 通过 frontmatter `id` 字段定位已有文档，不依赖文件名。
+
+### 与过程 ID 的关系
+
+- 过程空间仍使用 `req-001`、`epic-001` 等过程 ID，记录在 `refs.json` 的 `id` 字段中。
+- 产品库 ID 记录在 `refs.json` 的 `libraryId` 字段中。
+- persist 时建立过程 ID 到产品库 ID 的映射。
 
 ---
 

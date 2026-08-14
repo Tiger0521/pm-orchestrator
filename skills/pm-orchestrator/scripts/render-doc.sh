@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
 #
-# render-doc.sh - 从 JSON 字段文件渲染 Markdown 文档并写入项目目录。
+# render-doc.sh - 从 JSON 字段文件渲染 Markdown 文档并写入产品库。
 #
 # 跨平台：通过 Claude Code 的 Bash 工具运行，Windows(Git Bash)/macOS/Linux 通用。
 # 只用 bash + grep + printf，无外部依赖。
 #
 # 用法：
-#   bash render-doc.sh <json_file> <output_dir>
+#   bash render-doc.sh <json_file> <output_dir> <产品简称> <产品全名> [能力路径]
 #
 #   json_file  : AI 生成的字段值 JSON 文件
-#   output_dir : 项目 docs/requirement-analysis/ 的绝对路径
+#   output_dir : 产品库中产品目录的绝对路径
+#   产品简称   : 如 网资
+#   产品全名   : 如 网资：网络资源全生命周期管理
+#   能力路径   : Feature 的能力路径（如 设备管理能力/领用审批能力），需求卡片和 Epic 不传
 #
 # JSON 格式见各文档类型的模板文件。
 #
@@ -17,6 +20,9 @@ set -euo pipefail
 
 json_file="${1:?missing json_file}"
 output_dir="${2:?missing output_dir}"
+product_short="${3:?missing 产品简称}"
+product_full="${4:?missing 产品全名}"
+capability_path="${5:-}"
 
 if [ ! -f "$json_file" ]; then
   echo "ERROR: json_file not found: $json_file" >&2
@@ -102,31 +108,104 @@ normalize_priority_reason() {
 }
 # ---- 读取公共字段 ----
 doc_type=$(json_val "type")
-doc_id=$(json_val "id")
-project_id=$(json_val "projectId")
 title=$(json_val "title")
+
+# ---- 产品库类型映射 ----
 case "$doc_type" in
-  requirement-card) expected_id_regex='^req-[0-9]{3,}$' ;;
-  epic)             expected_id_regex='^epic-[0-9]{3,}$' ;;
-  feature)          expected_id_regex='^feature-[0-9]{3,}$' ;;
-  *)                expected_id_regex='' ;;
+  requirement-card) lib_type="需求卡片" ;;
+  epic)             lib_type="设计文档" ;;
+  feature)          lib_type="能力文档" ;;
+  *)
+    echo "ERROR: unknown document type: $doc_type" >&2
+    exit 3
+    ;;
 esac
 
-if [ -z "$expected_id_regex" ] || ! printf '%s' "$doc_id" | grep -Eq "$expected_id_regex"; then
-  echo "ERROR: invalid document id for type '$doc_type': $doc_id" >&2
-  exit 2
-fi
+# ---- 产品库 ID 分配 ----
+# 从已有文档的 frontmatter id 定位，若存在则沿用原 ID；否则分配新 ID。
+read_frontmatter_id() {
+  local file="$1"
+  [ -f "$file" ] || { printf ''; return; }
+  awk '
+    NR == 1 { sub(/^\xef\xbb\xbf/, ""); if ($0 != "---") exit; in_fm=1; next }
+    in_fm && $0 == "---" { exit }
+    in_fm && index($0, "id:") == 1 { sub("^[^:]+:[[:space:]]*", ""); gsub(/^["\x27]|["\x27]$/, ""); print; exit }
+  ' "$file"
+}
 
-if ! printf '%s' "$project_id" | grep -Eq '^[a-z0-9][a-z0-9-]{0,62}$'; then
-  echo "ERROR: invalid projectId: $project_id" >&2
-  exit 2
-fi
+allocate_feature_id() {
+  local short="$1" max_num=0 num id_val
+  while IFS= read -r -d '' f; do
+    id_val=$(read_frontmatter_id "$f")
+    if [[ "$id_val" =~ ^${short}-EPIC-F([0-9]+)$ ]]; then
+      num=$((10#${BASH_REMATCH[1]}))
+      [ "$num" -gt "$max_num" ] && max_num="$num"
+    fi
+  done < <(find "$output_dir_abs" -type f -name '*.md' -print0 2>/dev/null)
+  printf "%s-EPIC-F%02d" "$short" "$((max_num + 1))"
+}
 
-output_file="$output_dir_abs/${doc_id}.md"
+# ---- 确定输出路径和 ID ----
+case "$doc_type" in
+  requirement-card)
+    library_id="${product_short}-REQ"
+    output_file="$output_dir_abs/${product_short}-需求卡片.md"
+    existing_id=$(read_frontmatter_id "$output_file")
+    [ -n "$existing_id" ] && library_id="$existing_id"
+    ;;
+  epic)
+    library_id="${product_short}-EPIC"
+    output_file="$output_dir_abs/${product_short}-设计文档.md"
+    existing_id=$(read_frontmatter_id "$output_file")
+    [ -n "$existing_id" ] && library_id="$existing_id"
+    ;;
+  feature)
+    if [ -z "$capability_path" ]; then
+      echo "ERROR: Feature 文档需要能力路径参数" >&2
+      exit 2
+    fi
+    capability_slug="${capability_path//\//-}"
+    feature_dir="$output_dir_abs/${capability_path}"
+    mkdir -p "$feature_dir"
+    output_file="$feature_dir/${product_short}-${capability_slug}-能力文档.md"
+    existing_id=$(read_frontmatter_id "$output_file")
+    if [ -n "$existing_id" ]; then
+      library_id="$existing_id"
+    else
+      library_id=$(allocate_feature_id "$product_short")
+    fi
+    ;;
+esac
+
 case "$output_file" in
   "$output_dir_abs"/*) ;;
   *) echo "ERROR: output file escaped output_dir: $output_file" >&2; exit 2 ;;
 esac
+
+# ---- 产品库 frontmatter 生成 ----
+generate_frontmatter() {
+  local cap="${1:-}"
+  printf '%s\n' '---'
+  printf 'id: "%s"\n' "$library_id"
+  printf 'product: "%s"\n' "$product_full"
+  printf 'type: "%s"\n' "$lib_type"
+  if [ -n "$cap" ]; then
+    printf 'capability: "%s"\n' "$cap"
+  fi
+  printf '%s\n' 'aliases:'
+  if [ -n "$cap" ]; then
+    printf '  - %s\n' "$cap"
+  else
+    printf '  - %s\n' "$product_full"
+  fi
+  printf '%s\n' 'tags:'
+  printf '  - %s\n' "$product_short"
+  printf '  - %s\n' "$lib_type"
+  if [ -n "$cap" ]; then
+    printf '  - %s\n' "$cap"
+  fi
+  printf '%s\n' '---'
+}
 
 # ---- 渲染函数 ----
 
@@ -152,16 +231,10 @@ render_requirement_card() {
   resource_score=$(json_val "resource_score")
   resource_reason=$(json_val "resource_reason")
 
-  printf '%s\n' \
-    '---' \
-    "id: \"$doc_id\"" \
-    'type: "requirement-card"' \
-    "projectId: \"$project_id\"" \
-    "title: \"$title\"" \
-    'status: "draft"' \
-    'refs: []' \
-    '---' \
-    '' \
+  {
+    generate_frontmatter
+    printf '\n<!-- ID: %s -->\n\n' "$library_id"
+    printf '%s\n' \
     "# $title" \
     '' \
     '```' \
@@ -210,8 +283,8 @@ render_requirement_card() {
     "| 业务价值 | $business_value_score | $business_value_reason |" \
     "| 影响 | $impact_score | $impact_reason |" \
     "| 可行性 | $feasibility_score | $feasibility_reason |" \
-    "| 资源 | $resource_score | $resource_reason |" \
-    > "$output_file"
+    "| 资源 | $resource_score | $resource_reason |"
+  } > "$output_file"
 }
 
 render_epic() {
@@ -232,18 +305,10 @@ render_epic() {
   out_of_scope=$(json_val "out_of_scope")
   build_approach=$(json_val "build_approach")
 
-  printf '%s\n' \
-    '---' \
-    "id: \"$doc_id\"" \
-    'type: "epic"' \
-    "projectId: \"$project_id\"" \
-    "title: \"$title\"" \
-    'status: "draft"' \
-    'refs:' \
-    "  - id: \"$req_id\"" \
-    '    relation: "derived-from"' \
-    '---' \
-    '' \
+  {
+    generate_frontmatter
+    printf '\n<!-- ID: %s -->\n\n' "$library_id"
+    printf '%s\n' \
     "# $title" \
     '' \
     '```' \
@@ -265,7 +330,7 @@ render_epic() {
     '' \
     '## 需求背景' \
     '' \
-    "本 Epic 派生自 [[$req_id]]：$requirement_bg" \
+    "本 Epic 派生自 [[${product_short}-需求卡片]]：$requirement_bg" \
     '' \
     '## 产品名称' \
     '' \
@@ -303,8 +368,8 @@ render_epic() {
     '' \
     '## 建设思路' \
     '' \
-    "$build_approach" \
-    > "$output_file"
+    "$build_approach"
+  } > "$output_file"
 }
 
 render_feature() {
@@ -332,20 +397,10 @@ render_feature() {
   priority_reason=$(json_val "priority_reason")
   priority_reason=$(normalize_priority_reason "$priority_reason")
 
-  printf '%s\n' \
-    '---' \
-    "id: \"$doc_id\"" \
-    'type: "feature"' \
-    "projectId: \"$project_id\"" \
-    "title: \"$title\"" \
-    'status: "draft"' \
-    'refs:' \
-    "  - id: \"$epic_id\"" \
-    '    relation: "belongs-to"' \
-    "  - id: \"$req_id\"" \
-    '    relation: "references"' \
-    '---' \
-    '' \
+  {
+    generate_frontmatter "$capability_path"
+    printf '\n<!-- ID: %s -->\n\n' "$library_id"
+    printf '%s\n' \
     "# $title" \
     '' \
     '```' \
@@ -367,7 +422,7 @@ render_feature() {
     '' \
     '## 需求背景' \
     '' \
-    "本 Feature 回应 [[$req_id]] 中的需求：$requirement_bg" \
+    "本 Feature 回应 [[${product_short}-需求卡片]] 中的需求：$requirement_bg" \
     '' \
     '## 能力名称' \
     '' \
@@ -383,7 +438,7 @@ render_feature() {
     '' \
     '## 用户角色' \
     '' \
-    "引用 [[$epic_id]] 中的角色：$user_roles" \
+    "引用 [[${product_short}-设计文档]] 中的角色：$user_roles" \
     '' \
     '## 业务价值' \
     '' \
@@ -411,8 +466,8 @@ render_feature() {
     '' \
     '## 优先级' \
     '' \
-    "$priority（排序依据：$priority_reason）" \
-    > "$output_file"
+    "$priority（排序依据：$priority_reason）"
+  } > "$output_file"
 }
 
 # ---- 路由 ----

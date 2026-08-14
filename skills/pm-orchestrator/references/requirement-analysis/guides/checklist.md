@@ -6,23 +6,24 @@
 
 ## 文件存在性
 
-- [ ] 至少一个 `docs/requirement-analysis/req-*.md` 存在
-- [ ] 至少一个 `docs/requirement-analysis/epic-*.md` 存在
-- [ ] 至少一个 `docs/requirement-analysis/feature-*.md` 存在
-- [ ] 需求分析阶段正式产物未分散写入 `docs/strategic/` 或 `docs/requirement/`
+- [ ] 产品库中至少一份需求卡片（`<简称>-需求卡片.md`）存在
+- [ ] 产品库中至少一份设计文档（`<简称>-设计文档.md`）存在
+- [ ] 产品库中至少一份能力文档（`*-能力文档.md`）存在
+- [ ] 需求分析阶段正式产物已写入产品库，未分散写入过程项目 `docs/`
 
 ---
 
 ## Frontmatter 完整性
 
-每份文档必须包含：
+每份产品库文档必须包含：
 
-- [ ] `id`
+- [ ] `id`（继承式产品库 ID）
+- [ ] `product`
 - [ ] `type`
-- [ ] `projectId`
-- [ ] `title`
-- [ ] `status`
-- [ ] `refs`（Epic、Feature 至少一条引用关系；需求卡片可为空数组）
+- [ ] `capability`（能力文档和用户故事必填）
+- [ ] `aliases`
+- [ ] `tags`
+- [ ] 不得包含 `projectId`、`refs` 或 `status` 等过程空间字段
 
 ---
 
@@ -215,18 +216,13 @@
 
 ---
 
-## 阶段完成状态与产品库导出
+## 阶段完成状态
 
-需求分析阶段完成条件区分三种状态并记录在 `phase-summary.md`：`requirement-documents-written`（需求分析全部文档已写入过程项目）、`product-library-export-pending`（已询问或等待用户决定是否导出产品库）、`product-library-exported`（用户确认后文档已实际导出到产品库）。
+需求分析阶段在需求卡片、Epic 和能力清单中的全部 Feature 均已写入产品库后即完成。`persisted(features)` 返回 `nextAction=phase-complete`，不再有独立的导出步骤。
 
-- [ ] 需求卡片、Epic 和能力清单中的全部 Feature 均已写入过程项目后，阶段完成状态才为 `requirement-documents-written`
-- [ ] 尚有需求卡片、Epic 或 Feature 未完成时，未询问是否导出产品库
-- [ ] 产品库目标目录未配置时，提示先配置目标目录，未猜测目录或默认写入
-- [ ] 询问是否导出产品库时，展示了产品库目标目录和待导出文件清单，用户确认后才执行导出
-- [ ] 用户选择导出成功后，阶段完成状态已更新为 `product-library-exported`
-- [ ] 用户暂不导出时，阶段完成状态为 `product-library-export-pending`，需求分析仍可结束并进入下一阶段，未阻塞后续 Story 拆解
-- [ ] 导出失败时，明确说明“过程项目文档已经保存，但产品库导出失败”，未把两个状态混在一起
-- [ ] “已写入过程项目”与“已导出到产品库”措辞区分清晰，未用含义不明的“落盘”混用两者
+- [ ] 需求卡片、Epic 和能力清单中的全部 Feature 均已写入产品库
+- [ ] 尚有需求卡片、Epic 或 Feature 未完成时，未报告阶段完成
+- [ ] `persisted(features)` 返回 `nextAction=phase-complete`，未返回 `offer-product-library-export`
 
 ---
 

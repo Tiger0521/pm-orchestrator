@@ -8,18 +8,18 @@
 
 **用户问题**：每轮只提出一个问题；每次问题前按 `../guides/quality-and-interaction.md` 输出理解回执，并完整执行 `../guides/question-bank.md` 的“盘问式决策澄清协议”。
 
-**终点**：信息不足或仍在当前批次澄清时返回 `needs-input`；当前批次过程项目正式文档预览满足门禁时返回 `draft-ready`，并携带 `artifactScope=requirement-epic | features`。
+**终点**：信息不足或仍在当前批次澄清时返回 `needs-input`；当前批次产品库文档预览满足门禁时返回 `draft-ready`，并携带 `artifactScope=requirement-epic | features`。
 ## 产出顺序
 
 本文件规定执行顺序和门禁。每一步需要追问时，去 `../guides/question-bank.md` 取对应字段的问题。展示格式遵守主调度器传入的 `interactionContract`。
 
-需求分析按两个顺序批次执行：`requirement-epic` 先起草、确认并写入过程项目需求卡片 + Epic；只有该批次返回 `persisted` 后，才进入 `features` 批次起草、确认并写入过程项目 Feature。任一批次的 `draft-ready` 只表示该批次预览可确认，不表示整个需求分析阶段完成。
+需求分析按两个顺序批次执行：`requirement-epic` 先起草、确认并写入产品库需求卡片 + Epic；只有该批次返回 `persisted` 后，才进入 `features` 批次起草、确认并写入产品库 Feature。任一批次的 `draft-ready` 只表示该批次预览可确认，不表示整个需求分析阶段完成。
 
 在字段顺序允许进入下一问前，先依照问题库的“盘问式决策澄清协议”核实可查事实、选择最上游未决节点，并在该节点获用户决断后才继续其下游字段。该协议的共同理解门禁优先于本工作流的草稿和落盘出口。
 
 ### 字段 JSON 文件
 
-字段 JSON 是过程项目正式文档的数据源，一份文档对应一个 JSON：
+字段 JSON 是正式文档的数据源，一份文档对应一个 JSON：
 
 - 需求卡片：`docs/_extracted/.fields/fields-req-<nnn>.json`
 - Epic：`docs/_extracted/.fields/fields-epic-<nnn>.json`
@@ -27,7 +27,7 @@
 
 以上路径均相对于 `<projectPath>/`。字段 JSON 是中间状态文件，存放在 `docs/_extracted/.fields/` 子目录中，不与正式 Markdown 产物混放。
 
-JSON 的字段名和结构见“写入过程项目”章节。`mode=draft` 时必须创建并持续更新字段 JSON；同时在对话中展示用户可见的逐字段草稿。字段 JSON、对话草稿、模板章节三者必须保持一致。`mode=persist` 且用户确认完整草稿后，以字段 JSON 作为 `render-doc.sh` 的唯一数据源渲染正式 Markdown。
+JSON 的字段名和结构见"写入产品库"章节。`mode=draft` 时必须创建并持续更新字段 JSON；同时在对话中展示用户可见的逐字段草稿。字段 JSON、对话草稿、模板章节三者必须保持一致。`mode=persist` 且用户确认完整草稿后，以字段 JSON 作为 `render-doc.sh` 的唯一数据源渲染正式 Markdown。
 
 ### 启动时：读取 JSON 恢复进度
 
@@ -43,7 +43,15 @@ JSON 的字段名和结构见“写入过程项目”章节。`mode=draft` 时�
 1. **记录 Q&A**：将该轮的追问和用户回答（经润色优化，保留全部信息量，只能多不能少）追加到字段 JSON 的 `qa_log` 对应字段数组中。
 2. **更新字段值**：基于已有 Q&A 素材，按 `../writing-paradigm/` 对应范式撰写该字段的最终润色值（丰富的、按范式结构化的多行 markdown 内容），写入字段 JSON 的对应字段。
 
-`qa_log` 是 AI 写作的素材源，最终润色值是按范式写出的丰富产物。两者都必须实时更新。`mode=persist` 时，校验最终润色值与用户确认的过程项目正式文档预览一致，然后渲染 Markdown。
+`qa_log` 是 AI 写作的素材源，最终润色值是按范式写出的丰富产物。两者都必须实时更新。`mode=persist` 时，校验最终润色值与用户确认的产品库文档预览一致，然后渲染 Markdown。
+
+### 产品库基线读取
+
+当草稿涉及已有产品库文档时（如修改已有 Feature），必须先读取产品库当前版本作为基线：
+
+- 字段 JSON 中的值只用于"未持久化的新字段"或"Q&A 上下文"。
+- 已持久化字段以产品库文档实际内容为准，不从字段 JSON 重新渲染。
+- 草稿预览中的正文引用使用产品库文件名（如 `[[网资-需求卡片]]`），不使用过程 ID。
 
 ---
 
@@ -56,15 +64,15 @@ JSON 的字段名和结构见“写入过程项目”章节。`mode=draft` 时�
   ```text
   需求分析完整流程会这样走完：
   完成需求卡片 + Epic（设计文档）
-  → 展示需求卡片 + Epic（设计文档） 正式文档对话预览
-  → 用户确认内容正确
-  → 写入过程项目文件夹，生成需求卡品.md和Epic.md草稿文档
-  → 继续 Feature 拆解
-  → 展示 Feature 正式文档预览
-  → 用户确认内容正确
-  → 写入过程项目文件夹，生成多个Feature.md草稿文档
-  → 检查需求分析阶段文档是否完整
-  → 引导用户选择是否导出到产品库目标目录（正式文档）
+  -> 展示需求卡片 + Epic（设计文档） 产品库文档对话预览
+  -> 用户确认内容正确
+  -> 写入产品库，生成需求卡片和设计文档
+  -> 继续 Feature 拆解
+  -> 展示 Feature 产品库文档预览
+  -> 用户确认内容正确
+  -> 写入产品库，生成多个能力文档
+  -> 检查需求分析阶段文档是否完整
+  -> 需求分析阶段完成
   ```
 
   流程预告只展示一次；已有字段 JSON 恢复进度时（非首次）不重复展示。
@@ -135,13 +143,13 @@ JSON 的字段名和结构见“写入过程项目”章节。`mode=draft` 时�
 
 **第 6 步：返回第一批次预览**
 
-需求卡片 + Epic 的过程项目正式文档预览满足门禁后，返回 `draft-ready`、`artifactScope=requirement-epic`。主调度器展示该预览并请求确认写入过程项目；用户确认后，下一轮以 `mode=persist`、`artifactScope=requirement-epic` 写入过程项目。本次调用在此终止，不进入第二段。
+需求卡片 + Epic 的产品库文档预览满足门禁后，返回 `draft-ready`、`artifactScope=requirement-epic`。主调度器展示该预览并请求确认写入产品库；用户确认后，下一轮以 `mode=persist`、`artifactScope=requirement-epic` 写入产品库。本次调用在此终止，不进入第二段。
 
 ---
 
 ### 第二段：Feature
 
-第二段只在第一段已正式写入过程项目后开始。进入时必须能读取正式需求卡片和 Epic；只有字段 JSON 或对话确认、不存在正式文档时，不得开始 Feature 拆解。
+第二段只在第一段已正式写入产品库后开始。进入时必须能读取正式需求卡片和 Epic；只有字段 JSON 或对话确认、不存在产品库文档时，不得开始 Feature 拆解。
 
 **第 7 步：问出能力清单**
 
@@ -241,13 +249,13 @@ JSON 的字段名和结构见“写入过程项目”章节。`mode=draft` 时�
 
 **第 9 步：输出 Feature 交互草稿**
 
-- 读取 `../templates/feature.md`，按模板结构输出过程项目正式文档预览。预览必须包含模板中的全部章节、表格和字段；字段名必须使用模板字段，不得改成自造字段。
+- 读取 `../templates/feature.md`，按模板结构输出产品库文档预览。预览必须包含模板中的全部章节、表格和字段；字段名必须使用模板字段，不得改成自造字段。
 - 按”质量评分门禁”做预输出评分。任一维度低于 5 分时，不输出草稿。
 - 每个字段写出完整内容，不写摘要或”详见上文”。
 
 **第 10 步：全部 Feature 输出完成**
 
-输出本批次全部 Feature 的过程项目正式文档预览。任一 Feature 未完成字段确认、质量门或预览时，回到对应步骤，并返回 `needs-input`。
+输出本批次全部 Feature 的产品库文档预览。任一 Feature 未完成字段确认、质量门或预览时，回到对应步骤，并返回 `needs-input`。
 
 仅当至少一个 Feature 且能力清单中的全部 Feature 均已完成时，才返回 `draft-ready`、`artifactScope=features`。主调度器展示 Feature 批次预览并请求确认；用户确认后，下一轮以 `mode=persist`、`artifactScope=features` 进入 `persist.md`。
 

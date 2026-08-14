@@ -17,15 +17,17 @@
    ```bash
    bash "<skillPath>/scripts/render-story.sh" \
      "<projectPath>/docs/_extracted/.stories/" \
-     "<projectPath>/docs/requirement-analysis/"
+     "<selectedProductLibraryPath>/<产品全名>/" \
+     "<产品简称>" "<产品全名>" "[能力路径]"
    ```
-   脚本自动完成：按全项目 ID 规则分配或复用 ID、从每条 Story 的 `featureId` 确定唯一归属、渲染 Markdown 到 `docs/requirement-analysis/feature-<feature-nnn>/story-<nnn>.md`，并自动运行 `validate-story.sh` 做写作规范校验。
+   脚本自动完成：按继承式产品库 ID 规则分配或复用 ID（`<简称>-EPIC-F<nnn>-S<nnn>`）、从每条 Story 的 `featureId` 确定唯一归属、渲染 Markdown 到产品库 `<能力路径>/UserStory/` 目录，并自动运行 `validate-story.sh` 做写作规范校验。
 7. 调用 `render-matrix.sh` 渲染溯源矩阵：
    ```bash
    bash "<skillPath>/scripts/render-matrix.sh" \
      "<projectPath>/docs/_extracted/.stories/matrix-<nnn>.json" \
      "<projectPath>/docs/requirement-analysis/"
    ```
+   溯源矩阵仍写入过程项目，但正文中的文档引用使用产品库文件名格式（如 `[[网资-设备领用能力-能力文档]]`），不使用过程 ID。
 8. **校验硬门禁**：`render-story.sh` 渲染完成后自动运行 `validate-story.sh`。有 `[WARN]` 项时必须修复对应 Story JSON 中的字段格式，重新渲染，直到零警告才能报告 `persisted`。不得跳过校验、不得忽略警告
 9. 更新 `refs.json`、`facts.json`、`decision-log.md`、`tracking-log.md`、`phase-summary.md`（更新内容见 `output-contract.md` 的记忆更新章节）
 10. 更新 `progress.json`：仅更新当前阶段和顶层 `lastUpdated`，不得修改 `workflow.state`、顶层 `status` 或阶段转换字段

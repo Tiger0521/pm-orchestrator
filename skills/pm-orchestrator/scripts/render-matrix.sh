@@ -6,15 +6,17 @@
 # 只用 bash + grep，无外部依赖（不依赖 jq）。
 #
 # 用法：
-#   bash render-matrix.sh <matrix_json_file> <output_dir>
+#   bash render-matrix.sh <matrix_json_file> <output_dir> [产品简称]
 #
 #   matrix_json_file : 溯源矩阵 JSON 文件（matrix-*.json）
 #   output_dir       : Markdown 输出目录（通常 docs/requirement-analysis/）
+#   产品简称         : 可选。传入时正文引用使用产品库文件名格式（如 [[网资-能力-能力文档]]）
 #
 # 工作流程：
 #   1. 扫描 output_dir 中已有的 matrix-*.md，取最大序号
 #   2. 分配下一个可用 ID（matrix-<nnn>）
 #   3. 读取 JSON 字段，渲染 Markdown，写入 output_dir/matrix-<nnn>.md
+#   4. 若传入产品简称，正文中的 Feature/Story 引用改为产品库文件名 Wiki 链接
 #
 # 矩阵 JSON 字段结构：
 #   {
@@ -43,6 +45,7 @@ set -euo pipefail
 
 matrix_json="${1:?missing matrix_json_file}"
 output_dir="${2:?missing output_dir}"
+product_short="${3:-}"
 
 if [ ! -f "$matrix_json" ]; then
   echo "ERROR: matrix_json_file not found: $matrix_json" >&2
@@ -115,6 +118,74 @@ if [ "$feature_count" -ge 1 ]; then
   ref_feature_id=$(json_val "feature_1_id" "$matrix_json")
 fi
 
+# ---- 构建产品库 Wiki 链接查找表 ----
+# 当传入产品简称时，将正文中的过程 ID 引用改为产品库文件名 Wiki 链接
+declare -A feature_wiki story_wiki story_feature_map
+if [ -n "$product_short" ]; then
+  # 构建 feature_id -> wiki 链接 映射
+  i=1
+  while [ "$i" -le "$feature_count" ]; do
+    fid=$(json_val "feature_${i}_id" "$matrix_json")
+    fname=$(json_val "feature_${i}_name" "$matrix_json")
+    fslug="${fname//\//-}"
+    feature_wiki["$fid"]="[[${product_short}-${fslug}-能力文档]]"
+    i=$((i + 1))
+  done
+  # 构建 story_id -> feature_id 映射（从映射表）
+  i=1
+  while [ "$i" -le "$mapping_count" ]; do
+    mstory=$(json_val "mapping_${i}_story" "$matrix_json")
+    mfeature=$(json_val "mapping_${i}_feature" "$matrix_json")
+    story_feature_map["$mstory"]="$mfeature"
+    i=$((i + 1))
+  done
+  # 构建 story_id -> wiki 链接 映射
+  i=1
+  while [ "$i" -le "$story_count" ]; do
+    sid=$(json_val "story_${i}_id" "$matrix_json")
+    stitle=$(json_val "story_${i}_title" "$matrix_json")
+    stitle_stem="${stitle%故事}"
+    sfid="${story_feature_map[$sid]:-}"
+    sfname=""
+    if [ -n "$sfid" ]; then
+      # 查找 feature 名称
+      j=1
+      while [ "$j" -le "$feature_count" ]; do
+        if [ "$(json_val "feature_${j}_id" "$matrix_json")" = "$sfid" ]; then
+          sfname=$(json_val "feature_${j}_name" "$matrix_json")
+          break
+        fi
+        j=$((j + 1))
+      done
+    fi
+    if [ -n "$sfname" ]; then
+      sfslug="${sfname//\//-}"
+      story_wiki["$sid"]="[[${product_short}-${sfslug}-${stitle_stem}故事]]"
+    fi
+    i=$((i + 1))
+  done
+fi
+
+# 辅助函数：获取 feature 的显示引用（Wiki 链接或原始 ID）
+feature_ref() {
+  local fid="$1"
+  if [ -n "$product_short" ] && [ -n "${feature_wiki[$fid]:-}" ]; then
+    printf '%s' "${feature_wiki[$fid]}"
+  else
+    printf '%s' "$fid"
+  fi
+}
+
+# 辅助函数：获取 story 的显示引用（Wiki 链接或原始 ID）
+story_ref() {
+  local sid="$1"
+  if [ -n "$product_short" ] && [ -n "${story_wiki[$sid]:-}" ]; then
+    printf '%s' "${story_wiki[$sid]}"
+  else
+    printf '%s' "$sid"
+  fi
+}
+
 echo "=== 矩阵渲染 ==="
 echo "输入: $(basename "$matrix_json")"
 echo "输出: ${matrix_id}.md"
@@ -150,7 +221,7 @@ FRONTMATTER
     fname=$(json_val "feature_${i}_name" "$matrix_json")
     fpri=$(json_val "feature_${i}_priority" "$matrix_json")
     fstat=$(json_val "feature_${i}_status" "$matrix_json")
-    echo "| $fid | $fname | $fpri | $fstat |"
+    echo "| $(feature_ref "$fid") | $fname | $fpri | $fstat |"
     i=$((i + 1))
   done
 
@@ -168,7 +239,7 @@ FRONTMATTER
     srole=$(json_val "story_${i}_role" "$matrix_json")
     spri=$(json_val "story_${i}_priority" "$matrix_json")
     ssp=$(json_val "story_${i}_sp" "$matrix_json")
-    echo "| $sid | $stitle | $srole | $spri | $ssp |"
+    echo "| $(story_ref "$sid") | $stitle | $srole | $spri | $ssp |"
     i=$((i + 1))
   done
 
@@ -184,7 +255,7 @@ FRONTMATTER
     mstory=$(json_val "mapping_${i}_story" "$matrix_json")
     mfeature=$(json_val "mapping_${i}_feature" "$matrix_json")
     mcov=$(json_val "mapping_${i}_coverage" "$matrix_json")
-    echo "| $mstory | $mfeature | $mcov |"
+    echo "| $(story_ref "$mstory") | $(feature_ref "$mfeature") | $mcov |"
     i=$((i + 1))
   done
 
@@ -196,7 +267,7 @@ FRONTMATTER
   i=1
   while [ "$i" -le "$feature_count" ]; do
     fid=$(json_val "feature_${i}_id" "$matrix_json")
-    echo "- [ ] $fid 至少有一条 Story 实现"
+    echo "- [ ] $(feature_ref "$fid") 至少有一条 Story 实现"
     i=$((i + 1))
   done
   echo "- [ ] 所有高优先级（P0）Feature 已覆盖"

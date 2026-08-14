@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 
 const PROCESS_ID_PATTERN = String.raw`\b(?:req|diagnostic|epic|feature|story|matrix|flow|proto|contract|rules|sprint)-\d+\b`;
@@ -257,7 +258,141 @@ function updateArchitecture(archPath, product, short, plans, epicSource, idLinks
   fs.writeFileSync(archPath, `${lines.join('\n').trimEnd()}\n`, 'utf8');
 }
 
+function reconcileLibrary(args) {
+  if (args.length !== 3) {
+    fail('用法: reconcile <产品库目录> <产品全名> <refs.json路径>');
+  }
+  const [libraryRaw, productName, refsPathRaw] = args;
+  const libraryDir = path.resolve(libraryRaw);
+  const refsPath = path.resolve(refsPathRaw);
+  const refsDir = path.dirname(refsPath);
+
+  if (!fs.statSync(libraryDir, { throwIfNoEntry: false })?.isDirectory()) fail('产品库目录不存在');
+  if (!fs.existsSync(refsPath)) fail('refs.json 不存在');
+
+  const productDir = path.join(libraryDir, productName);
+  if (!fs.statSync(productDir, { throwIfNoEntry: false })?.isDirectory()) fail(`产品目录不存在: ${productName}`);
+
+  let archPath;
+  try { archPath = architecturePath(libraryDir); } catch { archPath = ''; }
+
+  // 1. Scan all .md files in product directory (exclude architecture root)
+  const libraryFiles = walkFiles(productDir, (file) => file.endsWith('.md') && file !== archPath);
+
+  // 2. Compute SHA-256 hash and read frontmatter for each file
+  const fileInfos = libraryFiles.map((file) => {
+    const content = fs.readFileSync(file);
+    const hash = crypto.createHash('sha256').update(content).digest('hex');
+    let libraryId = '';
+    let docType = '';
+    try {
+      const { values } = parseFrontmatter(content.toString('utf8'));
+      libraryId = values.id || '';
+      docType = values.type || '';
+    } catch { /* malformed frontmatter */ }
+    return { absPath: path.resolve(file), relPath: path.relative(productDir, file), refsPath: path.relative(refsDir, file), hash, libraryId, docType };
+  });
+
+  // 3. Read refs.json, build path -> node mapping
+  let refs;
+  try { refs = JSON.parse(fs.readFileSync(refsPath, 'utf8')); } catch (error) { fail(`refs.json 无法读取: ${error.message}`); }
+
+  const refsByAbsPath = new Map();
+  for (const node of refs.nodes || []) {
+    if (typeof node.path !== 'string') continue;
+    const absPath = path.resolve(refsDir, node.path);
+    if (absPath.startsWith(productDir + path.sep)) {
+      refsByAbsPath.set(absPath, node);
+    }
+  }
+
+  const changed = [];
+  const newFiles = [];
+  const deleted = [];
+  let unchanged = 0;
+
+  // 4. Compare library files against refs.json
+  const seenAbsPaths = new Set();
+  for (const info of fileInfos) {
+    seenAbsPaths.add(info.absPath);
+    const node = refsByAbsPath.get(info.absPath);
+    if (!node) {
+      newFiles.push({ path: info.relPath, type: info.docType });
+    } else if (node.contentHash !== info.hash) {
+      changed.push({ libraryId: node.libraryId || info.libraryId, path: info.relPath, reason: 'content_hash_mismatch' });
+    } else {
+      unchanged++;
+    }
+  }
+
+  // Check refs.json for deleted files (in refs but not in library)
+  for (const [absPath, node] of refsByAbsPath) {
+    if (!seenAbsPaths.has(absPath)) {
+      deleted.push({ libraryId: node.libraryId || '', path: path.relative(productDir, absPath) });
+    }
+  }
+
+  // 5. Update refs.json
+  let refsUpdated = false;
+  const now = new Date().toISOString();
+
+  for (const info of fileInfos) {
+    const node = refsByAbsPath.get(info.absPath);
+    if (!node) {
+      // New node
+      refs.nodes = refs.nodes || [];
+      refs.nodes.push({
+        id: '',
+        type: info.docType,
+        title: '',
+        path: info.refsPath,
+        libraryId: info.libraryId,
+        contentHash: info.hash,
+        lastSynced: now
+      });
+      refsUpdated = true;
+    } else if (node.contentHash !== info.hash) {
+      // Update changed node
+      node.contentHash = info.hash;
+      node.lastSynced = now;
+      if (info.libraryId && !node.libraryId) node.libraryId = info.libraryId;
+      refsUpdated = true;
+    }
+  }
+
+  // Remove deleted nodes
+  if (deleted.length > 0) {
+    const deletedAbsPaths = new Set(deleted.map((d) => path.resolve(productDir, d.path)));
+    refs.nodes = (refs.nodes || []).filter((node) => {
+      if (typeof node.path !== 'string') return true;
+      const absPath = path.resolve(refsDir, node.path);
+      return !deletedAbsPaths.has(absPath);
+    });
+    refsUpdated = true;
+  }
+
+  if (refsUpdated) {
+    fs.writeFileSync(refsPath, JSON.stringify(refs, null, 2) + '\n', 'utf8');
+  }
+
+  // 6. Output change report JSON
+  const report = {
+    status: 'reconciled',
+    product: productName,
+    totalFiles: fileInfos.length,
+    unchanged,
+    changed,
+    new: newFiles,
+    deleted,
+    refsUpdated
+  };
+  console.log(JSON.stringify(report, null, 2));
+}
+
 function exportProduct(args) {
+  // [已废弃] persist 流程现已直接写入产品库格式，export 命令仅作为旧项目迁移工具保留。
+  // 文档转换逻辑（rewriteDocument/keepLibraryFrontmatter/rewriteProcessReferences）仅用于
+  // 将过程空间格式文档转换产品库格式。新项目不应使用此命令。
   if (args.length < 6 || args.length > 7 || (args.length === 7 && args[5] !== '--apply')) {
     fail('用法: export <脚本目录> <项目目录> <产品库目录> <产品全名> <产品简称> [--apply] <bash>');
   }
@@ -342,11 +477,9 @@ function exportProduct(args) {
   for (const item of (byType.get('feature') || []).sort((a, b) => (a.values.id || a.source).localeCompare(b.values.id || b.source))) {
     const id = item.values.id || path.parse(item.source).name;
     const capability = featureCaps.get(id);
-    const capabilityParts = capability.split('/');
-    const capabilityLeaf = capabilityParts[capabilityParts.length - 1].replace(/能力$/, '');
-    const categoryFolder = capabilityParts.length > 1 ? capabilityParts.slice(0, -1).join('/') : '';
-    const capabilityFolder = categoryFolder ? path.join(categoryFolder, capabilityLeaf) : capabilityLeaf;
-    plans.push({ source: item.source, relative: path.join(capabilityFolder, `${capabilityLeaf}-能力文档.md`), type: '能力文档', capability, id, capabilityLeaf });
+    const capabilitySlug = capability.split('/').join('-');
+    const capabilityFolder = capability.split('/').join(path.sep);
+    plans.push({ source: item.source, relative: path.join(capabilityFolder, `${productShort}-${capabilitySlug}-能力文档.md`), type: '能力文档', capability, id });
   }
 
   for (const item of (byType.get('user-story') || []).sort((a, b) => (a.values.id || a.source).localeCompare(b.values.id || b.source))) {
@@ -354,10 +487,7 @@ function exportProduct(args) {
     const featureId = (`${item.raw.join('\n')}\n${item.body}`.match(/feature-[0-9]+/g) || []).find((candidate) => featureCaps.has(candidate));
     if (!featureId) fail(`用户故事无法关联 Feature: ${item.source}`);
     const capability = featureCaps.get(featureId);
-    const capabilityParts = capability.split('/');
-    const capabilityLeaf = capabilityParts[capabilityParts.length - 1].replace(/能力$/, '');
-    const categoryFolder = capabilityParts.length > 1 ? capabilityParts.slice(0, -1).join('/') : '';
-    const capabilityFolder = categoryFolder ? path.join(categoryFolder, capabilityLeaf) : capabilityLeaf;
+    const capabilityFolder = capability.split('/').join(path.sep);
     const title = (item.values.title || '').trim();
     const filename = `${storyFilenameStem(title)}.md`;
     const titleKey = `${capability}\u0000${title}`;
@@ -412,10 +542,7 @@ function exportProduct(args) {
     try {
       fs.mkdirSync(productDir, { recursive: true });
       for (const capability of new Set(featureCaps.values())) {
-        const capabilityParts = capability.split('/');
-        const capabilityLeaf = capabilityParts[capabilityParts.length - 1].replace(/能力$/, '');
-        const categoryFolder = capabilityParts.length > 1 ? capabilityParts.slice(0, -1).join('/') : '';
-        const capabilityFolder = categoryFolder ? path.join(categoryFolder, capabilityLeaf) : capabilityLeaf;
+        const capabilityFolder = capability.split('/').join(path.sep);
         fs.mkdirSync(path.join(productDir, capabilityFolder, 'stories'), { recursive: true });
       }
       for (const item of statuses) {
@@ -511,6 +638,14 @@ function renameProduct(args) {
         const text = fs.readFileSync(file, 'utf8');
         let updated = text.replaceAll(`[[${current.short}-`, `[[${newShort}-`);
         updated = updated.replaceAll(productName, newFullName);
+        // 同步更新 frontmatter id 字段（旧简称-EPIC-F01 -> 新简称-EPIC-F01）
+        const idFieldPattern = new RegExp(`^(id:\\s*["'])${escapedRegex(current.short)}(-)`, 'm');
+        updated = updated.replace(idFieldPattern, `$1${newShort}$2`);
+        // 同步更新正文 ID 注释（<!-- ID: 旧简称-... --> -> <!-- ID: 新简称-... -->）
+        updated = updated.replaceAll(`<!-- ID: ${current.short}-`, `<!-- ID: ${newShort}-`);
+        // 同步更新 tags 中的简称（第一个 tag 是简称）
+        const tagPattern = new RegExp(`^(\\s+- )${escapedRegex(current.short)}$`, 'm');
+        updated = updated.replace(tagPattern, `$1${newShort}`);
         if (updated !== text) fs.writeFileSync(file, updated, 'utf8');
       }
       fs.renameSync(productDir, newProductDir);
@@ -533,4 +668,5 @@ function renameProduct(args) {
 const [command, ...args] = process.argv.slice(2);
 if (command === 'export') exportProduct(args);
 else if (command === 'rename') renameProduct(args);
-else fail('未知命令');
+else if (command === 'reconcile') reconcileLibrary(args);
+else fail('未知命令。可用命令: export, rename, reconcile');
