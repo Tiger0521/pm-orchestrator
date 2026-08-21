@@ -1,92 +1,67 @@
-# pm-orchestrator Plugin
+# pm-orchestrator
 
-`pm-orchestrator` 是一个 Claude Code 产品设计流程插件。它把产品设计工作拆成一个主调度 skill 和四个阶段 subagent：主调度器负责入口分流、项目恢复、产品库选择、阶段路由、用户确认和质量门；阶段 subagent 负责需求分析、需求拆解、详细设计和用户故事地图。
+`pm-orchestrator` 是一套产品全流程设计 skill，**同时适配 Claude Code 与 ZCode**。它把产品设计工作拆成一个主调度 skill 和四个阶段 subagent：主调度器负责入口分流、项目恢复、产品库选择、阶段路由、用户确认和质量门；阶段 subagent 负责需求分析、需求拆解、详细设计和用户故事地图。
 
 目标是把用户的模糊想法推进成可确认、可直接写入产品库、可追溯、可继续迭代的产品设计资产。
+
+一份 skill 即插即用：同一个分发文件夹，装到 Claude Code 或 ZCode 的内容**逐字节一致**；运行时会话开始时识别宿主（`RUNTIME=claude` / `RUNTIME=zcode`），机制层自动切换，内容方法论共用。
 
 ## 安装与更新
 
 仓库地址：[github.com/Tiger0521/pm-orchestrator](https://github.com/Tiger0521/pm-orchestrator)
 
-本插件应安装在 Claude Code 用户级 Skill 目录：
+### 首次安装（拷文件夹即用，不需要脚本）
 
-```text
-~/.claude/skills/pm-orchestrator/
-```
+**两种宿主都只要把整个 skill 文件夹拷到对应的 skills 目录，重启即可用。** 无需运行任何脚本、无需注册插件。
 
-安装后重新打开 Claude Code，主 skill 和四个 agent 会自动加载。
+- **Claude Code**：把整个 `pm-orchestrator/` 文件夹拷到 `~/.claude/skills/pm-orchestrator`。目录自带 `.claude-plugin/plugin.json`，Claude 重启后自动把它识别为插件，`agents/` 下的 4 个 agent 自动获得 `pm-orchestrator:` 命名空间——**零注册步骤**。
+- **ZCode**：把整个 `pm-orchestrator/` 文件夹拷到 `~/.zcode/skills/pm-orchestrator`（或 `~/.agents/skills/...`）。ZCode 从 `~/.zcode/agents/` 发现 subagent（它不扫描 skill 文件夹内的 agent），所以**每次运行本 skill 时，skill 都会自检：若 `~/.zcode/agents/` 里缺少 `agents/zcode/` 的 4 个 `.md` 就自动补齐**（缺失才复制、不覆盖已有，幂等）——你仍只需拷一次文件夹，其余由 skill 每次运行自举完成。
 
-### 首次安装
+`install.ps1` 是**可选**的便捷工具（用于预置 subagent、做干净的整包重装），不是必需步骤。
 
-Windows PowerShell：
+### 更新
 
-```powershell
-mkdir "$HOME\.claude\skills" -Force
-git clone https://github.com/Tiger0521/pm-orchestrator.git "$HOME\.claude\skills\pm-orchestrator"
-```
-
-macOS / Linux：
-
-```bash
-mkdir -p "$HOME/.claude/skills"
-git clone https://github.com/Tiger0521/pm-orchestrator.git "$HOME/.claude/skills/pm-orchestrator"
-```
-
-### 从云端重新拉取
-
-如果用户已经安装过，只想从 GitHub 拉取最新版本，在插件目录运行：
-
-Windows PowerShell：
+拉取最新代码后重跑一次安装脚本即可：
 
 ```powershell
-cd "$HOME\.claude\skills\pm-orchestrator"
 git pull --ff-only origin main
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Target claude   # 或 -Target zcode
 ```
 
-macOS / Linux：
+`--ff-only` 会在本地有冲突改动时停止，避免把本地修改自动合并乱掉。遇到停止时，先运行 `git status` 看本地改动；确认要保留就先提交，确认不要保留再手动处理。重装后重启目标客户端即可生效。
 
-```bash
-cd "$HOME/.claude/skills/pm-orchestrator"
-git pull --ff-only origin main
+### 安装结果
+
+两种安装方式殊途同归，最终在目标宿主上得到一致结构：
+
+1. **skill 本体**：`SKILL.md`、`references/`、`runtime/`、`agents/`、`scripts/`、`project-template/` 放进目标宿主 skills 目录；Claude 与 ZCode 两份内容一致。
+2. **subagent 落点**：
+   - Claude Code：无需投递——skill 目录自带 `.claude-plugin/plugin.json`，Claude 自动识别为 `pm-orchestrator` 插件，`agents/` 平铺的 4 个 agent 自动获得 `pm-orchestrator:` 命名空间。
+   - ZCode：由 skill **每次运行时自检**，把 `agents/zcode/` 的 4 个 `.md` 中缺失者自动补到 `~/.zcode/agents/`（ZCode 按裸名、仅从该目录发现 subagent）。`install.ps1` 可先行完成这一步，也可由 skill 每次运行自举代劳。
+
+直接拷贝时如需干净运行时副本，可用 `install.ps1`（robocopy 排除 dev 专属内容：`.git/`、`evals/`、`.claude/`、`.uploads/`、`README.md`、`install-zcode.ps1` 等）；`.claude-plugin/plugin.json` 是运行时必需的插件事物，随副本保留。
+
+## 目录结构
+
 ```
-
-`--ff-only` 会在本地有冲突改动时停止，避免把本地修改自动合并乱掉。遇到停止时，先运行 `git status` 看本地改动；确认要保留就先提交，确认不要保留再手动处理。
-
-### 重新克隆安装
-
-如果本地目录已经损坏，建议先把旧目录改名备份，再重新克隆。
-
-Windows PowerShell：
-
-```powershell
-Rename-Item "$HOME\.claude\skills\pm-orchestrator" "pm-orchestrator.backup"
-git clone https://github.com/Tiger0521/pm-orchestrator.git "$HOME\.claude\skills\pm-orchestrator"
-```
-
-macOS / Linux：
-
-```bash
-mv "$HOME/.claude/skills/pm-orchestrator" "$HOME/.claude/skills/pm-orchestrator.backup"
-git clone https://github.com/Tiger0521/pm-orchestrator.git "$HOME/.claude/skills/pm-orchestrator"
-```
-
-### 目录检查
-
-安装后的外层目录必须长这样：
-
-```text
-~/.claude/skills/pm-orchestrator/
-├── .claude-plugin/
+pm-orchestrator/                       ← git 仓库 = skill 本体（SKILL.md 在根）
+├── SKILL.md                           ← 主调度入口，含运行时识别门
+├── README.md
+├── install.ps1                        ← 统一安装脚本（-Target claude|zcode）
+├── references/                        ← 阶段方法论、模板、质量门、产品库契约（双平台共用）
+├── runtime/
+│   ├── claude.md                      ← Claude Code 机制层（命名、项目根、路径解析、frontmatter）
+│   └── zcode.md                       ← ZCode 机制层（同名 5 项差异）
 ├── agents/
-├── skills/
-└── README.md
+│   ├── *.md                           ← Claude Code 版 4 个 subagent（平铺，插件自动命名空间）
+│   └── zcode/*.md                     ← ZCode 版 4 个 subagent
+├── scripts/                           ← 机械校验、渲染、产品库工具
+└── project-template/                  ← 过程项目骨架
 ```
-
-不要只复制内层 `skills/pm-orchestrator/`，否则插件里的四个 agent 不会一起暴露。
 
 ## 调用方式
 
-在 Claude Code 中直接用自然语言触发，或显式调用：
+在任意一个客户端中直接用自然语言触发，或显式调用：
 
 ```text
 /pm-orchestrator 我想从需求分析开始设计一个产品
@@ -98,7 +73,7 @@ git clone https://github.com/Tiger0521/pm-orchestrator.git "$HOME/.claude/skills
 帮我梳理一个产品需求，我想做一个 MCP Server 让 AI 编程助手用自然语言查询关系型数据库
 ```
 
-用户只需要使用主 skill，不需要手动选择阶段 agent。Claude Code 后台 agent 条目出现时就表示委派成功；底部输入框仍显示 `main` 是正常现象。
+用户只需要使用主 skill，不需要手动选择阶段 agent。委派成功时客户端会显示后台 subagent 条目。
 
 ## 当前架构
 
@@ -106,26 +81,26 @@ git clone https://github.com/Tiger0521/pm-orchestrator.git "$HOME/.claude/skills
 
 | 层级 | 目录 | 作用 |
 |------|------|------|
-| 插件元数据层 | `.claude-plugin/` | 声明插件信息，供 Claude Code 加载 |
-| Agent 层 | `agents/` | 暴露四个阶段 subagent |
-| 主 Skill 层 | `skills/pm-orchestrator/SKILL.md` | 入口分流、产品库校验、项目状态、阶段路由 |
-| Reference 层 | `skills/pm-orchestrator/references/` | 阶段方法、模板、质量门、共享追溯模型和主调度操作细节 |
-| 工具层 | `project-template/`、`scripts/`、`references/product-library/contract.md`、`evals/` | 项目骨架、机械校验、产品库规范、评测样例 |
+| 运行时识别层 | `SKILL.md` + `runtime/` | 会话开始识别宿主并固化 `RUNTIME`，之后按 `runtime/<RUNTIME>.md` 执行机制 |
+| Agent 层 | `agents/*.md`、`agents/zcode/` | 双平台四个阶段 subagent；claude 版平铺在 agents/（插件自动命名空间），zcode 版在 agents/zcode/ |
+| 主 Skill 层 | `SKILL.md` | 入口分流、产品库校验、项目状态、阶段路由 |
+| Reference 层 | `references/` | 阶段方法、模板、质量门、共享追溯模型和主调度操作细节 |
+| 工具层 | `project-template/`、`scripts/`、`references/product-library/contract.md` | 项目骨架、机械校验、产品库规范 |
 
-四个 agent 的实际 Claude Code 类型必须带插件前缀：
+subagent 的委派类型随运行时分支：
 
-| 阶段 | `workflow.state` | Agent type | 产出 |
-|------|------------------|------------|------|
-| 需求分析 | `requirement-analysis` | `pm-orchestrator:requirement-analyst` | 需求卡片、Epic、Feature |
-| 需求拆解 | `user-story-breakdown` | `pm-orchestrator:story-breakdown-analyst` | User Story、GWT、溯源矩阵 |
-| 详细设计 | `detailed-design` | `pm-orchestrator:detailed-design-designer` | 结构流程、原型、交互契约、规则摘要、Sprint |
-| 用户故事地图 | 无（独立模式） | `pm-orchestrator:story-map-designer` | 用户故事地图（能力地图、总览） |
+| 阶段 | `workflow.state` | Claude Code 类型（`RUNTIME=claude`） | ZCode 类型（`RUNTIME=zcode`） | 产出 |
+|------|------------------|------------|------------|------|
+| 需求分析 | `requirement-analysis` | `pm-orchestrator:requirement-analyst` | `requirement-analyst` | 需求卡片、Epic、Feature |
+| 需求拆解 | `user-story-breakdown` | `pm-orchestrator:story-breakdown-analyst` | `story-breakdown-analyst` | User Story、GWT、溯源矩阵 |
+| 详细设计 | `detailed-design` | `pm-orchestrator:detailed-design-designer` | `detailed-design-designer` | 结构流程、原型、交互契约、规则摘要、Sprint |
+| 用户故事地图 | 无（独立模式） | `pm-orchestrator:story-map-designer` | `story-map-designer` | 用户故事地图（能力地图、总览） |
 
-裸名如 `requirement-analyst` 只作为文档简称，不作为实际委派类型。
+Claude Code 命名必须带 `pm-orchestrator:` 插件前缀；ZCode 用 `Agent` 工具按裸名（即 `~/.zcode/agents/` 下的文件名）派发，两套机制细节见 `runtime/claude.md` 与 `runtime/zcode.md`。
 
 ## 调度流程
 
-主调度器只负责确认上下文、恢复或创建过程项目、校验阶段前置条件和委派；阶段内的追问、分析、草稿由对应 subagent 处理。每次只运行一个 subagent，且正式产物始终遵循“先确认、后直接写入产品库”，落盘只有一次，不再有独立的导出流程。
+主调度器只负责确认上下文、恢复或创建过程项目、校验阶段前置条件和委派；阶段内的追问、分析、草稿由对应 subagent 处理。每次只运行一个 subagent，且正式产物始终遵循"先确认、后直接写入产品库"，落盘只有一次，不再有独立的导出流程。
 
 ```mermaid
 flowchart TD
@@ -133,7 +108,8 @@ flowchart TD
     Shortcut -- 是 --> Command[执行快捷指令<br/>status / list / switch / doc / graph / next / back]
     Command --> Wait([返回结果并等待下一轮])
 
-    Shortcut -- 否 --> Library[定位候选 product-library<br/>从当前目录向上最多 3 层]
+    Shortcut -- 否 --> Runtime{运行时识别<br/>RUNTIME=claude / zcode}
+    Runtime --> Library[定位候选 product-library<br/>从当前目录向上最多 3 层]
     Library --> LibraryOK{用户确认且校验通过？}
     LibraryOK -- 否 --> AcquireLibrary[从 Git 获取或提供已有本地产品库路径]
     AcquireLibrary --> Library
@@ -180,7 +156,7 @@ flowchart TD
 ### 正常调度规则
 
 1. **确认产品库**：从当前目录向上最多 3 层查找 `product-library/`。没有候选时，只能从 Git 仓库获取，或由用户提供已有产品库的本地路径；不会创建空产品库。只有用户确认候选、读取唯一匹配 `^.+架构设计\.md$` 的根文档、并通过 `validate-product-library.sh` 校验后，才能继续。
-2. **恢复已有项目**：列出 `<workspace>/.claude/product-design-projects/` 下可用项目。确认项目后，主调度器校验路径和产品库一致性，并按 `progress.json.workflow.state` 委派对应 agent；`completed` 只汇报状态。
+2. **恢复已有项目**：列出项目根（Claude 与 ZCode 统一为 `<workspace>/.claude/product-design-projects/`）下可用项目。确认项目后，主调度器校验路径和产品库一致性，并按 `progress.json.workflow.state` 委派对应 agent；`completed` 只汇报状态。
 3. **创建新项目**：未使用已有项目时只分类一次。需求分析以 `mode=intake` 直接委派需求分析 agent；需求拆解或详细设计则先选择已有产品，再创建直达目标阶段的 `iteration` 项目。
 4. **草稿与产品库写入**：subagent 在 `draft` 模式中提问或生成完整预览。需求分析分两批直接写入产品库：先确认并写入需求卡片 + Epic，再继续拆解、确认并写入 Feature；第一次 `persisted` 不表示阶段完成。全部 Feature 写入产品库后需求分析阶段即完成，无需独立导出步骤。需求拆解的 `persisted` 表示 Story 与溯源矩阵已写入，随后直接进入用户故事地图生成。`validate` 只校验现有产物，不创建新产物。
 5. **阶段转换**：只允许相邻转换：`requirement-analysis → user-story-breakdown → detailed-design → completed`。转换前由当前阶段 agent 校验、运行 `validate-phase.sh`，展示结果并取得用户确认；随后由主调度器运行 `transition-project-state.sh` 更新状态。允许回退 `user-story-breakdown → requirement-analysis` 和 `detailed-design → user-story-breakdown`，不得自动从 `completed` 回退。
@@ -198,7 +174,7 @@ flowchart TD
 
 ## 产品库
 
-每次使用插件前，主调度器都会确认一个产品库。容器使用终端相对路径：
+每次使用 skill 前，主调度器都会确认一个产品库。容器使用终端相对路径：
 
 ```text
 <当前目录或上三层目录>/product-library/
@@ -207,7 +183,7 @@ flowchart TD
 自动发现的产品库是容器下由提供方维护的中文一级目录，使用唯一匹配 `^.+架构设计\.md$` 的根文档作为根标识。若自动发现不到候选，可从 Git 远程仓库拉取，或指定任意位置的已有本地产品库根路径；两种方式都不会创建空库。产品目录使用全名，文件使用 2–6 个汉字的唯一简称前缀，并按能力组织。具体契约见：
 
 ```text
-skills/pm-orchestrator/references/product-library/contract.md
+references/product-library/contract.md
 ```
 
 ### 架构设计文档
@@ -234,17 +210,17 @@ skills/pm-orchestrator/references/product-library/contract.md
 - 除产品库根文档外，每份产品库文档包含 `id`（继承式产品库 ID）、`aliases`（别名列表）和 `tags`（标签列表），由写入时自动注入。`tags` 使用 `简称/文档类型/能力路径` 嵌套格式，支持 Obsidian 标签过滤和图谱分组。
 - 产品全名登记为需求卡片和设计文档的别名，能力路径登记为能力文档和用户故事的别名，支持在 Obsidian 中用习惯名称快速链接。
 - 正文使用产品库文件名 Wiki 链接（如 `[[网资-需求卡片]]`）引用其他文档，不使用过程 ID；继承式产品库 ID 通过 frontmatter `id` 字段记录。
-- 写入会为每一级能力名称自动补齐“能力”后缀；若多个 Feature 补齐后重名，则阻断写入，不改写文档标题。
-- 用户故事文件使用“故事标题故事”后缀（标题可含中文、英文字母、数字和单个中划线），例如 `地址-地址查询与服务能力-查询标准地址故事.md`；不再使用 `用户故事01` 一类序号。
+- 写入会为每一级能力名称自动补齐"能力"后缀；若多个 Feature 补齐后重名，则阻断写入，不改写文档标题。
+- 用户故事文件使用"故事标题故事"后缀（标题可含中文、英文字母、数字和单个中划线），例如 `地址-地址查询与服务能力-查询标准地址故事.md`；不再使用 `用户故事01` 一类序号。
 
 Obsidian 是可选工具，使用文件管理器打开产品库也能正常阅读所有文档。
 
 ## 项目记忆
 
-项目数据不写入插件目录，而是保存在当前工作区：
+项目数据不写入 skill 目录，而是保存在当前工作区（ZCode 的项目根按 `runtime/zcode.md` 约定）：
 
 ```text
-.claude/product-design-projects/<project-id>/
+<项目根>/<project-id>/
 ```
 
 每个项目包含：
@@ -265,8 +241,7 @@ docs/background/              # 用户背景材料，不可信输入
 docs/_extracted/.fields/      # 需求分析字段 JSON（草稿态数据）
 docs/_extracted/.stories/     # 需求拆解 Story JSON（草稿态数据）
 docs/requirement-analysis/    # 溯源矩阵（正文引用产品库文件名）
-docs/design/                  # 详细设计：结构流程、原型、交互契约
-docs/execution/               # 详细设计：规则摘要、Sprint 规划
+docs/_extracted/.design/      # 详细设计 JSON（草稿态数据）
 ```
 
 需求分析的需求卡片、Epic、Feature 与需求拆解的 Story 均直接写入产品库，不落在过程项目。
@@ -314,14 +289,14 @@ docs/execution/               # 详细设计：规则摘要、Sprint 规划
 产品库校验：
 
 ```bash
-bash skills/pm-orchestrator/scripts/validate-product-library.sh \
+bash scripts/validate-product-library.sh \
   "<工作区>/product-library/<产品库名称>"
 ```
 
 阶段校验：
 
 ```bash
-bash skills/pm-orchestrator/scripts/validate-phase.sh \
+bash scripts/validate-phase.sh \
   --project-root "<工作区>/.claude/product-design-projects" \
   --project-path "<工作区>/.claude/product-design-projects/<project-id>" \
   --phase requirement-analysis
@@ -330,7 +305,7 @@ bash skills/pm-orchestrator/scripts/validate-phase.sh \
 文档索引：
 
 ```bash
-bash skills/pm-orchestrator/scripts/export-doc-index.sh \
+bash scripts/export-doc-index.sh \
   --project-root "<工作区>/.claude/product-design-projects" \
   --project-path "<工作区>/.claude/product-design-projects/<project-id>" \
   --format graph

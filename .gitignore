@@ -1,3 +1,9 @@
 .claude/settings.local.json
 .DS_Store
 Thumbs.db
+
+# ZCode 客户端与运行残留（非技能产物），避免用技能时在工作目录落文件
+.zcode/
+.tmp-*/
+*.step1.tmp
+.tmp-step1/
