@@ -183,8 +183,8 @@ validate_leaf() {
   [ "$doc_count" -eq 1 ] || fail_issue "[层级] ${dir#"$LIBRARY_PATH"/}: 叶子能力必须有且仅有一份能力文档"
   expected="$dir/$short-$capability_slug-能力文档.md"
   if [ -f "$expected" ]; then validate_doc "$expected" "$product" "能力文档" "$capability" "$short"; else fail_issue "[命名] 缺少 ${expected#"$LIBRARY_PATH"/}"; fi
-  story_dir="$dir/UserStory"
-  [ -d "$story_dir" ] || { fail_issue "[层级] ${dir#"$LIBRARY_PATH"/}: 叶子能力缺少 UserStory"; return; }
+  story_dir="$dir/用户故事"
+  [ -d "$story_dir" ] || { fail_issue "[层级] ${dir#"$LIBRARY_PATH"/}: 叶子能力缺少 用户故事"; return; }
   while IFS= read -r -d '' story; do
     file=$(basename -- "$story")
     prefix="${short}-${capability_slug}-"
@@ -195,7 +195,7 @@ validate_leaf() {
     fi
     validate_doc "$story" "$product" "用户故事" "$capability" "$short"
   done < <(find "$story_dir" -maxdepth 1 -type f -name '*.md' -print0)
-  while IFS= read -r -d '' file; do fail_issue "[层级] ${file#"$LIBRARY_PATH"/}: UserStory 内不得有子目录"; done < <(find "$story_dir" -mindepth 1 -maxdepth 1 -type d -print0)
+  while IFS= read -r -d '' file; do fail_issue "[层级] ${file#"$LIBRARY_PATH"/}: 用户故事 内不得有子目录"; done < <(find "$story_dir" -mindepth 1 -maxdepth 1 -type d -print0)
 }
 
 validate_capability() {
@@ -204,20 +204,20 @@ validate_capability() {
   valid_name "$name" || fail_issue "[命名] ${dir#"$LIBRARY_PATH"/}: 能力目录含禁用字符"
   [[ "$name" == *能力 ]] || fail_issue "[命名] ${dir#"$LIBRARY_PATH"/}: 能力目录必须以 能力 结尾"
   capability="$name"; [ -n "$parent_cap" ] && capability="$parent_cap/$name"
-  child_count=$(find "$dir" -mindepth 1 -maxdepth 1 -type d ! -name UserStory | wc -l | tr -d '[:space:]')
+  child_count=$(find "$dir" -mindepth 1 -maxdepth 1 -type d ! -name 用户故事 | wc -l | tr -d '[:space:]')
   doc_count=$(find "$dir" -maxdepth 1 -type f -name '*-能力文档.md' | wc -l | tr -d '[:space:]')
-  has_story=0; [ -d "$dir/UserStory" ] && has_story=1
+  has_story=0; [ -d "$dir/用户故事" ] && has_story=1
   if [ "$child_count" -gt 0 ]; then
     [ -z "$parent_cap" ] || fail_issue "[层级] ${dir#"$LIBRARY_PATH"/}: 不允许三级能力目录"
     [ "$doc_count" -eq 0 ] || fail_issue "[层级] ${dir#"$LIBRARY_PATH"/}: 父能力不得有能力文档"
-    [ "$has_story" -eq 0 ] || fail_issue "[层级] ${dir#"$LIBRARY_PATH"/}: 父能力不得有 UserStory"
+    [ "$has_story" -eq 0 ] || fail_issue "[层级] ${dir#"$LIBRARY_PATH"/}: 父能力不得有 用户故事"
     while IFS= read -r -d '' child; do
       if [[ "$(basename -- "$child")" == *能力 ]]; then
         validate_capability "$child" "$product" "$short" "$name"
       else
         fail_issue "[类别] ${child#"$LIBRARY_PATH"/}: 能力目录下的子目录必须以 能力 结尾"
       fi
-    done < <(find "$dir" -mindepth 1 -maxdepth 1 -type d ! -name UserStory -print0)
+    done < <(find "$dir" -mindepth 1 -maxdepth 1 -type d ! -name 用户故事 -print0)
   else
     validate_leaf "$dir" "$product" "$short" "$capability"
   fi
@@ -319,7 +319,7 @@ while IFS= read -r -d '' product_dir; do
     fi
   done < <(find "$product_dir" -mindepth 1 -maxdepth 1 -type d -print0)
   actual_caps=$(find "$product_dir" -type f -name '*-能力文档.md' | wc -l | tr -d '[:space:]')
-  actual_stories=$(find "$product_dir" -type f -path '*/UserStory/*.md' | wc -l | tr -d '[:space:]')
+  actual_stories=$(find "$product_dir" -type f -path '*/用户故事/*.md' | wc -l | tr -d '[:space:]')
   declared_caps=$(awk -F '\t' -v p="$product" '$1 == p {print $3; exit}' "$TABLE_ROWS")
   declared_stories=$(awk -F '\t' -v p="$product" '$1 == p {print $4; exit}' "$TABLE_ROWS")
   [ "$declared_caps" = "$actual_caps" ] || fail_issue "[产品矩阵] $product 能力数应为 $actual_caps"
@@ -383,7 +383,7 @@ while IFS= read -r -d '' st; do
   bn=$(basename -- "$st"); bn="${bn%.md}"
   STORY_BASENAMES+=("$bn")
   STORY_CAPABILITIES+=("$(strip_quotes "$(fm_value "$st" capability)")")
-done < <(find "$LIBRARY_PATH" -type f -path '*/UserStory/*.md' -print0)
+done < <(find "$LIBRARY_PATH" -type f -path '*/用户故事/*.md' -print0)
 
 is_registered_product() {
   local p="$1" d

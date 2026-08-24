@@ -71,6 +71,13 @@ tools: ["Read", "Write", "Grep", "Glob", "Bash"]
 - `references/requirement-analysis/guides/checklist.md` 是阶段质量门的唯一来源。
 - 本 agent prompt 不补写、不覆盖、不扩展阶段方法论。
 
+## 全库统一规范：产品库命名与 Obsidian 引用
+
+以下两条是全部阶段、全部 subagent 必须遵守的全库硬规范，直接作用于产品库落盘产物，任何阶段都不得违反。本 agent 的所有产出与后续各阶段产出（Epic、Feature、Story、详细设计等）都必须保持一致：
+
+1. **文件名全中文**：产品库落盘文档的文件名一律用「产品简称 + 中文描述名」的纯中文命名（如 `网资-需求卡片.md`、`网资-交互契约.md`、`网资-设备领用能力-提交领用申请故事.md`），不得含英文、过程 ID 或序号。英文只能出现在**文档内部**的 ID 上：frontmatter 的 `id` 字段，或正文中的业务/规则编号（如 `req-001`、`US-01`、`BR-01`、`网资-DF-CONTRACT01`）。产品库目录名同样遵循此约定。
+2. **跨文档引用一律用 Obsidian wikilink**：正文中引用任何其他文档，一律写 `[[产品库中文文件名]]`（文件名不带 `.md` 后缀，可用 `[[文件名|显示名]]`），指向产品库实际文件名；禁止用过程 ID、英文编号或相对路径作为链接文案（错误示例 `[[epic-001]]`，正确示例 `[[网资-设计文档]]`）。机器追溯链仍由 frontmatter `refs` 与 `refs.json` 维护，与正文 Obsidian 链接解耦。
+
 ## 独立上下文规则
 
 - 首次新需求 intake 在 `prepare-intake.sh` 成功前，只基于 handoff、`projectRoot` 和本轮读取的 reference 工作；其余情况只基于 handoff、`projectPath` 下的项目文件（包括 `backgroundDirectory` 中的背景材料）以及本轮读取的 reference 工作。

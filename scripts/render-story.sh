@@ -16,10 +16,10 @@
 #
 # 工作流程：
 #   1. 从能力文档的 frontmatter id 读取 Feature 的产品库 ID（如 网资-EPIC-F01）
-#   2. 扫描 UserStory 目录中已有的故事文档，取最大序号
+#   2. 扫描 用户故事 目录中已有的故事文档，取最大序号
 #   3. 遍历 stories_json_dir 中的 story-*.json（按文件名排序）
 #   4. 为每个 JSON 分配下一个可用 ID（<简称>-EPIC-F<nnn>-S<nnn>）
-#   5. 读取 JSON 字段，渲染 Markdown，写入产品库 UserStory 目录
+#   5. 读取 JSON 字段，渲染 Markdown，写入产品库 用户故事 目录
 #   6. 对每个渲染结果运行 validate-story.sh 做写作规范校验
 #
 set -euo pipefail
@@ -45,7 +45,7 @@ output_dir_abs="$(cd -P "$output_dir" 2>/dev/null && pwd)" || {
 capability_slug="${capability_path//\//-}"
 capability_dir="$output_dir_abs/${capability_path}"
 feature_doc="$capability_dir/${product_short}-${capability_slug}-能力文档.md"
-story_dir="$capability_dir/UserStory"
+story_dir="$capability_dir/用户故事"
 mkdir -p "$story_dir"
 
 # ---- JSON 值提取（不依赖 jq） ----
@@ -86,7 +86,7 @@ if [ -z "$feature_library_id" ]; then
 fi
 
 # ---- 自动分配故事 ID ----
-# 扫描 UserStory 目录中已有文档的 frontmatter id，取同一 Feature 下最大序号 +1
+# 扫描 用户故事 目录中已有文档的 frontmatter id，取同一 Feature 下最大序号 +1
 allocate_next_story_id() {
   local feat_id="$1"
   local max_num=0 num id_val

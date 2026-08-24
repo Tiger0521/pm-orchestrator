@@ -85,9 +85,9 @@
 | 安全审计 | NFR-Sec-XX + 定义与约束摘要 + 影响范围 |
 | 异常兜底规则 | 异常场景 + 兜底策略 + 提示文案（表格形式） |
 
-### 1.6 Sprint 规划文档（Step 4）
+### 1.6 迭代规划文档（Step 4）
 
-- 文件路径：`详细设计/Sprint规划/<简称>-Sprint规划.md`
+- 文件路径：`详细设计/迭代规划/<简称>-迭代规划.md`
 - 层级定位：交付层
 - 回答问题：首个 Sprint 交付什么？依赖和风险是什么？
 - 写入方式：JSON + `render-doc.sh`
@@ -180,18 +180,18 @@ tags:
 ---
 ```
 
-### 2.6 Sprint 规划文档
+### 2.6 迭代规划文档
 
 ```yaml
 ---
 id: "<简称>-DF-SPRINT<nnn>"
 product: "<产品全名>"
-type: "Sprint规划"
+type: "迭代规划"
 aliases:
-  - "<产品全名> Sprint规划"
+  - "<产品全名> 迭代规划"
 tags:
   - "<简称>"
-  - "Sprint规划"
+  - "迭代规划"
 ---
 ```
 
@@ -202,7 +202,7 @@ tags:
 遵循 `references/shared/traceability-model.md` 的统一规范：
 
 1. **落盘前双重扫描**：同时扫描 `refs.json.nodes` 和产品库目标目录中已有文档的 frontmatter ID，确保不遗漏任何已分配的 ID
-2. **按文档类型取最大序号加一**：按文档类型（业务流/页面映射共用 FLOW 序号，原型/交互契约/规则摘要/Sprint规划各自独立编号）分别取已使用的最大序号再加一。例如已有 `网资-DF-FLOW01` 和 `网资-DF-FLOW03`，下一个是 `网资-DF-FLOW04`
+2. **按文档类型取最大序号加一**：按文档类型（业务流/页面映射共用 FLOW 序号，原型/交互契约/规则摘要/迭代规划各自独立编号）分别取已使用的最大序号再加一。例如已有 `网资-DF-FLOW01` 和 `网资-DF-FLOW03`，下一个是 `网资-DF-FLOW04`
 3. **分配主体**：Step 1 两类文档由 agent 直写时按 `persist-guide.md` 第 2.1 节自行分配；Step 2-4 四类文档由 `render-doc.sh` 在渲染时分配
 4. **ID 不可复用**：ID 一经分配不得复用。更新现有文档时沿用原 ID（Step 2-4 由 `render-doc.sh` 从目标文件 frontmatter `id` 字段读取已有 ID），不为更新操作分配新 ID
 5. **文件名使用中文描述性名称**：文件名格式为 `<简称>-<类型名>.md`，不使用 ID。例如 `网资-业务流.md`、`网资-原型交互说明.md`。ID 仅存于 frontmatter `id` 字段
@@ -242,7 +242,7 @@ draft 模式下，subagent 每轮产出的设计草稿必须结构化输出，�
 - 业务规则: <已确认/待确认>
 - 权限控制: <已确认/待确认>
 
-### Sprint 规划
+### 迭代规划
 - Sprint 目标: <已确认/待确认>
 - Story 分配: <已确认/待确认>
 - 风险标注: <已确认/待确认>
@@ -282,7 +282,7 @@ draft 模式下，subagent 每轮产出的设计草稿必须结构化输出，�
              ──references───▶ 原型文档
 规则摘要     ──references───▶ Feature
              ──references───▶ 交互契约
-Sprint 规划  ──contains─────▶ User Story
+迭代规划  ──contains─────▶ User Story
 ```
 
 ### 6.1 追溯关系汇总表
@@ -297,4 +297,4 @@ Sprint 规划  ──contains─────▶ User Story
 | 交互契约 | references | 原型文档 |
 | 规则摘要 | references | Feature |
 | 规则摘要 | references | 交互契约 |
-| Sprint 规划 | contains | User Story |
+| 迭代规划 | contains | User Story |

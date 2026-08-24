@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 #
 # validate-paradigm.sh - 校验 Markdown 文档是否符合 writing-paradigm 范式要求。
 #
@@ -232,8 +232,8 @@ case "$doc_type" in
     check_table "数据字典" "数据字典"
     check_table "权限控制" "权限控制"
     ;;
-  Sprint规划)
-    echo "--- Sprint 规划范式校验 ---"
+  迭代规划)
+    echo "--- 迭代规划范式校验 ---"
     # Sprint 列表含 ### Sprint N 子标题 + 表格，check_table 的 sed 遇子标题截断，改为整文档检测表格
     if grep -q '^|' "$md_file"; then
       echo "[PASS] Sprint 列表: 检测到表格"

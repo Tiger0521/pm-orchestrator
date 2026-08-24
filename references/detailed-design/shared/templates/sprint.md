@@ -2,14 +2,14 @@
 id: "{{SPRINT_ID}}"
 type: "sprint"
 projectId: "{{PROJECT_ID}}"
-title: "Sprint 规划"
+title: "迭代规划"
 status: "draft"
 refs:
   - id: "{{STORY_ID}}"
     relation: "contains"
 ---
 
-# Sprint 规划
+# 迭代规划
 
 ## 项目总览
 

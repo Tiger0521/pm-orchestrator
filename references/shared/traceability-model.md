@@ -18,7 +18,7 @@
 | `prototype` | 原型文档 | `proto-` |
 | `interaction-contract` | 交互契约 | `contract-` |
 | `rules-summary` | 规则摘要 | `rules-` |
-| `sprint` | Sprint 规划 | `sprint-` |
+| `sprint` | 迭代规划 | `sprint-` |
 
 ---
 
@@ -111,7 +111,7 @@ refs:
 ---
 id: "<继承式产品库ID>"
 product: "<产品全名>"
-type: "<需求卡片 | 设计文档 | 能力文档 | 用户故事 | 结构流程图 | 原型 | 交互契约 | 规则摘要 | Sprint规划>"
+type: "<需求卡片 | 设计文档 | 能力文档 | 用户故事 | 结构流程图 | 原型 | 交互契约 | 规则摘要 | 迭代规划>"
 capability: "<能力路径>"
 aliases:
   - <别名>
@@ -122,8 +122,8 @@ tags:
 
 - `id`：继承式产品库 ID（格式见下文"产品库 ID"章节），不是过程 ID。
 - `product`：产品全名。
-- `type`：`需求卡片 | 设计文档 | 能力文档 | 用户故事 | 结构流程图 | 原型 | 交互契约 | 规则摘要 | Sprint规划`。
-- `capability`：能力文档和用户故事必填，需求卡片、设计文档和详细设计五类（结构流程图/原型/交互契约/规则摘要/Sprint规划）无此字段。
+- `type`：`需求卡片 | 设计文档 | 能力文档 | 用户故事 | 结构流程图 | 原型 | 交互契约 | 规则摘要 | 迭代规划`。
+- `capability`：能力文档和用户故事必填，需求卡片、设计文档和详细设计五类（结构流程图/原型/交互契约/规则摘要/迭代规划）无此字段。
 - `aliases`/`tags`：YAML 列表，由渲染脚本注入。
 - 产品库不得保留过程空间的 `projectId`、`refs` 或 `status`。
 
@@ -135,15 +135,15 @@ tags:
    `feature-003` 时，下一个是 `feature-004`。
 4. ID 一经分配不得复用；更新现有文档时沿用原 ID。
 5. 写入前再次检查 ID、目标路径和 `refs.json` 节点均无冲突；发现冲突时停止写入并重新分配。
-6. 产品库文件名使用中文描述性名称（产品简称 + 类型名），不使用 ID；ID 仅存于 frontmatter `id` 字段，通过该字段定位已有文档。
+6. 产品库文件名使用**全中文**描述性名称（产品简称 + 中文类型名），不含英文与序号；不使用 ID。英文只允许出现在**文档内部**的 ID 上：frontmatter `id` 字段，或正文中的业务/规则编号（如 `US-01`、`BR-01`、`网资-DF-CONTRACT01`）。ID 仅存于 frontmatter `id` 字段，通过该字段定位已有文档。
 
-正文中引用其他文档使用 `[[doc-id]]` 语法，例如：
+正文中跨文档引用一律使用 Obsidian wikilink `[[产品库中文文件名]]`（文件名不带 `.md` 后缀，可用 `[[文件名|显示名]]`），指向产品库实际文件名，例如：
 
 ```markdown
-本 Feature 属于 [[epic-001]]，解决的需求卡片见 [[req-001]]。
+本 Epic 派生自 [[网资-需求卡片]]，见 [[网资-设计文档]]。
 ```
 
-> 说明：正文 `[[doc-id]]` 供人阅读与 Obsidian 双向链接使用；机器溯源链仍由 frontmatter `refs` + `refs.json` 维护，两者解耦。
+禁止用过程 ID、英文编号或相对路径作为链接文案（错误示例 `[[epic-001]]`、`[[req-001]]`）；英文 ID 只出现在 frontmatter `id` 字段或正文业务/规则编号上。机器溯源链仍由 frontmatter `refs` + `refs.json` 维护，与正文 Obsidian 链接解耦。
 
 ---
 
@@ -163,7 +163,7 @@ tags:
 | 原型 | `<简称>-DF-PROTO<nnn>` | `网资-DF-PROTO01` |
 | 交互契约 | `<简称>-DF-CONTRACT<nnn>` | `网资-DF-CONTRACT01` |
 | 规则摘要 | `<简称>-DF-RULES<nnn>` | `网资-DF-RULES01` |
-| Sprint 规划 | `<简称>-DF-SPRINT<nnn>` | `网资-DF-SPRINT01` |
+| 迭代规划 | `<简称>-DF-SPRINT<nnn>` | `网资-DF-SPRINT01` |
 
 `DF` 前缀（Design Detail）隔离详细设计序号空间，避免与 `EPIC-F<nnn>` 冲突。详细设计五类序号在产品库内按类型独立递增。
 
@@ -187,7 +187,7 @@ tags:
 | 原型交互说明 | `<简称>-原型交互说明.md` | `网资-原型交互说明.md` |
 | 交互契约 | `<简称>-交互契约.md` | `网资-交互契约.md` |
 | 规则摘要 | `<简称>-规则摘要.md` | `网资-规则摘要.md` |
-| Sprint 规划 | `<简称>-Sprint规划.md` | `网资-Sprint规划.md` |
+| 迭代规划 | `<简称>-迭代规划.md` | `网资-迭代规划.md` |
 
 Step 1 草稿即正式机制下的独立 md 文档和 HTML 图文件命名见 `../detailed-design/shared/persist-guide.md` 第 2 节。
 

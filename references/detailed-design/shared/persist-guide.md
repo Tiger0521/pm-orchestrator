@@ -13,7 +13,7 @@
 | 轨道 | 适用 Step | 机制 | Markdown 写入方式 |
 | ---- | ---- | ---- | ---- |
 | 草稿即正式 | Step 1（业务流 / 页面映射 / 两张 HTML 图） | 阶段文件直接写入产品库含 frontmatter 与 ID，用户直接看改文件，逐阶段确认，三阶段齐后统一定稿注册 | agent 用 Write 工具整文件写入（唯一允许直写的产物） |
-| JSON + 渲染 | Step 2（原型）/ Step 3（交互契约 + 规则摘要）/ Step 4（Sprint 规划） | 草稿在对话中展示确认，确认后将数据写入 JSON，调用 `render-doc.sh` 渲染 | **严禁**用 Write 工具逐行写 Markdown，必须走脚本 |
+| JSON + 渲染 | Step 2（原型）/ Step 3（交互契约 + 规则摘要）/ Step 4（迭代规划） | 草稿在对话中展示确认，确认后将数据写入 JSON，调用 `render-doc.sh` 渲染 | **严禁**用 Write 工具逐行写 Markdown，必须走脚本 |
 
 **为什么 Step 1 不同**：Step 1 的三份产物需要用户反复看改（用户可直接编辑文件），草稿与正式必须是同一份文件，不存在"对话草稿 -> 脚本渲染"的二次转换。Step 2-4 的产物以对话草稿确认后一次成型，维持脚本渲染的 ID 分配与格式校验保障。
 
@@ -79,7 +79,7 @@ JSON 文件写入 `docs/_extracted/.design/` 目录，每类文档对应一个�
 | `proto-<nnn>.json` | 原型数据 | Step 2 |
 | `contract-<nnn>.json` | 交互契约数据 | Step 3 |
 | `rules-<nnn>.json` | 规则摘要数据 | Step 3 |
-| `sprint-<nnn>.json` | Sprint 规划数据 | Step 4 |
+| `sprint-<nnn>.json` | 迭代规划数据 | Step 4 |
 
 JSON 字段结构与草稿数据块一致（字段定义见 `output-contract.md` 第 4 节），字段值为已格式化的 Markdown 片段（表格/代码块/列表字符串），字段名与 `render-doc.sh` 渲染函数提取的 key 一一对应。
 
@@ -131,7 +131,7 @@ JSON 字段结构与草稿数据块一致（字段定义见 `output-contract.md`
 ```json
 {
   "type": "sprint",
-  "title": "Sprint 规划",
+  "title": "迭代规划",
   "project_overview": "产能：20 人天\n长度：2 周\nSprint 数：2",
   "sprint_list": "### Sprint 1\n| Story | 优先级 | SP | 风险 | 依赖 |\n| ---- | ---- | ---- | ---- | ---- |\n| US-01 | P0 | 3 | 低 | 无 |\n| US-02 | P0 | 5 | 中 | 区划数据 |",
   "risk_annotation": "- **风险一**：区划数据未就绪，影响 US-02\n- **风险二**：审核流程未对齐，影响 US-05",
@@ -165,7 +165,7 @@ JSON 字段结构与草稿数据块一致（字段定义见 `output-contract.md`
 | ---- | ---- | ---- | ---- |
 | Step 2 原型 | 原型 | `proto-*.json` | `详细设计/原型/` |
 | Step 3 交互契约+规则 | 交互契约 + 规则摘要 | `contract-*.json`、`rules-*.json` | `详细设计/交互契约/`、`详细设计/规则摘要/` |
-| Step 4 Sprint | Sprint 规划 | `sprint-*.json` | `详细设计/Sprint规划/` |
+| Step 4 Sprint | 迭代规划 | `sprint-*.json` | `详细设计/迭代规划/` |
 
 **修订场景**：用户要求修正已落盘的 Step 2-4 文档时，直接重新调用 `render-doc.sh` 即可--脚本通过中文文件名定位目标文件，从该文件 frontmatter `id` 字段读取已有 ID 并沿用，覆盖更新。无需在 JSON 中传 `existing_id` 字段。
 

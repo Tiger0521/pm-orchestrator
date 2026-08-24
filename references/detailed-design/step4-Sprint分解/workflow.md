@@ -74,7 +74,7 @@ Sprint 分解基于已评审的 Epic/Feature/User Story + 优先级 + 依赖关�
 
 ## 6. 产出
 
-Sprint 规划文档（`详细设计/Sprint规划/<简称>-Sprint规划.md`）。**用户确认后立即步级落盘**：将已确认数据写入 `docs/_extracted/.design/sprint-*.json`，调用 `render-doc.sh` 渲染到产品库，校验零警告后更新记忆文件。落盘步骤见 `../shared/persist-guide.md` 第 3 节，产出字段见 `../shared/output-contract.md` 第 1.6 节。
+迭代规划文档（`详细设计/迭代规划/<简称>-迭代规划.md`）。**用户确认后立即步级落盘**：将已确认数据写入 `docs/_extracted/.design/sprint-*.json`，调用 `render-doc.sh` 渲染到产品库，校验零警告后更新记忆文件。落盘步骤见 `../shared/persist-guide.md` 第 3 节，产出字段见 `../shared/output-contract.md` 第 1.6 节。
 
 ## 7. 质量门
 

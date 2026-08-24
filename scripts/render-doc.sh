@@ -119,7 +119,7 @@ case "$doc_type" in
   prototype)          lib_type="原型" ;;
   interaction-contract) lib_type="交互契约" ;;
   rules-summary)      lib_type="规则摘要" ;;
-  sprint)             lib_type="Sprint规划" ;;
+  sprint)             lib_type="迭代规划" ;;
   *)
     echo "ERROR: unknown document type: $doc_type" >&2
     exit 3
@@ -245,10 +245,10 @@ case "$doc_type" in
     fi
     ;;
   sprint)
-    design_subdir="Sprint规划"
+    design_subdir="迭代规划"
     design_dir="$output_dir_abs/详细设计/$design_subdir"
     mkdir -p "$design_dir"
-    output_file="$design_dir/${product_short}-Sprint规划.md"
+    output_file="$design_dir/${product_short}-迭代规划.md"
     existing_id=$(read_frontmatter_id "$output_file")
     if [ -n "$existing_id" ]; then
       library_id="$existing_id"

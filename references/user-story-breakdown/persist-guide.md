@@ -20,7 +20,7 @@
      "<selectedProductLibraryPath>/<产品全名>/" \
      "<产品简称>" "<产品全名>" "[能力路径]"
    ```
-   脚本自动完成：按继承式产品库 ID 规则分配或复用 ID（`<简称>-EPIC-F<nnn>-S<nnn>`）、从每条 Story 的 `featureId` 确定唯一归属、渲染 Markdown 到产品库 `<能力路径>/UserStory/` 目录，并自动运行 `validate-story.sh` 做写作规范校验。
+   脚本自动完成：按继承式产品库 ID 规则分配或复用 ID（`<简称>-EPIC-F<nnn>-S<nnn>`）、从每条 Story 的 `featureId` 确定唯一归属、渲染 Markdown 到产品库 `<能力路径>/用户故事/` 目录，并自动运行 `validate-story.sh` 做写作规范校验。
 7. 调用 `render-matrix.sh` 渲染溯源矩阵：
    ```bash
    bash "<skillPath>/scripts/render-matrix.sh" \

@@ -265,7 +265,7 @@ docs/_extracted/.design/      # 详细设计 JSON（草稿态数据）
 | `scripts/prepare-intake.sh` | 创建 intake 目录和最小 `progress.json` |
 | `scripts/init-project.sh` | 合并项目模板，初始化正式项目记忆 |
 | `scripts/render-doc.sh` | 从字段 JSON 渲染需求卡片/设计文档/能力文档并直接写入产品库 |
-| `scripts/render-story.sh` | 从 Story JSON 批量渲染用户故事并直接写入产品库 `UserStory/` 目录 |
+| `scripts/render-story.sh` | 从 Story JSON 批量渲染用户故事并直接写入产品库 `用户故事/` 目录 |
 | `scripts/render-matrix.sh` | 从矩阵 JSON 渲染溯源矩阵 Markdown 到过程项目 |
 | `scripts/quick-persist.sh` | 从字段目录快速渲染 Markdown |
 | `scripts/validate-paradigm.sh` | 校验需求分析写作范式 |

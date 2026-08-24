@@ -313,7 +313,7 @@ stateDiagram-v2
 
 ---
 
-## Sprint 规划：sprint-001
+## 迭代规划：sprint-001
 
 ### 项目总览
 

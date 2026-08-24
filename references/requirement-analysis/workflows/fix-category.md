@@ -179,9 +179,9 @@
       mkdir -p "<productLibraryPath>/{产品简称}-{分类名}能力/{能力简称}"
       ```
    
-   b. **创建 stories 子文件夹**（如果该能力有 Story 文档）：
+   b. **创建 用户故事 子文件夹**（如果该能力有 Story 文档）：
       ```bash
-      mkdir -p "<productLibraryPath>/{产品简称}-{分类名}能力/{能力简称}/stories"
+      mkdir -p "<productLibraryPath>/{产品简称}-{分类名}能力/{能力简称}/用户故事"
       ```
    
    - 能力简称从能力名称字段提取（去掉产品名前缀和"能力"后缀）
@@ -252,10 +252,10 @@
    f. **移动 Story 文档**（如果存在）：
       ```bash
       # 查找对应的 Story 文件夹（可能是 feature-{nnn}/ 或其他命名）
-      # 如果找到，将其中的 Story 文档移到 stories/ 子文件夹
+      # 如果找到，将其中的 Story 文档移到 用户故事/ 子文件夹
       
       if [ -d "原Story文件夹路径" ]; then
-        mv "原Story文件夹路径"/*.md "$capability_folder/stories/"
+        mv "原Story文件夹路径"/*.md "$capability_folder/用户故事/"
         rmdir "原Story文件夹路径"  # 删除空的原 Story 文件夹
       fi
       ```

@@ -24,7 +24,7 @@
 - [ ] 至少一个产品库 `详细设计/原型/*-DF-PROTO*.md` 存在
 - [ ] 至少一个产品库 `详细设计/交互契约/*-DF-CONTRACT*.md` 存在
 - [ ] 至少一个产品库 `详细设计/规则摘要/*-DF-RULES*.md` 存在
-- [ ] 至少一个产品库 `详细设计/Sprint规划/*-DF-SPRINT*.md` 存在
+- [ ] 至少一个产品库 `详细设计/迭代规划/*-DF-SPRINT*.md` 存在
 - [ ] 详细设计阶段正式产物未分散写入过程项目 `docs/` 或其他目录（含 sourceProduct 直启项目，设计产物一律在产品库）
 
 ---
@@ -39,7 +39,7 @@
 - [ ] 原型文档的 `refs` 包含 `implements` 关系指向 User Story 和 `references` 指向业务流、页面映射
 - [ ] 交互契约的 `refs` 包含 `implements` 关系指向 User Story 和 `references` 指向原型文档
 - [ ] 规则摘要的 `refs` 包含 `references` 关系指向 Feature 和交互契约
-- [ ] Sprint 规划的 `refs` 包含 `contains` 关系指向 User Story
+- [ ] 迭代规划的 `refs` 包含 `contains` 关系指向 User Story
 
 ---
 
@@ -95,7 +95,7 @@
 
 ---
 
-## 7. Sprint 规划质量（Step 4）
+## 7. 迭代规划质量（Step 4）
 
 - [ ] Sprint 目标明确（每个 Sprint 一句话目标）
 - [ ] 每个 Sprint 包含的 Story 已列出

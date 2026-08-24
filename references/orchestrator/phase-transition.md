@@ -35,7 +35,7 @@ bash <skillPath>/scripts/transition-project-state.sh \
 
 - 需求分析到需求拆解：需求卡片、Epic、Feature 字段完整，标题自然，用户已确认。需求分析文档已直接写入产品库，无需独立的导出步骤。
 - 需求拆解到详细设计：每个 Story 使用三段式，包含 3-8 条 GWT，覆盖正常和异常路径，用户已确认。
-- 详细设计到完成：核心原型、交互契约、规则摘要和 Sprint 规划完整，用户已确认。
+- 详细设计到完成：核心原型、交互契约、规则摘要和 迭代规划完整，用户已确认。
 - `iteration`：确认已有 Epic 未被修改。
 - `refactor`：确认已有 Epic、Feature、User Story 未被修改。
 
