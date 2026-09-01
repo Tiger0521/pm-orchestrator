@@ -15,7 +15,7 @@ description: |
 
 - 识别方式：若当前环境具备 `Agent` 工具（带 `subagent_type` 参数），并能按 `~/.zcode/agents/` 下的文件名解析 subagent → `RUNTIME=zcode`；否则若通过命名子 agent（`pm-orchestrator:<name>`）委派 → `RUNTIME=claude`。
 - `RUNTIME=claude` → 只读取 `runtime/claude.md`：按插件命名空间委派、`.claude` 项目根、reference 相对 skillPath 解析。
-- `RUNTIME=zcode` → 先执行 `runtime/zcode.md` 的 **subagent 自检自举**（每次运行都检查，把 `agents/zcode/*.md` 中缺失的补到 `~/.zcode/agents/`，不覆盖已有），再只读取 `runtime/zcode.md`：用 `Agent` 工具、`subagent_type` 裸名委派、统一的过程项目根 `<workspace>/.claude/product-design-projects/`、reference 经 `${skillPath}` 拼接解析。
+- `RUNTIME=zcode` → 先执行 `runtime/zcode.md` 的 **subagent 自检自举**（每次运行都检查，把 `agents/zcode/*.md` 中缺失的补到 `~/.zcode/agents/`，不覆盖已有），再只读取 `runtime/zcode.md`：用 `Agent` 工具、`subagent_type` 裸名委派、统一的过程项目根 `<workspace>/.claude/product-design-projects/`、reference 经 `${skillPath}` 拼接解析。自检若发生首次注册（有复制），本次会话内新 agent 不可按裸名调用，**必须在开场引导中提醒用户重新开启对话，提醒后立即停止并等待用户选择**（不得借 general-purpose 兜底继续推进任务），话术与停止规则见 `runtime/zcode.md`「Subagent 自检自举」第 3-4 点。
 
 委派命名、项目根、reference 解析方式、agent frontmatter 约定全部以所选运行时分支为准；不得在 ZCode 下使用 `pm-orchestrator:` 前缀，也不得在 Claude Code 下用裸名。
 

@@ -88,9 +88,9 @@
 **两种宿主都只要把整个 skill 文件夹拷到对应的 skills 目录，重启即可用。**
 
 - **Claude Code**：把整个 `pm-orchestrator/` 文件夹拷到 `~/.claude/skills/pm-orchestrator`。目录自带 `.claude-plugin/plugin.json`，Claude 重启后自动识别为插件，`agents/` 下的 4 个 agent 自动获得 `pm-orchestrator:` 命名空间。
-- **ZCode**：把整个 `pm-orchestrator/` 文件夹拷到 `~/.zcode/skills/pm-orchestrator`。ZCode 不扫描 skill 文件夹内的 agent 文件，每次运行本 skill 时自动自检自举，把 `agents/zcode/` 中缺失的 agent 补到 `~/.zcode/agents/`。
+- **ZCode**：把整个 `pm-orchestrator/` 文件夹拷到 `~/.zcode/skills/pm-orchestrator`。ZCode 不扫描 skill 文件夹内的 agent 文件，首次运行本 skill 时自动自检自举（把 `agents/zcode/` 中缺失的 agent 注册到 `~/.zcode/agents/`），**注册完成后会提醒你重新开启对话并立即停下等你的选择（不会继续推进任务），从新会话起即可正常使用**。
 
-`install.ps1` 是**可选**便捷工具（用于预置 subagent、做干净的整包重装），不是必需步骤。
+`install.ps1` 是**可选**便捷工具（用于预置 subagent、做干净的整包重装），不是必需步骤；**新用户首次安装推荐先运行 `install.ps1 -Target zcode` 预置 subagent**（第一次会话前即注册完成），可跳过"首次注册后重开对话"的提醒。
 
 ### 更新
 
@@ -108,7 +108,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 -Target claude   # 或 -T
 1. **skill 本体**：`SKILL.md`、`references/`、`runtime/`、`agents/`、`scripts/`、`project-template/` 放进目标宿主 skills 目录
 2. **subagent 落点**：
    - Claude Code：无需投递——`.claude-plugin/plugin.json` 自动注册
-   - ZCode：由 skill **每次运行时自检**，自动补齐到 `~/.zcode/agents/`
+   - ZCode：由 skill **每次运行时自检**，自动补齐到 `~/.zcode/agents/`；首次补齐（注册）后提醒重新开启对话
 
 ### 版本历史
 
@@ -116,6 +116,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 -Target claude   # 或 -T
 |------|------|------|
 | V4.0.3 | 2026-09-01 | 移除用户故事地图总览产物；story-map 合并需求拆解、新增 sprint-planner 与 phase-navigator；需求台账 + 业务文档 + Feature 12→5 字段；修复原型框选拖拽锁定与迭代规划表格 wikilink 转义 |
 | V4.1.0 | 2026-09-01 | 新增独立架构设计文档更新 agent（update-index 增量同步产品矩阵，可单独调用）与用户引导与安抚开场协议（介绍 / 安抚 / 三入口菜单）；需求分析与故事地图完成汇报自动提醒同步架构设计文档 |
+| V4.1.1 | 2026-09-01 | ZCode 首次注册协议：自检复制 subagent 后必须提醒用户重新开启对话并立即停止等待选择（仅限 ZCode；Claude Code 无此流程）；`install.ps1` 提升为新用户首次安装推荐 |
 | V4.0.2 | 2026-08-21 | 更新 README：补充完整调用关系流程图 |
 | V4.0.1 | 2026-08-21 | 修复产品库命名和 obsidian 引用格式 |
 | V4.0.0 | 2026-08-21 | 支持 zcode 使用，完成详细设计 step1+step2，可生成原型 |

@@ -12,13 +12,21 @@
 
 ## Subagent 自检自举（拷文件夹即用，不需要任何脚本）
 
+> **前提限定**：本段全部机制（自检自举、首次注册提醒、general-purpose 兜底）**仅适用于 `RUNTIME=zcode`**。Claude Code 分支通过 `.claude-plugin/plugin.json` 自动注册 subagent——无需复制、无首次注册、无重开对话提醒，不执行本协议（见 `runtime/claude.md`）。
+
 ZCode **只从 `~/.zcode/agents/*.md` 发现 subagent**（源码级事实：`resolveUserSubagentRoot` 指向用户级 agents 目录；ZCode 不扫描 skill 文件夹内的 agent 文件，也不存在 `skills-dir` 插件自动识别机制）。因此用户只需把整个 skill 文件夹拷到 `~/.zcode/skills/pm-orchestrator`（或 `~/.agents/skills/...`）。**每次运行本 skill 时，主调度器都自检一次**，把 subagent 补齐到位：
 
 1. 以 `<skillPath>/agents/zcode/` 为来源目录（`skillPath` 为本 skill 实际加载位置）。
-2. 对本 skill 的 5 个 subagent（`requirement-analyst`、`story-map-designer`、`detailed-design-designer`、`sprint-planner`、`architecture-updater`）：若 `~/.zcode/agents/<name>.md` 不存在，则从来源目录复制过去。
-3. 自检完成后才进入委派。幂等：已存在即跳过，不覆盖用户已有改动；缺失才补，因此即便 agent 被删或换机重拷文件夹，也会自动恢复。
+2. 对本 skill 的 5 个 subagent（`requirement-analyst`、`story-map-designer`、`detailed-design-designer`、`sprint-planner`、`architecture-updater`）：若 `~/.zcode/agents/<name>.md` 不存在，则从来源目录复制过去；**只要发生了任意复制，本次运行即视为「首次注册」**。
+3. **首次注册提醒（必须）**：ZCode 的 Agent 工具可用类型列表在**会话启动时定格**，本次会话内无法按裸名调用新注册的 subagent。因此注册发生后，主调度器必须在开场引导中**明确提醒用户重新开启对话（新开一个会话）**，注册才算完成引导，话术示例：
+   > 已首次注册 pm-orchestrator 的 subagent。请**重新开启一个对话**，之后即可正常使用"需求分析 / 用户故事 / 详细设计 / Sprint 分解 / 更新架构设计文档"等全部能力。
+4. **提醒后立即停止（必须，最高优先级）**：输出注册提醒后，主调度器**立即停止路由并停手**——不得自动继续任何任务（包括第 0 步确认产品库、目录探索、委派等），把选择权交还用户：
+   - 推荐：用户**重新开启一个对话**，新会话即可直接使用全部能力；
+   - 例外：**仅当用户明确表示"本次会话继续"**（用户主动选择、不是主调度器自行决定）时，才允许用 `general-purpose` agent 兜底委派同一方法论（委派 prompt 中显式告知先读取 `<skillPath>/agents/zcode/<name>.md` 再执行，行为与专用 subagent 等价）；
+   - **用户做出明确选择前，禁止借兜底之名继续推进任何任务。**
+5. 自检完成后才进入委派。幂等：已存在即跳过，不覆盖用户已有改动；缺失才补，因此即便 agent 被删或换机重拷文件夹，也会自动恢复（恢复同样按第 3-4 点触发首次注册提醒与停止）。
 
-`install.ps1` 仅为预置/清理的**可选**便捷工具，不是必需步骤。
+`install.ps1` 仅为预置/清理的**可选**便捷工具，不是必需步骤——但**新用户首次安装推荐先运行 `install.ps1 -Target zcode` 预置 subagent**（第一步会话前即注册完成），可跳过首次注册提醒。
 
 ## Subagent 定义位置
 
