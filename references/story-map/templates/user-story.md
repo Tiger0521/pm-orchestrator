@@ -1,12 +1,21 @@
+<!--
+  User Story 文档模板
+  占位符 {{JOURNEY_STAGE}} 对应 Story JSON 顶层字段 journey_stage；
+  占位符 {{REQ_ENTRY_ID}} 对应 requirementEntryId，且必须与 refs 的 addresses 值、正文文件链接一致。
+-->
+
 ---
 id: "{{STORY_ID}}"
 type: "user-story"
 projectId: "{{PROJECT_ID}}"
 title: "{{TITLE}}"
 status: "draft"
+journey_stage: "{{JOURNEY_STAGE}}"
 refs:
   - id: "{{FEATURE_ID}}"
     relation: "implements"
+  - id: "{{REQ_ENTRY_ID}}"
+    relation: "addresses"
 ---
 
 # {{TITLE}}
@@ -23,6 +32,10 @@ refs:
 
 {{STORY_POINTS}}（建议值，待团队确认）
 
+## 旅程阶段
+
+{{JOURNEY_STAGE}}
+
 ## 验收标准
 
 1. **{{AC_1_KEYWORD}}**：Given {{AC_1_GIVEN}}，When {{AC_1_WHEN}}，Then {{AC_1_THEN}}
@@ -34,3 +47,7 @@ refs:
 ## 关联 Feature
 
 本 Story 实现 [[{{FEATURE_ID}}]]。
+
+## 关联需求
+
+本故事落实 [[{{PRODUCT_SHORT}}-需求台账|{{REQ_ENTRY_ID}}]]。

@@ -192,12 +192,8 @@ case "$doc_type" in
     echo "--- Feature 范式校验 ---"
     check_transition "能力描述" "能力描述"
     check_paradigm_a "能力目标" "能力目标"
-    check_paradigm_a "业务价值" "业务价值"
-    check_paradigm_a "业务场景" "业务场景"
-    check_flowchart "业务流程" "业务流程"
-    check_table "业务规则" "业务规则"
-    check_transition "技术可行性" "技术可行性"
-    check_table "资源投入" "资源投入"
+    # 业务价值/业务场景/业务流程/业务规则已迁至《业务文档》按扁平 4 字段承载，
+    # 技术可行性/资源投入/优先级字段已删除，均不再在 Feature 文档中校验。
     ;;
   结构流程图)
     echo "--- 结构与流程图范式校验 ---"

@@ -109,7 +109,14 @@ validate_library_id() {
       "需求卡片": `^${short}-REQ$`,
       "设计文档": `^${short}-EPIC$`,
       "能力文档": `^${short}-EPIC-F\\d{2,}$`,
-      "用户故事": `^${short}-EPIC-F\\d{2,}-S\\d{2,}$`
+      "用户故事": `^${short}-EPIC-F\\d{2,}-S\\d{2,}$`,
+      "需求台账": `^${short}-REQ-LEDGER$`,
+      "业务文档": `^${short}-BIZ-DOC$`,
+      "结构流程图": `^${short}-DF-FLOW\\d{2,}$`,
+      "原型": `^${short}-DF-PROTO\\d{2,}$`,
+      "交互契约": `^${short}-DF-CONTRACT\\d{2,}$`,
+      "规则摘要": `^${short}-DF-RULES\\d{2,}$`,
+      "迭代规划": `^${short}-DF-SPRINT\\d{2,}$`
     };
     const pattern = patterns[docType];
     if (!pattern) process.exit(0);
@@ -132,7 +139,7 @@ validate_doc() {
   if [ -z "$actual_id" ]; then
     fail_issue "[frontmatter] $rel: 缺少 id 字段"
   elif [ -n "$short" ] && ! validate_library_id "$actual_id" "$short" "$expected_type"; then
-    fail_issue "[frontmatter] $rel: id 格式不合法（应为 ${short}-REQ/${short}-EPIC/${short}-EPIC-F<nnn>/${short}-EPIC-F<nnn>-S<nnn> 之一）: $actual_id"
+    fail_issue "[frontmatter] $rel: id 格式不合法（应符合产品库 ID 规范，如 ${short}-REQ、${short}-EPIC、${short}-EPIC-F<nnn>、${short}-EPIC-F<nnn>-S<nnn>、${short}-REQ-LEDGER 等）: $actual_id"
   fi
   [ "$actual_product" = "$product" ] || fail_issue "[frontmatter] $rel: product 应为 $product"
   [ "$actual_type" = "$expected_type" ] || fail_issue "[frontmatter] $rel: type 应为 $expected_type"
@@ -304,18 +311,23 @@ while IFS= read -r -d '' product_dir; do
   [ -f "$product_dir/$short-设计文档.md" ] || fail_issue "[命名] $product 缺少 $short-设计文档.md"
   [ -f "$product_dir/$short-需求卡片.md" ] && validate_doc "$product_dir/$short-需求卡片.md" "$product" "需求卡片" "" "$short"
   [ -f "$product_dir/$short-设计文档.md" ] && validate_doc "$product_dir/$short-设计文档.md" "$product" "设计文档" "" "$short"
+  # 需求台账/业务文档在 V4.1.0 后直接落产品库根目录；对旧产品库不强制存在，存在即校验
+  [ -f "$product_dir/$short-需求台账.md" ] && validate_doc "$product_dir/$short-需求台账.md" "$product" "需求台账" "" "$short"
+  [ -f "$product_dir/$short-业务文档.md" ] && validate_doc "$product_dir/$short-业务文档.md" "$product" "业务文档" "" "$short"
   while IFS= read -r -d '' file; do
     base=$(basename -- "$file")
-    [ "$base" = "$short-需求卡片.md" ] || [ "$base" = "$short-设计文档.md" ] || fail_issue "[命名] ${file#"$LIBRARY_PATH"/}: 产品根目录不允许其他 Markdown"
+    [ "$base" = "$short-需求卡片.md" ] || [ "$base" = "$short-设计文档.md" ] \
+      || [ "$base" = "$short-需求台账.md" ] || [ "$base" = "$short-业务文档.md" ] \
+      || fail_issue "[命名] ${file#"$LIBRARY_PATH"/}: 产品根目录不允许其他 Markdown"
   done < <(find "$product_dir" -maxdepth 1 -type f -name '*.md' -print0)
   while IFS= read -r -d '' entry_dir; do
     entry_name=$(basename -- "$entry_dir")
     if [[ "$entry_name" == *能力 ]]; then
       validate_capability "$entry_dir" "$product" "$short"
-    elif [ "$entry_name" = "用户故事地图" ]; then
-      : # 用户故事地图目录不是能力目录，跳过能力校验
+    elif [ "$entry_name" = "用户故事地图" ] || [ "$entry_name" = "详细设计" ]; then
+      : # 用户故事地图/详细设计 目录不是能力目录，跳过能力校验
     else
-      fail_issue "[类别] ${entry_dir#"$LIBRARY_PATH"/}: 产品目录下的目录既不是能力目录（名称应以 能力 结尾），也不是用户故事地图目录"
+      fail_issue "[类别] ${entry_dir#"$LIBRARY_PATH"/}: 产品目录下的目录既不是能力目录（名称应以 能力 结尾），也不是用户故事地图或详细设计目录"
     fi
   done < <(find "$product_dir" -mindepth 1 -maxdepth 1 -type d -print0)
   actual_caps=$(find "$product_dir" -type f -name '*-能力文档.md' | wc -l | tr -d '[:space:]')
@@ -339,14 +351,14 @@ while IFS= read -r -d '' file; do
   while IFS= read -r target; do
     [ -n "$target" ] || continue
     grep -qxF "$target" "$LINK_TARGETS" || fail_issue "[链接] $rel: 链接目标不存在: [[$target]]"
-  done < <(grep -o '\[\[[^]]*\]\]' "$file" 2>/dev/null | sed 's/\[\[//;s/\]\]//' | sed 's/\\|.*//;s/|.*//' | sort -u)
+  done < <(grep -o '\[\[[^]]*\]\]' "$file" 2>/dev/null | sed 's/\[\[//;s/\]\]//' | sed 's/#\^[^|]*//' | sed 's/\\|.*//;s/|.*//' | sort -u)
 done < <(find "$LIBRARY_PATH" -type f -name '*.md' ! -path "$ARCH" -print0)
 
 # Product libraries are formal assets, so process-space IDs such as epic-001 must
 # never remain in either frontmatter (excluding the id field) or document bodies.
 while IFS= read -r -d '' file; do
   rel="${file#"$LIBRARY_PATH"/}"
-  process_ids=$(node -e 'const fs = require("fs"); let text = fs.readFileSync(process.argv[1], "utf8"); text = text.replace(/^id:[^\n]*$/m, ""); const ids = [...new Set([...text.matchAll(/\b(?:req|diagnostic|epic|feature|story|matrix|flow|proto|contract|rules|sprint)-\d+\b/gi)].map((match) => match[0]))]; process.stdout.write(ids.join(", "));' "$file")
+  process_ids=$(node -e 'const fs = require("fs"); let text = fs.readFileSync(process.argv[1], "utf8"); text = text.replace(/^id:[^\n]*$/m, ""); const ids = [...new Set([...text.matchAll(/(?<![\w\u4E00-\u9FFF^-])(?:req|diagnostic|epic|feature|story|matrix|flow|proto|contract|rules|sprint)-\d+\b/gi)].map((match) => match[0]))]; process.stdout.write(ids.join(", "));' "$file")
   [ -z "$process_ids" ] || fail_issue "[过程 ID] $rel: 产品库不得保留过程文档 ID（frontmatter id 字段除外）: $process_ids"
 done < <(find "$LIBRARY_PATH" -type f -name '*.md' -print0)
 
@@ -407,14 +419,11 @@ validate_story_map_file() {
   local file="$1" rel notion expected_kind actual_product actual_type actual_capability has_table has_matrix target owner
   rel="${file#"$LIBRARY_PATH"/}"
   notion=$(basename -- "$file")
-  if [[ "$notion" == *用户故事地图-总览.md ]]; then
-    expected_kind="总览"
-  elif [[ "$notion" == *能力-用户故事地图.md ]]; then
-    expected_kind="能力"
-  else
-    fail_issue "[命名] $rel: 故事地图文件名应为 {产品名}-{能力名}能力-用户故事地图.md 或 {产品名}-用户故事地图-总览.md"
+  if [[ "$notion" != *能力-用户故事地图.md ]]; then
+    fail_issue "[命名] $rel: 故事地图文件名应为 {产品名}-{能力名}能力-用户故事地图.md"
     return
   fi
+  expected_kind="能力"
 
   if [ "$(head -n 1 "$file" | tr -d '\r' | sed 's/^\xef\xbb\xbf//')" != "---" ]; then
     fail_issue "[frontmatter] $rel: 缺少起始 ---"; return
@@ -436,13 +445,9 @@ validate_story_map_file() {
   fm_has_list "$file" tags || fail_issue "[frontmatter] $rel: 缺少 tags 列表"
   fm_has_key "$file" title || fail_issue "[frontmatter] $rel: 缺少 title"
 
-  if [ "$expected_kind" = "能力" ]; then
-    [ -n "$actual_capability" ] || fail_issue "[frontmatter] $rel: 能力级地图缺少 capability"
-    if [ -n "$actual_capability" ] && ! is_registered_capability "$actual_capability"; then
-      fail_issue "[frontmatter] $rel: capability 未在产品库登记: $actual_capability"
-    fi
-  elif fm_has_key "$file" capability && [ -n "$actual_capability" ]; then
-    fail_issue "[frontmatter] $rel: 总览地图不应包含 capability"
+  [ -n "$actual_capability" ] || fail_issue "[frontmatter] $rel: 能力级地图缺少 capability"
+  if [ -n "$actual_capability" ] && ! is_registered_capability "$actual_capability"; then
+    fail_issue "[frontmatter] $rel: capability 未在产品库登记: $actual_capability"
   fi
 
   has_table=$(grep -c '^|' "$file" || true)

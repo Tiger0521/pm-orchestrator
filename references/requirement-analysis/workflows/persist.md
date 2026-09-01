@@ -1,6 +1,6 @@
 # 需求分析产品库写入工作流
 
-**前置条件**：顶层管线已完成第 1 步，且 `workflow.state=requirement-analysis`、`mode=persist`；`artifactScope` 必须明确为 `requirement-epic` 或 `features`，并具有用户对该批次完整预览的明确确认。
+**前置条件**：顶层管线已完成第 1 步，且 `workflow.state=requirement-analysis`、`mode=persist`；`artifactScope` 必须明确为 `requirement-epic`、`features` 或 `requirement-ledger`，并具有用户对该批次完整预览的明确确认。
 
 **按需读取**：`../guides/quality-and-interaction.md`、对应模板、写作范式和 `references/shared/traceability-model.md`。
 
@@ -47,10 +47,29 @@
    - 如果有 `[WARN]` 项，**必须修复字段 JSON 中对应字段的范式格式**（加粗领条、表格、流程图、blockquote 等），重新渲染，直到零警告才能报告 `persisted`。
    - 不得跳过范式校验、不得忽略警告、不得在有警告时报告 `persisted`。
 
+### 需求台账落盘
+
+台账条目在 features 批次随 Feature 拆解产生（见 `draft.md` 第 8.5 步，草稿在 `docs/_extracted/.fields/requirement-ledger-draft.md`），变更条目由 `requirement-ledger` 批次追加。两种落盘均为"追加式写表格行"，不覆盖已有行：
+
+1. **校验台账草稿**：读取台账草稿，逐行校验六列齐全（条目ID / 登记日期 / 登记人 / 所属Feature / 优先级 / 需求内容）；所属 Feature 必须是本批次（或产品库）已确认的能力文档；优先级非空；条目 ID（`<简称>-REQ-<序号>`）与产品库现有台账不冲突。
+2. **追加式落盘**：按 `../templates/requirement-ledger.md` 结构，把已确认的条目行追加到产品库 `<简称>-需求台账.md` 表格——首次落盘时创建文件（frontmatter + 表头 + 条目行），非首次时按表内最大序号续加新行、重建表头结构不变、不覆盖已有行；更新 frontmatter `lastUpdated`。
+3. **展示确认**：落盘前向用户展示台账表草稿（含本次新增行）；用户未确认前不得落盘对应行。
+4. 落盘完成后在 `refs.json` 注册/更新 `requirement-ledger` 节点，edges 记录台账与所属能力的 `references` 关系。
+
+### 业务文档落盘（features 批次）
+
+Feature 批次写入时，业务文档与 Feature 同步确认落盘：
+
+1. 读取 `docs/_extracted/.fields/business-doc-draft.md`（draft 阶段收集的扁平 4 字段草稿：业务价值 / 业务场景表 / 业务流程 / 业务规则表，场景与规则行带「所属能力」列）。
+2. 渲染 Feature 后，向用户展示业务文档草稿（扁平 4 字段完整结构），用户确认/修改后落盘。
+3. **重构式写入**产品库 `<简称>-业务文档.md`：以产品库现有文档为基线（业务价值默认保留现有版本不改写）、并入本次新增业务内容后**整体重写** 4 个字段，不按能力名增量打补丁；更新 frontmatter `lastUpdated`，并在「变更记录」表追加一行。
+4. 场景编号（SC-XX）、规则编号（BR-XX）、流程编号（FL-XX）从现有文档取最大序号继续累加，不重排。
+
 ### 批次返回
 
-- `requirement-epic` 写入成功：返回 `persisted`、`artifactScope=requirement-epic`、`nextAction=draft-features`。在 `phase-summary.md` 记录“需求卡片和 Epic 已写入产品库，接下来继续拆解 Feature”（对外措辞）；不得报告需求分析阶段完成。
-- `features` 写入成功：确认需求卡片、Epic 和能力清单中的全部 Feature 均已写入产品库，且与用户确认的 Feature 批次预览一致后，返回 `persisted`、`artifactScope=features`、`nextAction=phase-complete`。需求分析阶段即完成，可直接进入下一阶段或等待用户指令。本 agent 不修改 `workflow.state`。
+- `requirement-epic` 写入成功：需求卡片 + Epic 均已落盘后，返回 `persisted`、`artifactScope=requirement-epic`、`nextAction=draft-features`。在 `phase-summary.md` 记录"需求卡片、Epic 已写入产品库，接下来继续拆解 Feature（拆解时产出需求台账条目）"（对外措辞）；不得报告需求分析阶段完成。
+- `features` 写入成功：确认需求卡片、Epic、能力清单中的全部 Feature、业务文档与需求台账条目均写入产品库，且与用户确认的预览一致后，返回 `persisted`、`artifactScope=features`、`nextAction=phase-complete`。需求分析阶段即完成，可直接进入下一阶段或等待用户指令。本 agent 不修改 `workflow.state`。
+- 台账草稿或业务文档草稿未获用户确认时，不得落盘对应文档；先返回 `draft-ready`（携带对应 `artifactScope` 标记）或 `needs-input` 展示草稿请求确认。
 
 ### 字段 JSON 格式
 
@@ -173,14 +192,6 @@
   "capability_description": "...",
   "capability_goal": "...",
   "user_roles": "...",
-  "business_value": "...",
-  "business_scenarios": "...",
-  "business_process": "...",
-  "business_rules": "...",
-  "tech_feasibility": "...",
-  "resource_investment": "...",
-  "priority": "...",
-  "priority_reason": "...",
   "qa_log": {
     "capability_name": [
       {"round": 1, "q": "...", "a": "..."}
@@ -190,31 +201,12 @@
     ],
     "capability_goal": [
       {"round": 1, "q": "...", "a": "..."}
-    ],
-    "business_value": [
-      {"round": 1, "q": "...", "a": "..."}
-    ],
-    "business_scenarios": [
-      {"round": 1, "q": "...", "a": "..."}
-    ],
-    "business_process": [
-      {"round": 1, "q": "...", "a": "..."}
-    ],
-    "business_rules": [
-      {"round": 1, "q": "...", "a": "..."}
-    ],
-    "tech_feasibility": [
-      {"round": 1, "q": "...", "a": "..."}
-    ],
-    "resource_investment": [
-      {"round": 1, "q": "...", "a": "..."}
-    ],
-    "priority": [
-      {"round": 1, "q": "...", "a": "..."}
     ]
   }
 }
 ```
+
+> **业务 4 字段**：`business_value`、`business_scenarios`、`business_process`、`business_rules` 已从 Feature 字段 JSON 删除——这些内容在 draft 阶段按扁平 4 字段收集到 `docs/_extracted/.fields/business-doc-draft.md`（场景/规则行带「所属能力」列），persist 阶段以产品库现有文档为基线、并入新增后整体重写产品库业务文档，不经 Feature 字段 JSON。
 
 ### 更新项目记忆
 
@@ -226,6 +218,6 @@
 | `facts.json` | 记录用户已确认的事实，每条事实标注来源类型 |
 | `decision-log.md` | 记录建设思路（设计理念）、范围边界等决策及理由 |
 | `tracking-log.md` | 记录待验证假设、风险、未决问题 |
-| `phase-summary.md` | 追加当前批次恢复摘要：第一批明确记录下一步为 Feature 拆解，第二批记录需求分析阶段完成，并可继续修改或发起阶段校验；不复制完整需求正文 |
+| `phase-summary.md` | 追加当前批次恢复摘要：第一批明确记录下一步为 Feature 拆解，第二批记录需求分析阶段完成，并可继续修改或发起阶段校验；不复制完整需求正文。摘要随写 `phase_status`（供 `references/phase-navigator.md` 读取）：`requirement-epic` 落盘完成及 `features` 批次成果确认后 `confirmed`，`features` 全部落盘（本阶段完成）后 `persisted` |
 | `progress.json` | 更新当前阶段和顶层的 `lastUpdated`；`description` 是项目初始短描述，不承载完整需求正文；不修改 `workflow.state`、顶层 `status` 或阶段转换字段 |
 ---

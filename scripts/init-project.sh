@@ -31,7 +31,8 @@
 #   template_dir          : <skillPath>/project-template 的绝对路径
 #   target_dir            : <workspace>/.claude/product-design-projects/<project-id> 的绝对路径
 #                           可为 prepare-intake.sh 预先创建的 intake 目录
-#   initial_workflow_state : requirement-analysis（默认）| user-story-breakdown | detailed-design
+#   initial_workflow_state : requirement-analysis（默认）| story-map | detailed-design | sprint-planning
+#                           （user-story-breakdown 作为 story-map 的旧别名兼容）
 #   source_product_id      : 直启后续阶段时显式选择的只读产品库产品全名（可为空）
 #
 # 退出码：0 成功；2 参数非法；3 路径/模板问题。
@@ -72,9 +73,11 @@ case "$project_type" in
   *) echo "ERROR: invalid project_type (new|iteration|refactor): $project_type" >&2; exit 2 ;;
 esac
 case "$initial_workflow_state" in
-  requirement-analysis|user-story-breakdown|detailed-design) ;;
+  requirement-analysis|story-map|user-story-breakdown|detailed-design|sprint-planning) ;;
   *) echo "ERROR: invalid initial_workflow_state: $initial_workflow_state" >&2; exit 2 ;;
 esac
+# 旧别名归一：user-story-breakdown 已改名为 story-map；新项目统一写规范值。
+[ "$initial_workflow_state" = "user-story-breakdown" ] && initial_workflow_state="story-map"
 
 # product_library_match 枚举（可为空）
 if [ -n "$product_library_match" ]; then
@@ -200,9 +203,26 @@ esc_matched=$(json_escape "$matched_product_id")
 esc_match=$(json_escape "$product_library_match")
 esc_source_product=$(json_escape "$source_product_id")
 case "$initial_workflow_state" in
-  requirement-analysis) req_status='in_progress'; req_time="\"$ts\""; story_status='pending'; story_time='null'; design_status='pending'; design_time='null' ;;
-  user-story-breakdown) req_status='pending'; req_time='null'; story_status='in_progress'; story_time="\"$ts\""; design_status='pending'; design_time='null' ;;
-  detailed-design) req_status='pending'; req_time='null'; story_status='pending'; story_time='null'; design_status='in_progress'; design_time="\"$ts\"" ;;
+  requirement-analysis)
+    req_status='in_progress'; req_time="\"$ts\""
+    story_status='pending'; story_time='null'
+    design_status='pending'; design_time='null'
+    sprint_status='pending'; sprint_time='null' ;;
+  story-map)
+    req_status='pending'; req_time='null'
+    story_status='in_progress'; story_time="\"$ts\""
+    design_status='pending'; design_time='null'
+    sprint_status='pending'; sprint_time='null' ;;
+  detailed-design)
+    req_status='pending'; req_time='null'
+    story_status='pending'; story_time='null'
+    design_status='in_progress'; design_time="\"$ts\""
+    sprint_status='pending'; sprint_time='null' ;;
+  sprint-planning)
+    req_status='pending'; req_time='null'
+    story_status='pending'; story_time='null'
+    design_status='pending'; design_time='null'
+    sprint_status='in_progress'; sprint_time="\"$ts\"" ;;
 esac
 
 # 如果是 intake 模式，备份 intake progress.json（保留 intake 审计数据）
@@ -237,7 +257,7 @@ printf '{
       "completedAt": null,
       "lastUpdated": %s
     },
-    "user-story-breakdown": {
+    "story-map": {
       "status": "%s",
       "startedAt": %s,
       "completedAt": null,
@@ -248,11 +268,17 @@ printf '{
       "startedAt": %s,
       "completedAt": null,
       "lastUpdated": %s
+    },
+    "sprint-planning": {
+      "status": "%s",
+      "startedAt": %s,
+      "completedAt": null,
+      "lastUpdated": %s
     }
   },
   "lastUpdated": "%s"
 }
-' "$project_id" "$esc_name" "$esc_short_name" "$project_type" "$esc_library_id" "$esc_library_path" "$esc_matched" "$esc_match" "$esc_source_product" "$esc_desc" "$initial_workflow_state" "$ts" "$req_status" "$req_time" "$req_time" "$story_status" "$story_time" "$story_time" "$design_status" "$design_time" "$design_time" "$ts" > "$target_dir/progress.json"
+' "$project_id" "$esc_name" "$esc_short_name" "$project_type" "$esc_library_id" "$esc_library_path" "$esc_matched" "$esc_match" "$esc_source_product" "$esc_desc" "$initial_workflow_state" "$ts" "$req_status" "$req_time" "$req_time" "$story_status" "$story_time" "$story_time" "$design_status" "$design_time" "$design_time" "$sprint_status" "$sprint_time" "$sprint_time" "$ts" > "$target_dir/progress.json"
 printf '{
   "projectId": "%s",
   "lastUpdated": "%s",

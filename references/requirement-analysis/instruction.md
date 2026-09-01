@@ -12,6 +12,12 @@
 
 本文件是 `requirement-analyst` 的唯一顶层入口。每轮严格从第 1 步开始，完成当前步骤后才进入下一步；只加载被当前步骤明确列出的详情文件。
 
+## 阶段引导（按 references/phase-navigator.md）
+
+- **阶段开始**：首次以 `mode=draft` 进入 `requirement-epic` 批次（或恢复已有项目且 `phase-summary.md` 中本阶段条目缺失、`navigationContext` 无本阶段进度）时，先按 phase-navigator 的「阶段开始时」格式输出——目标（需求卡片、Epic、Feature 与需求台账条目）、预计交互（intake -> requirement-epic 批次 -> features 批次）、完成标志（需求卡片、Epic、Feature、业务文档、需求台账均已持久化并经用户确认）。
+- **阶段结束**：`artifactScope=features` 的 `persisted`（`nextAction=phase-complete`）后，按「阶段结束时」格式输出完成确认与下一步建议（进入「用户故事+故事地图」，或等待用户指令）。输出后本阶段即可由主调度器推进 `workflow.state`，本 agent 不自行推进。
+- **phase_status 约定**：每次追加 `phase-summary.md` 恢复摘要时随写 `phase_status`——`requirement-epic` 批次落盘完成及 `features` 批次各成果确认后写 `confirmed`；`features` 全部落盘（本阶段完成）后写 `persisted`。
+
 ## 第 1 步：确认 handoff 与最高设计标准
 
 **目的**：确认本轮可安全开始，且所有判断以 `productArchitectureDesignPath` 为最高产品设计标准。
@@ -35,6 +41,8 @@
 | `mode=fix-category` | 能力分类修补 | `workflows/fix-category.md` | `fix-category-completed` 或 `blocked` |
 | `workflow.state=requirement-analysis` 且 `mode=draft`，并且 `task` 明确要求诊断报告或替代方案对比 | 诊断草稿 | `workflows/diagnostic.md` | `needs-input` 或 `draft-ready` |
 | `workflow.state=requirement-analysis` 且 `mode=persist`，并且 `task` 是已确认诊断报告或替代方案的过程项目写入 | 诊断过程项目写入 | `workflows/diagnostic.md` | `persisted` |
+| `workflow.state=requirement-analysis` 且 `mode=draft`，并且 `task` 明确要求需求台账变更条目（新增/修改/废弃需求） | 需求台账变更条目草稿 | `workflows/draft.md`（附加段） | `needs-input` 或携带 `artifactScope=requirement-ledger` 的 `draft-ready` |
+| `workflow.state=requirement-analysis` 且 `mode=persist`，并且 `artifactScope=requirement-ledger` | 需求台账追加落盘 | `workflows/persist.md` | `persisted` |
 | `workflow.state=requirement-analysis` 且 `mode=draft` | 当前需求资产批次草稿 | `workflows/draft.md` | `needs-input` 或携带当前 `artifactScope` 的 `draft-ready` |
 | `workflow.state=requirement-analysis` 且 `mode=persist` | 正式写入产品库 | `workflows/persist.md` | `persisted` |
 | `workflow.state=requirement-analysis` 且 `mode=validate` | 阶段校验 | `guides/checklist.md` | `validation-pass` 或 `validation-failed` |
@@ -54,11 +62,16 @@
 
 当第 2 步选中 `workflows/fix-category.md` 时，这是独立的能力分类修补模式，不依赖过程项目状态，只操作产品库目标目录。必须传入 `productLibraryPath`；不读取 `projectPath`、不修改 `workflow.state`、不涉及其他工作流。
 
+### 需求台账与业务文档路由
+
+- 需求台账：条目在 `features` 批次拆解 Feature 时生成（每个能力拆 2-N 条小功能，见 `workflows/draft.md` 第 8.5 步），随 `features` 批次确认后落盘，不单列批次；后续需求变更（新增/修改/废弃）走上表"需求台账变更条目草稿"与"需求台账追加落盘"两行路由。
+- 业务文档：随 `features` 批次处理（draft 追问 4 个业务字段时按扁平 4 字段更新 `business-doc-draft.md`——业务价值/业务场景表/业务流程/业务规则表，场景与规则行带「所属能力」列；persist 时展示确认后以现有文档为基线、并入新增后整体重写落盘），**不绑定独立串行阶段**。它是持续更新产物，本阶段任一 Feature 落盘都会同步维护。
+
 ## 第 4 步：处理工作流返回状态
 
 - `needs-input`：主调度器只转发一个问题；下一轮重新从第 1 步进入同一工作流。
 - `intake-initialized`：下一轮以 `workflow.state=requirement-analysis`、`mode=draft`、`artifactScope=requirement-epic` 重新进入本管线。
 - `draft-ready`：表示当前 `artifactScope` 已形成产品库文档预览。主调度器展示该批次预览并请求确认写入产品库；用户确认后，下一轮以相同 `artifactScope` 进入 persist 工作流。
-- `persisted`：`artifactScope=requirement-epic` 时返回 `nextAction=draft-features`（对外措辞"需求卡片和 Epic 已写入产品库，接下来继续拆解 Feature"），主调度器下一轮继续 Feature 草稿；`artifactScope=features` 时返回 `nextAction=phase-complete`，需求分析阶段即完成，可直接进入下一阶段或等待用户指令。本 agent 在 `features` persist 完成后不自行推进 `workflow.state`。
+- `persisted`：`artifactScope=requirement-epic` 时返回 `nextAction=draft-features`（对外措辞"需求卡片、Epic 已写入产品库，接下来继续拆解 Feature（拆解时产出需求台账条目）"），主调度器下一轮继续 Feature 草稿；`artifactScope=requirement-ledger` 表示需求台账追加落盘完成；`artifactScope=features` 时返回 `nextAction=phase-complete`，需求分析阶段即完成，可直接进入下一阶段或等待用户指令。本 agent 在 `features` persist 完成后不自行推进 `workflow.state`。
 - `fix-category-completed`：能力分类修补完成。主调度器展示操作摘要；不影响过程项目状态，不推进工作流。
 - `validation-pass`、`validation-failed`、`blocked` 按结果处理。

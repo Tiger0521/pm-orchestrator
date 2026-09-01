@@ -33,6 +33,8 @@
 #     "story_1_id": "story-001",
 #     "story_1_title": "创建模型配置",
 #     "story_1_role": "算法工程师",
+#     "story_1_journey": "建址",
+#     "story_1_req_entry": "网资-REQ-001",
 #     "story_1_priority": "P0",
 #     "story_1_sp": "3",
 #     "mappingCount": "2",
@@ -107,6 +109,16 @@ if [ -z "$mapping_count" ]; then mapping_count=0; fi
 feature_count=$((10#$feature_count))
 story_count=$((10#$story_count))
 mapping_count=$((10#$mapping_count))
+
+# ---- 解析 Story 的旅程阶段（story_N_journey）与需求台账条目 ID（story_N_req_entry） ----
+declare -A story_journey story_req
+i=1
+while [ "$i" -le "$story_count" ]; do
+  sid=$(json_val "story_${i}_id" "$matrix_json")
+  story_journey["$sid"]=$(json_val "story_${i}_journey" "$matrix_json")
+  story_req["$sid"]=$(json_val "story_${i}_req_entry" "$matrix_json")
+  i=$((i + 1))
+done
 
 # ---- 分配 ID ----
 matrix_id=$(allocate_next_id "$output_dir" "matrix")
@@ -228,8 +240,8 @@ FRONTMATTER
   echo ""
   echo "## Story 列表"
   echo ""
-  echo "| ID | Story 标题 | 角色 | 优先级 | Story Points |"
-  echo "|----|-----------|------|--------|-------------|"
+  echo "| ID | Story 标题 | 角色 | 旅程阶段 | 需求台账条目 | 优先级 | Story Points |"
+  echo "|----|-----------|------|---------|-------------|--------|-------------|"
 
   # Story 行
   i=1
@@ -239,15 +251,15 @@ FRONTMATTER
     srole=$(json_val "story_${i}_role" "$matrix_json")
     spri=$(json_val "story_${i}_priority" "$matrix_json")
     ssp=$(json_val "story_${i}_sp" "$matrix_json")
-    echo "| $(story_ref "$sid") | $stitle | $srole | $spri | $ssp |"
+    echo "| $(story_ref "$sid") | $stitle | $srole | ${story_journey[$sid]:-} | ${story_req[$sid]:-} | $spri | $ssp |"
     i=$((i + 1))
   done
 
   echo ""
   echo "## 映射关系"
   echo ""
-  echo "| Story ID | 实现 Feature ID | 覆盖度 |"
-  echo "|----------|----------------|--------|"
+  echo "| Story ID | 旅程阶段 | 需求台账条目 | 实现 Feature ID | 覆盖度 |"
+  echo "|----------|---------|-------------|----------------|--------|"
 
   # 映射行
   i=1
@@ -255,7 +267,7 @@ FRONTMATTER
     mstory=$(json_val "mapping_${i}_story" "$matrix_json")
     mfeature=$(json_val "mapping_${i}_feature" "$matrix_json")
     mcov=$(json_val "mapping_${i}_coverage" "$matrix_json")
-    echo "| $(story_ref "$mstory") | $(feature_ref "$mfeature") | $mcov |"
+    echo "| $(story_ref "$mstory") | ${story_journey[$mstory]:-} | ${story_req[$mstory]:-} | $(feature_ref "$mfeature") | $mcov |"
     i=$((i + 1))
   done
 

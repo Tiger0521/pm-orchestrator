@@ -2,7 +2,7 @@
 
 产品全流程设计主调度器。把模糊的产品想法，推进为已确认、可直接写入产品库、可追溯、可继续迭代的产品设计资产。
 
-**一句话**：你说一个想法，它帮你完成从需求分析到详细设计的全流程。
+**一句话**：你说一个想法，它帮你完成从需求分析到 Sprint 分解的全流程。
 
 ---
 
@@ -23,40 +23,39 @@
 
 **入口**：用户说"我想做个产品"、"帮我梳理需求"
 
-**过程**：主调度器 → 委派 `requirement-analyst` → 逐轮追问（背景、用户、功能） → 产出需求卡片 + Epic → 用户确认 → 写入产品库 → 继续拆解 Feature → 全部 Feature 写入产品库
+**过程**：主调度器 → 委派 `requirement-analyst` → 逐轮追问（背景、用户、功能） → 产出需求卡片 + Epic → 用户确认 → 写入产品库 → 继续拆解 Feature（每个能力拆 2-N 条**需求台账条目**）+ **业务文档** → 全部写入产品库
 
-**结束标志**：需求卡片、Epic 和所有 Feature 均已写入产品库。此时可进入"需求拆解"阶段。
+**结束标志**：需求卡片、Epic、所有 Feature、需求台账和业务文档均已写入产品库。此时可进入"用户故事+故事地图"阶段。
 
-### 流程二：需求拆解
+### 流程二：用户故事 + 故事地图
 
-**入口**：需求分析完成后，用户提出继续拆解
+**入口**：需求分析完成后，用户提出继续拆解用户故事
 
-**过程**：主调度器 → 委派 `story-breakdown-analyst` → 逐轮追问每个 Feature → 拆分为 User Story + GWT 验收标准 → 用户确认 → 写入产品库 `用户故事/` 目录 + 生成溯源矩阵
+**过程**：主调度器 → 委派 `story-map-designer` → **一次委派内完成**：旅程提取（从业务文档业务场景表按「所属能力」列分组推导旅程叙事线）→ 按 Feature 逐个确认 User Story（三段式 + GWT + 细颗粒度 + 关联需求台账条目）→ 从已确认 Story 的 `journey_stage` 逐个组装能力级地图 → 落盘：Story 写入产品库 `用户故事/`、溯源矩阵留在过程项目、地图写入产品库 `用户故事地图/`
 
-**结束标志**：所有 Story 和溯源矩阵已写入产品库。**落盘完成后自动进入"用户故事地图生成"**，不需要用户额外提出。
+**结束标志**：所有 Story、溯源矩阵、旅程叙事线和故事地图均已持久化并经用户确认。**此时可选择进入"详细设计"或"Sprint 分解"**，两者可并行或前后执行。
 
-### 流程三：用户故事地图生成
+### 流程三：详细设计（三步）
 
-**入口**：需求拆解完成后自动进入，或用户直接说"生成故事地图"
+**入口**：用户故事阶段完成后，用户提出继续详细设计
 
-**过程**：主调度器 → 委派 `story-map-designer` → 逐个能力迭代（自检→提问→生成→确认→落盘） → 所有能力地图完成 → 生成总览地图
-
-**结束标志**：所有能力地图和总览地图均已写入产品库的 `用户故事地图/` 目录。这是一个独立流程，不改变项目阶段状态。
-
-### 流程四：详细设计（四步）
-
-**入口**：需求拆解（或故事地图）完成后，用户提出继续详细设计
-
-**过程**：主调度器 → 委派 `detailed-design-designer` → 按 Step 1→2→3→4 顺序推进，每个 Step 完成后经用户确认才进入下一步：
+**过程**：主调度器 → 委派 `detailed-design-designer` → 按 Step 1→2→3 顺序推进，每个 Step 完成后经用户确认才进入下一步：
 
 | Step | 做什么 | 产出 |
 |------|--------|------|
 | **Step 1** 功能架构与动线规划 | grilling 决策域 → 业务流文档 → 页面映射表 → 两张 HTML 图 | 产品库 `详细设计/结构与流程图/` |
 | **Step 2** 原型设计与规范对齐 | 确定平台/UI风格 → 生成交互式 HTML 原型（含标注层） → 设计自检 | 产品库 `详细设计/原型/` |
 | **Step 3** 交互规则与边界补全 | 穷举异常分支 → 交互契约（状态机/权限/边界） → 规则摘要 | 产品库 `详细设计/` |
-| **Step 4** Sprint 分解 | 按弹性和依赖分解 Sprint → Sprint 规划 | 产品库 `详细设计/` |
 
-**结束标志**：四步全部完成，经用户确认后阶段状态变为 `completed`。
+**结束标志**：Step 1-3 全部完成并经用户确认。Sprint 分解属独立 `sprint-planning` 阶段，由主调度器另行委派。
+
+### 流程四：Sprint 分解（独立阶段）
+
+**入口**：用户故事阶段完成后，用户提出排 Sprint / 做迭代规划
+
+**过程**：主调度器 → 委派 `sprint-planner` → 读取 Story 优先级 / Story Points / 依赖 / 旅程连贯性 → grilling 决策域（团队产能、风险容忍度、首 Sprint 目标）→ 依赖排序 → 把 Story 分配到 Sprint（预留 15-20% 缓冲）→ 每 Sprint 一句话目标 → 用户确认 → 落盘产品库 `详细设计/迭代规划/`
+
+**结束标志**：迭代规划已持久化并经用户确认。全部阶段完成后项目可收尾。
 
 ### 流程五：原型修改（独立模式）
 
@@ -73,6 +72,10 @@
 **过程**：主调度器 → 以 `fix-category` 模式委派 `requirement-analyst` → 操作产品库能力文档
 
 **结束标志**：能力分类修补完成。不涉及过程项目，不改变阶段状态。
+
+### 无明确意图时：阶段导航
+
+用户进入 skill 但**没有明确阶段意图**时，主调度器读取 `references/phase-navigator.md`，展示全局阶段地图（需求分析 → 能力划分 → 用户故事+故事地图 → 详细设计 → Sprint 分解）、当前进度与可选操作，并推荐从当前阶段继续。每次委派前，主调度器把「当前阶段 + 进度」注入 handoff context；各阶段开始时输出阶段简介与预期产出，结束时输出完成确认与下一步建议。
 
 ---
 
@@ -111,6 +114,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 -Target claude   # 或 -T
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
+| V4.1.0 | 2026-08-27 | 阶段重构：`user-story-breakdown` 更名 `story-map` 并合并地图生成；Sprint 分解独立为 `sprint-planning` 阶段（新增 `sprint-planner`）；需求台账 + 业务文档 + Feature 12→5 字段；新增阶段导航器与 `phase_status` |
 | V4.0.2 | 2026-08-21 | 更新 README：补充完整调用关系流程图 |
 | V4.0.1 | 2026-08-21 | 修复产品库命名和 obsidian 引用格式 |
 | V4.0.0 | 2026-08-21 | 支持 zcode 使用，完成详细设计 step1+step2，可生成原型 |
@@ -122,7 +126,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 -Target claude   # 或 -T
 ```
 pm-orchestrator/                          ← git 仓库根 = skill 本体
 │
-├── SKILL.md                              ← 主调度入口 + 运行时识别门
+├── SKILL.md                              ← 主调度入口 + 运行时识别门 + 阶段导航
 ├── README.md
 ├── .gitignore
 ├── install.ps1                           ← 统一安装脚本（可选）
@@ -135,16 +139,18 @@ pm-orchestrator/                          ← git 仓库根 = skill 本体
 │
 ├── agents/                               ← Subagent 定义
 │   ├── requirement-analyst.md            ← Claude Code 版（平铺，插件自动命名空间）
-│   ├── story-breakdown-analyst.md
-│   ├── detailed-design-designer.md
-│   ├── story-map-designer.md
+│   ├── story-map-designer.md             ← 旅程 + User Story + 故事地图（一次完成）
+│   ├── detailed-design-designer.md       ← Step 1-3 详细设计（Sprint 分解不在此）
+│   ├── sprint-planner.md                 ← Sprint 分解（独立阶段）
 │   └── zcode/                            ← ZCode 版（分发副本）
 │       ├── requirement-analyst.md
-│       ├── story-breakdown-analyst.md
+│       ├── story-map-designer.md
 │       ├── detailed-design-designer.md
-│       └── story-map-designer.md
+│       └── sprint-planner.md
 │
 ├── references/                           ← 方法论、模板、质量门（双平台共用）
+│   │
+│   ├── phase-navigator.md                ← 全局阶段地图 + 状态检测 + 导航输出格式
 │   │
 │   ├── orchestrator/                     ← 主调度器操作协议
 │   │   ├── operations.md                 ← 委派、返回、记忆、安全协议
@@ -172,47 +178,57 @@ pm-orchestrator/                          ← git 仓库根 = skill 本体
 │   │   │   └── question-bank.md          ← 问题库
 │   │   ├── workflows/                    ← 工作流
 │   │   │   ├── intake.md                 ← 新需求受理
-│   │   │   ├── draft.md                  ← 需求分析草稿
-│   │   │   ├── persist.md                ← 写入产品库
+│   │   │   ├── draft.md                  ← 需求分析草稿（含需求台账/业务文档草稿）
+│   │   │   ├── persist.md                ← 写入产品库（含台账/业务文档落盘）
 │   │   │   ├── diagnostic.md             ← 诊断
 │   │   │   └── fix-category.md           ← 修补能力分类
 │   │   ├── templates/                    ← 模板
 │   │   │   ├── requirement-card.md
 │   │   │   ├── epic.md
-│   │   │   ├── feature.md
+│   │   │   ├── feature.md                ← 5 字段（业务 4 字段迁至业务文档）
+│   │   │   ├── requirement-ledger.md     ← 需求台账
+│   │   │   ├── business-doc.md           ← 业务文档（扁平 4 字段）
 │   │   │   ├── diagnostic-report.md
 │   │   │   └── alternative-options.md
 │   │   └── writing-paradigm/             ← 写作范式
 │   │       ├── general-rules.md
 │   │       ├── requirement-card.md
 │   │       ├── epic.md
-│   │       └── feature.md
+│   │       ├── feature.md
+│   │       ├── requirement-ledger.md
+│   │       └── business-doc.md
 │   │
-│   ├── user-story-breakdown/             ← 需求拆解阶段
-│   │   ├── instruction.md
-│   │   ├── workflow.md
-│   │   ├── grilling-protocol.md          ← 追问协议
+│   ├── story-map/                        ← 用户故事 + 故事地图阶段（合并）
+│   │   ├── instruction.md                ← 整体指令（阶段内一次完成）
+│   │   ├── workflow.md                   ← 合并工作流（旅程→Story→地图→落盘）
+│   │   ├── grilling-protocol.md          ← 追问协议（含颗粒度/需求覆盖度）
 │   │   ├── confirmation-method.md        ← 确认方法
-│   │   ├── core-mechanisms.md            ← 核心机制
+│   │   ├── core-mechanisms.md            ← 核心机制（INVEST/GWT/细颗粒度）
 │   │   ├── checklist.md                  ← 质量门
-│   │   ├── output-contract.md            ← 产出契约
+│   │   ├── output-contract.md            ← 产出契约（含 journey_stage/需求台账关联）
 │   │   ├── persist-guide.md              ← 落盘指南
+│   │   ├── guides/
+│   │   │   ├── journey-extraction.md     ← 旅程提取
+│   │   │   ├── story-placement.md
+│   │   │   └── walking-skeleton.md
 │   │   ├── templates/
 │   │   │   ├── user-story.md
-│   │   │   └── traceability-matrix.md
+│   │   │   ├── traceability-matrix.md
+│   │   │   └── capability-map.md
 │   │   ├── writing-paradigm/
-│   │   │   └── user-story-writing.md
+│   │   │   ├── user-story-writing.md
+│   │   │   └── map-writing.md
 │   │   └── examples/
 │   │       └── model-config-stories.md
 │   │
-│   ├── detailed-design/                  ← 详细设计阶段
-│   │   ├── instruction.md                ← 整体调度 + 4 步路由
+│   ├── detailed-design/                  ← 详细设计阶段（Step 1-3）
+│   │   ├── instruction.md                ← 整体调度 + 3 步路由
 │   │   ├── shared/                       ← 跨 Step 共享机制
 │   │   │   ├── upstream-quality-gate.md  ← 上游质量门
-│   │   │   ├── grilling-protocol.md      ← 问答协议
+│   │   │   ├── grilling-protocol.md      ← 问答协议（3.4/4.4 Sprint 决策域由 sprint-planning 复用）
 │   │   │   ├── confirmation-method.md    ← 确认流程
 │   │   │   ├── design-review.md          ← 设计审查五维度
-│   │   │   ├── persist-guide.md          ← 落盘轨道
+│   │   │   ├── persist-guide.md          ← 落盘轨道（sprint JSON 由 sprint-planning 复用）
 │   │   │   ├── output-contract.md        ← 产出字段契约
 │   │   │   ├── design-writing.md         ← 设计写作规范
 │   │   │   ├── checklist.md              ← 质量门清单
@@ -222,7 +238,7 @@ pm-orchestrator/                          ← git 仓库根 = skill 本体
 │   │   │   │   ├── prototype.md
 │   │   │   │   ├── interaction-contract.md
 │   │   │   │   ├── rules-summary.md
-│   │   │   │   └── sprint.md
+│   │   │   │   └── sprint.md             ← sprint-planning 落盘迭代规划时复用
 │   │   │   └── examples/
 │   │   │       └── model-config-design.md
 │   │   │
@@ -253,28 +269,12 @@ pm-orchestrator/                          ← git 仓库根 = skill 本体
 │   │   │           ├── prototype-guide.md
 │   │   │           └── prd-template.md
 │   │   │
-│   │   ├── step3-交互规则与边界补全/
-│   │   │   └── workflow.md
-│   │   │
-│   │   └── step4-Sprint分解/
+│   │   └── step3-交互规则与边界补全/
 │   │       └── workflow.md
 │   │
-│   ├── story-map/                        ← 用户故事地图阶段
-│   │   ├── instruction.md
-│   │   ├── workflow.md
-│   │   ├── core-mechanisms.md
-│   │   ├── checklist.md
-│   │   ├── output-contract.md
-│   │   ├── persist-guide.md
-│   │   ├── guides/
-│   │   │   ├── journey-extraction.md
-│   │   │   ├── story-placement.md
-│   │   │   └── walking-skeleton.md
-│   │   ├── templates/
-│   │   │   ├── capability-map.md
-│   │   │   └── overview-map.md
-│   │   └── writing-paradigm/
-│   │       └── map-writing.md
+│   ├── sprint-planning/                  ← Sprint 分解阶段（独立）
+│   │   ├── instruction.md                ← 整体指令
+│   │   └── workflow.md                   ← 执行流程（含规模自适应）
 │   │
 │   └── vendor/                           ← 第三方工具
 │       └── archify/                      ← 架构图渲染工具
@@ -327,10 +327,10 @@ pm-orchestrator/                          ← git 仓库根 = skill 本体
 │       └── convert-document.py           ← Word/PPT/Excel → Markdown
 │
 └── project-template/                     ← 过程项目骨架
-    ├── progress.json                     ← 项目名片 + workflow.state
+    ├── progress.json                     ← 项目名片 + workflow.state（含 phases 四阶段状态）
     ├── refs.json                         ← 文档节点 + 引用关系
     ├── facts.json                        ← 已确认结构化事实
-    ├── phase-summary.md                  ← 跨会话恢复摘要
+    ├── phase-summary.md                  ← 跨会话恢复摘要（各阶段条目含 phase_status）
     ├── decision-log.md                   ← 决策记录
     └── tracking-log.md                   ← 假设、风险、未决问题
 ```
@@ -351,8 +351,13 @@ flowchart TD
     RuntimeDetect -->|具备 Agent 工具 + ZCode 解析能力| ZCode[固化 RUNTIME=zcode<br/>运行 subagent 自检自举]
     RuntimeDetect -->|插件命名空间解析能力| Claude[固化 RUNTIME=claude<br/>插件自动注册 pm-orchestrator: 前缀]
 
-    ZCode --> Library
-    Claude --> Library
+    ZCode --> Nav{无明确阶段意图？}
+    Claude --> Nav
+
+    Nav -- 是 --> Navigate[读取 phase-navigator.md<br/>展示全局阶段地图/进度/可选操作]
+    Navigate --> Library
+
+    Nav -- 否 --> Library
 
     Library[定位候选 product-library<br/>从当前目录向上最多 3 层] --> LibraryOK{用户确认且校验通过？}
 
@@ -365,16 +370,17 @@ flowchart TD
     Restore --> State{workflow.state}
 
     State -- requirement-analysis --> RA[委派 requirement-analyst]
-    State -- user-story-breakdown --> SB[委派 story-breakdown-analyst]
+    State -- story-map --> SM[委派 story-map-designer]
     State -- detailed-design --> DD[委派 detailed-design-designer]
+    State -- sprint-planning --> SP[委派 sprint-planner]
     State -- completed --> Report([汇报项目已完成])
 
     Project -- 否 --> Intent{本轮意图分类}
 
     Intent -- 需求分析 --> Intake[创建新 intake 项目<br/>mode=intake 委派 requirement-analyst]
-    Intent -- 需求拆解 --> NewSB[选择产品库已有产品<br/>init-project.sh 创建 iteration 项目<br/>mode=draft → story-breakdown-analyst]
+    Intent -- 用户故事/故事地图 --> NewSM[选择产品库已有产品<br/>init-project.sh 创建 iteration 项目<br/>mode=draft → story-map-designer]
     Intent -- 详细设计 --> NewDD[选择产品库已有产品<br/>init-project.sh 创建 iteration 项目<br/>mode=draft → detailed-design-designer]
-    Intent -- 故事地图 --> SM[独立模式<br/>mode=generate → story-map-designer]
+    Intent -- Sprint 分解 --> NewSP[选择产品库已有产品<br/>init-project.sh 创建 iteration 项目<br/>mode=draft → sprint-planner]
     Intent -- 修补能力分类 --> FC[独立模式<br/>mode=fix-category → requirement-analyst]
     Intent -- 原型修改 --> PM[独立模式<br/>传递参考路径 → detailed-design-designer]
 ```
@@ -394,20 +400,19 @@ flowchart LR
     Status -- draft-ready --> Preview[完整展示草稿正文<br/>请求用户确认写入产品库]
     Preview --> WaitInput([等待确认])
 
-    Status -- persisted --> Artifact{artifactScope}
+    Status -- persisted --> Artifact{artifactScope / target}
 
     Artifact -- requirement-epic --> ContinueFeature[继续 Feature 批次<br/>mode=draft → requirement-analyst]
     Artifact -- features --> PhaseComplete[需求分析阶段完成<br/>等待阶段迁移或用户指令]
-    Artifact -- stories --> AutoStoryMap[自动进入故事地图生成<br/>mode=generate → story-map-designer]
-    Artifact -- 其他 --> Continue[检查索引与阶段记忆<br/>下一轮继续]
+    Artifact -- stories --> NextStoryGroup[按 Feature 继续下一组 Story<br/>或全部完成进入矩阵/地图落盘]
+    Artifact -- matrix --> FinishStoryMap[溯源矩阵落盘<br/>可进入详细设计或 Sprint 分解]
+    Artifact -- capability-{能力} --> NextCapability[下一能力地图]
+    Artifact -- overview --> MapDone([故事地图全部完成])
+    Artifact -- sprint --> SprintDone[交付 Sprint 分解方案<br/>等待用户确认]
 
     Status -- validation-pass --> ShowResult[展示校验结果<br/>请求用户确认阶段迁移]
     Status -- validation-failed --> ShowFail[展示缺失项<br/>停留当前阶段]
     Status -- blocked --> Blocked([展示阻断原因<br/>停止推进])
-
-    Status -- map-draft-ready --> ShowMap[展示地图草稿<br/>请求确认]
-    Status -- map-persisted --> NextCapability[自动重新委派<br/>处理下一个能力或总览]
-    Status -- map-complete --> MapDone([故事地图全部完成])
 
     Status -- fix-category-completed --> FixDone([展示修补摘要])
 ```
@@ -423,45 +428,34 @@ flowchart TD
     DraftEpisode --> DraftQ[逐轮追问<br/>核心用户 · 目标 · 功能边界]
     DraftQ --> DraftReady{返回 draft-ready}
     DraftReady --> Confirm1[展示需求卡片 + Epic 预览<br/>请求用户确认]
-    Confirm1 --> Persist1[调用 render-doc.sh<br/>写入产品库]
+    Confirm1 --> Persist1[调用 render-doc.sh<br/>写入产品库<br/>需求卡片 + Epic 落盘]
 
     Persist1 --> FeatureEpisode[委派 mode=draft<br/>artifactScope=features]
-    FeatureEpisode --> FeatureQ[逐轮拆解每个 Feature<br/>能力分类 · 字段确认]
+    FeatureEpisode --> FeatureQ[逐轮拆解每个 Feature<br/>能力分类 · 5 字段确认<br/>拆解需求台账条目（小功能）<br/>业务 4 字段收集进业务文档草稿<br/>（场景/规则行带所属能力列）]
     FeatureQ --> FeatureReady{返回 draft-ready}
     FeatureReady --> Confirm2[展示 Feature 预览<br/>请求用户确认]
-    Confirm2 --> Persist2[调用 render-doc.sh<br/>写入产品库]
+    Confirm2 --> Persist2[调用 render-doc.sh<br/>写入产品库<br/>业务文档重构式落盘<br/>需求台账条目落盘]
 
-    Persist2 --> PhaseDone[需求分析阶段完成<br/><br/>可迁移到 user-story-breakdown<br/>或等待其他指令]
+    Persist2 --> PhaseDone[需求分析阶段完成<br/><br/>可迁移到 story-map<br/>或等待其他指令]
 ```
 
-### 4. 需求拆解 → 自动进入故事地图
+### 4. 用户故事 + 故事地图（一次委派完成）
 
 ```mermaid
 flowchart TD
-    StartSB([委派 mode=draft]) --> Q[逐轮追问每个 Feature<br/>→ 拆分为 User Story<br/>→ 编写 GWT 验收标准]
-    Q --> DraftReady{返回 draft-ready}
-    DraftReady --> ShowStory[展示 Story 草稿<br/>请求用户确认]
-    ShowStory --> PersistStory[批量渲染用户故事<br/>写入产品库 用户故事/ 目录<br/>生成溯源矩阵]
+    StartSM([委派 mode=draft]) --> J1[旅程提取<br/>业务文档业务场景表（按所属能力列分组）<br/>→ 旅程节点 / 叙事线]
 
-    PersistStory --> AutoSM[**自动进入用户故事地图生成**<br/>mode=generate → story-map-designer<br/><br/>不询问用户去向<br/>如用户明确要求详细设计<br/>才执行阶段迁移]
+    J1 --> J2[按 Feature 分组拆解 User Story<br/>逐组展示：三段式 + GWT + 颗粒度 + 需求台账关联]
+    J2 --> J3{每组 Story 用户确认}
+    J3 -- 否 --> J2
+    J3 -- 是 --> J4[全部 Feature 拆解完成]
 
-    subgraph SM[用户故事地图生成]
-        SM1[读取能力文档] --> SM2[自我分析 → 返回 needs-input]
-        SM2 --> SM3[展示自检结论 + 提问]
-        SM3 --> SM4[用户确认方向]
-        SM4 --> SM5[生成能力地图草案]
-        SM5 --> SM6[展示预览 → 用户确认]
-        SM6 --> SM7[写入产品库 用户故事地图/]
-        SM7 --> SM8{还有下一能力？}
-        SM8 -- 是 --> SM1
-        SM8 -- 否 --> SM9[生成总览地图]
-    end
+    J4 --> PersistStory[批量渲染用户故事<br/>写入产品库 用户故事/ 目录<br/>溯源矩阵 → 过程项目<br/>journey_stage 组装地图 → 产品库 用户故事地图/]
 
-    AutoSM --> SM1
-    SM9 --> MapDone([故事地图全部完成])
+    PersistStory --> Done([story-map 阶段 persisted<br/>可进入详细设计 或 Sprint 分解])
 ```
 
-### 5. 详细设计四步路由
+### 5. 详细设计三步路由
 
 ```mermaid
 flowchart TD
@@ -471,8 +465,7 @@ flowchart TD
     StepRoute -->|Step 1 未完成| Step1
     StepRoute -->|Step 1 完成 · 无原型| Step2
     StepRoute -->|Step 2 完成 · 无交互契约| Step3
-    StepRoute -->|Step 3 完成 · 无 Sprint| Step4
-    StepRoute -->|全部完成| AllDone([全部完成])
+    StepRoute -->|Step 1-3 全部完成| AllDone([Step 1-3 完成后汇报<br/>Sprint 分解由 sprint-planner 承接])
 
     subgraph Step1[Step 1: 功能架构与动线规划]
         S1_1[读取上游 User Story] --> S1_2[grilling 敲定决策域<br/>信息结构 · 导航]
@@ -497,12 +490,6 @@ flowchart TD
         S3_4 --> S3_5[用户确认 → 写入产品库<br/>render-doc.sh 渲染]
     end
 
-    subgraph Step4[Step 4: Sprint 分解]
-        S4_1[读取 Step 1-3 全部产出] --> S4_2[按弹性和依赖分解 Sprint]
-        S4_2 --> S4_3[产出 Sprint 规划]
-        S4_3 --> S4_4[用户确认 → 写入产品库<br/>render-doc.sh 渲染]
-    end
-
     Step1 --> UserConfirm1{用户确认}
     UserConfirm1 -- 是 --> StepRoute
     UserConfirm1 -- 否 --> Step1
@@ -514,13 +501,23 @@ flowchart TD
     Step3 --> UserConfirm3{用户确认}
     UserConfirm3 -- 是 --> StepRoute
     UserConfirm3 -- 否 --> Step3
-
-    Step4 --> UserConfirm4{用户确认}
-    UserConfirm4 -- 是 --> StepRoute
-    UserConfirm4 -- 否 --> Step4
 ```
 
-### 6. 原型修改路由（独立模式）
+### 6. Sprint 分解路由（独立阶段）
+
+```mermaid
+flowchart TD
+    StartSP([委派 mode=draft]) --> Read1[读取 Story 优先级/Story Points/journey_stage<br/>读取旅程叙事线 + 需求台账对齐]
+    Read1 --> Grilling[grilling 决策域<br/>团队产能 · 风险容忍度 · 首 Sprint 目标]
+    Grilling --> Sort[依赖排序<br/>高风险 Story 标注]
+    Sort --> Assign[Story 分配到 Sprint<br/>预留 15-20% 缓冲 · 每 Sprint 一句话目标]
+    Assign --> DraftReady{返回 draft-ready}
+    DraftReady --> ShowSP[展示 Sprint 分解方案<br/>请求用户确认]
+    ShowSP --> PersistSP[写入 sprint JSON<br/>render-doc.sh → 详细设计/迭代规划/]
+    PersistSP --> Done([sprint-planning 阶段 persisted])
+```
+
+### 7. 原型修改路由（独立模式）
 
 ```mermaid
 flowchart LR
@@ -546,7 +543,7 @@ flowchart LR
     UserConfirm -- 否 --> Revise[调整后重新预览]
 ```
 
-### 7. 运行时识别与委派对比
+### 8. 运行时识别与委派对比
 
 ```mermaid
 flowchart TD
@@ -579,25 +576,30 @@ product-library/
 ├── 架构设计.md                      ← 根标识文档（唯一匹配 ^.+架构设计\\.md$）
 ├── 产品A全名/                       ← 按产品全名命名的目录
 │   ├── 简称-需求卡片.md              ← 需求卡片（继承式 ID）
+│   ├── 简称-需求台账.md              ← 需求台账（六列表格，条目按小功能登记）
+│   ├── 简称-业务文档.md              ← 业务文档（扁平 4 字段，场景/规则行带所属能力列）
 │   ├── 简称-Epic1.md                 ← Epic 文档
 │   ├── 简称-能力文档-能力名.md        ← 能力文档
-│   ├── 简称-F001-功能名.md            ← Feature 文档
+│   ├── 简称-F001-功能名.md            ← Feature 文档（5 字段）
 │   ├── 用户故事/
-│   │   ├── 名称故事.md               ← User Story
+│   │   ├── 名称故事.md               ← User Story（含旅程阶段/需求台账关联）
+│   │   └── ...
+│   ├── 用户故事地图/
+│   │   ├── 能力名-能力地图.md
 │   │   └── ...
 │   ├── 详细设计/
 │   │   ├── 结构与流程图/
 │   │   ├── 原型/
-│   │   └── ...
-│   └── 用户故事地图/
-│       ├── 能力名-能力地图.md
-│       └── 总览-总览地图.md
+│   │   ├── 交互契约/
+│   │   ├── 规则摘要/
+│   │   └── 迭代规划/                 ← Sprint 分解产物
+│   └── ...
 └── 产品B全名/
     └── ...
 ```
 
 - 产品目录使用全名，文件使用 2–6 个汉字的唯一简称前缀
-- 正文使用 Wiki 链接 `[[文件名]]` 引用其他文档（兼容 Obsidian）
+- 正文使用 Wiki 链接 `[[文件名]]` 引用其他文档（兼容 Obsidian）；引用台账条目用 `[[<简称>-需求台账|<条目ID>]]` 文件链接（条目是台账表格中的一行，不使用块锚点）
 - 所有文档带 frontmatter（`id`、`product`、`type`、`capability`、`aliases`、`tags`）
 - 架构设计文档是根标识和最高产品设计标准
 
@@ -615,14 +617,14 @@ product-library/
 
 | 文件 | 作用 |
 |------|------|
-| `progress.json` | 项目名片、`workflow.state`、项目类型、产品库选择、阶段状态和时间戳 |
+| `progress.json` | 项目名片、`workflow.state`、项目类型、产品库选择、四阶段状态（requirement-analysis / story-map / detailed-design / sprint-planning）和时间戳 |
 | `refs.json` | 文档节点和引用关系图谱，含产品库 ID（`libraryId`）和内容哈希（`contentHash`） |
 | `facts.json` | 已确认结构化事实 |
 | `decision-log.md` | 决策、理由和被否定方案 |
 | `tracking-log.md` | 假设、风险、未决问题 |
-| `phase-summary.md` | 跨会话恢复摘要 |
+| `phase-summary.md` | 跨会话恢复摘要；每个阶段条目含 `phase_status`（draft/confirmed/persisted），供阶段导航器读取 |
 
-正式文档目录：`docs/` 下存放草稿态数据（字段 JSON）和追溯矩阵。
+正式文档目录：`docs/` 下存放草稿态数据（字段 JSON、Story/矩阵 JSON、设计 JSON）和追溯矩阵。
 
 ---
 
@@ -646,15 +648,15 @@ product-library/
 |------|------|
 | **项目初始化** | |
 | `scripts/prepare-intake.sh` | 创建 intake 目录和最小 `progress.json` |
-| `scripts/init-project.sh` | 合并项目模板，初始化项目 |
+| `scripts/init-project.sh` | 合并项目模板，初始化项目（初始阶段支持 requirement-analysis / story-map / detailed-design / sprint-planning） |
 | **写入产品库** | |
-| `scripts/render-doc.sh` | 从字段 JSON 渲染需求卡片/设计文档/能力文档并直接写入产品库 |
+| `scripts/render-doc.sh` | 从字段 JSON 渲染需求卡片/设计文档/能力文档/迭代规划并直接写入产品库 |
 | `scripts/render-story.sh` | 从 Story JSON 批量渲染用户故事并写入 `用户故事/` |
 | `scripts/render-matrix.sh` | 从矩阵 JSON 渲染溯源矩阵 |
 | **阶段迁移** | |
-| `scripts/transition-project-state.sh` | 原子更新 `workflow.state`，只允许合法相邻迁移 |
+| `scripts/transition-project-state.sh` | 原子更新 `workflow.state`，只允许合法相邻迁移（6 前行 + 4 回退边） |
 | **校验** | |
-| `scripts/validate-phase.sh` | 校验阶段产物和 frontmatter |
+| `scripts/validate-phase.sh` | 校验阶段产物和 frontmatter（兼容旧 `user-story-breakdown` 别名） |
 | `scripts/validate-product-library.sh` | 全量校验产品库 |
 | `scripts/validate-product-library-lite.sh` | 快速校验产品库 |
 | `scripts/validate-paradigm.sh` | 校验需求分析写作范式 |
@@ -675,7 +677,8 @@ product-library/
 - 委派时传路径和状态，不复制大段产品库正文。
 - 产品匹配渐进披露，不一次性读取全量产品库。
 - 所有正式文档带产品库 frontmatter，通过 `refs.json` 建立追溯关系。
-- `workflow.state` 是当前阶段的权威状态字段。
-- 详细设计 4 个 Step 之间有严格因果关系（Step 1→2→3→4），不允许跳过。
+- `workflow.state` 是当前阶段的权威状态字段（`requirement-analysis → story-map → detailed-design / sprint-planning → completed`）。
+- story-map 阶段内一次完成旅程提取 → Story 拆解 → 故事地图，不拆两次委派。
+- 详细设计 3 个 Step 之间有严格因果关系（Step 1→2→3），不允许跳过；Sprint 分解属独立 `sprint-planning` 阶段。
 - 原型修改必须先升版本号、加注释、高亮标记、更新版本栏；旧版另存为快照。
 - `iteration`/`refactor` 项目不得修改已有产品库产物，只能引用、扩展或重新设计。

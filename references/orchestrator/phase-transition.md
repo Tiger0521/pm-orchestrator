@@ -4,7 +4,7 @@
 
 ## 推进阶段
 
-1. 读取当前阶段的校验清单：`requirement-analysis` 为 `references/requirement-analysis/guides/checklist.md`，`user-story-breakdown` 为 `references/user-story-breakdown/checklist.md`，`detailed-design` 为 `references/detailed-design/shared/checklist.md`。
+1. 读取当前阶段的校验清单：`requirement-analysis` 为 `references/requirement-analysis/guides/checklist.md`，`story-map` 为 `references/story-map/checklist.md`，`detailed-design` 为 `references/detailed-design/shared/checklist.md`（第 1-6、8、9 节），`sprint-planning` 为 `references/detailed-design/shared/checklist.md`（第 7 节）与 `references/sprint-planning/workflow.md` 第 7 节质量门。
 2. 以 `mode=validate` 委派当前阶段 subagent 做内容校验，不创建新产出。
 3. 运行 `scripts/validate-phase.sh --project-root <root> --project-path <project> --phase <phase>` 做文件和 frontmatter 机械校验。
 4. 任一校验失败时列出缺失项，停留当前阶段。
@@ -25,17 +25,21 @@ bash <skillPath>/scripts/transition-project-state.sh \
 
 | 当前状态 | 下一状态 |
 | --- | --- |
-| `requirement-analysis` | `user-story-breakdown` |
-| `user-story-breakdown` | `detailed-design` |
+| `requirement-analysis` | `story-map` |
+| `story-map` | `detailed-design` |
+| `story-map` | `sprint-planning`（前置依赖同为用户故事阶段产物，可并行或先行） |
+| `detailed-design` | `sprint-planning` |
 | `detailed-design` | `completed` |
+| `sprint-planning` | `completed` |
 
-不要跨越中间阶段。迁移到 `completed` 成功后，把顶层 `status` 更新为 `completed`，把详细设计阶段标记为已完成并写入完成时间，再复核顶层 `workflow.state=completed`。
+不要跨越中间阶段。迁移到 `completed` 成功后，把顶层 `status` 更新为 `completed`，把当前阶段标记为已完成并写入完成时间，再复核顶层 `workflow.state=completed`。
 
 ## 关键校验
 
-- 需求分析到需求拆解：需求卡片、Epic、Feature 字段完整，标题自然，用户已确认。需求分析文档已直接写入产品库，无需独立的导出步骤。
-- 需求拆解到详细设计：每个 Story 使用三段式，包含 3-8 条 GWT，覆盖正常和异常路径，用户已确认。
-- 详细设计到完成：核心原型、交互契约、规则摘要和 迭代规划完整，用户已确认。
+- 需求分析到用户故事阶段（story-map）：需求卡片、Epic、Feature 字段完整，标题自然，用户已确认；需求台账与业务文档已存在并确认。需求分析文档已直接写入产品库，无需独立的导出步骤。
+- 用户故事阶段到详细设计：每个 Story 使用三段式，包含 3-8 条 GWT，覆盖正常和异常路径，用户已确认；Story 含 `journey_stage` 与 `requirementEntryId`，溯源矩阵与旅程叙事线已落盘。
+- 用户故事阶段到 Sprint 分解：Story 的优先级/Story Points/`journey_stage`/`requirementEntryId` 完整，需求台账优先级已定，旅程叙事线已写入 `phase-summary.md`，溯源矩阵已存在。
+- 详细设计到完成：核心原型、交互契约、规则摘要完整，用户已确认。
 - `iteration`：确认已有 Epic 未被修改。
 - `refactor`：确认已有 Epic、Feature、User Story 未被修改。
 
@@ -43,8 +47,10 @@ bash <skillPath>/scripts/transition-project-state.sh \
 
 回退前展示影响并等待用户确认。只允许：
 
-- `user-story-breakdown -> requirement-analysis`
-- `detailed-design -> user-story-breakdown`
+- `story-map -> requirement-analysis`
+- `detailed-design -> story-map`
+- `sprint-planning -> detailed-design`
+- `sprint-planning -> story-map`
 
 确认后调用同一状态迁移脚本，重新读取状态并更新 `phase-summary.md`。不得自动从 `completed` 回退，不得删除后续阶段产物；把它们标记为需要重新校验。
 

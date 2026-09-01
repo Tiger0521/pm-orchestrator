@@ -1,6 +1,6 @@
 # 落盘指南
 
-本文件是详细设计阶段落盘执行的唯一权威来源。定义两条落盘轨道：**Step 1 采用"草稿即正式"直写机制**（阶段文件直接写入产品库，用户看改，确认即定稿）；**Step 2-4 采用 JSON + 脚本渲染机制**（草稿在对话中确认，确认后写 JSON 并调用 `render-doc.sh` 渲染）。
+本文件是详细设计阶段落盘执行的唯一权威来源。定义两条落盘轨道：**Step 1 采用"草稿即正式"直写机制**（阶段文件直接写入产品库，用户看改，确认即定稿）；**Step 2-3 采用 JSON + 脚本渲染机制**（草稿在对话中确认，确认后写 JSON 并调用 `render-doc.sh` 渲染），迭代规划（`sprint-*.json`）由 sprint-planning 阶段复用同一条轨道。
 
 **加载规则**：`mode=draft` 落盘前加载本文件；`mode=persist` 修正已落盘文档时加载本文件；`mode=validate` 禁止预读。
 
@@ -13,9 +13,9 @@
 | 轨道 | 适用 Step | 机制 | Markdown 写入方式 |
 | ---- | ---- | ---- | ---- |
 | 草稿即正式 | Step 1（业务流 / 页面映射 / 两张 HTML 图） | 阶段文件直接写入产品库含 frontmatter 与 ID，用户直接看改文件，逐阶段确认，三阶段齐后统一定稿注册 | agent 用 Write 工具整文件写入（唯一允许直写的产物） |
-| JSON + 渲染 | Step 2（原型）/ Step 3（交互契约 + 规则摘要）/ Step 4（迭代规划） | 草稿在对话中展示确认，确认后将数据写入 JSON，调用 `render-doc.sh` 渲染 | **严禁**用 Write 工具逐行写 Markdown，必须走脚本 |
+| JSON + 渲染 | Step 2（原型）/ Step 3（交互契约 + 规则摘要）；迭代规划（Sprint JSON）由 sprint-planning 阶段复用本轨道 | 草稿在对话中展示确认，确认后将数据写入 JSON，调用 `render-doc.sh` 渲染 | **严禁**用 Write 工具逐行写 Markdown，必须走脚本 |
 
-**为什么 Step 1 不同**：Step 1 的三份产物需要用户反复看改（用户可直接编辑文件），草稿与正式必须是同一份文件，不存在"对话草稿 -> 脚本渲染"的二次转换。Step 2-4 的产物以对话草稿确认后一次成型，维持脚本渲染的 ID 分配与格式校验保障。
+**为什么 Step 1 不同**：Step 1 的三份产物需要用户反复看改（用户可直接编辑文件），草稿与正式必须是同一份文件，不存在"对话草稿 -> 脚本渲染"的二次转换。Step 2-3 与 sprint-planning 复用的迭代规划以对话草稿确认后一次成型，维持脚本渲染的 ID 分配与格式校验保障。
 
 ---
 
@@ -59,7 +59,7 @@ handoff 含 `sourceProduct` 时，Step 1 三份产物与其他项目一致，直
 
 ---
 
-## 3. Step 2-4：JSON + 脚本渲染
+## 3. Step 2-3 与迭代规划：JSON + 脚本渲染
 
 ### 3.1 脚本化落盘原则
 
@@ -79,7 +79,7 @@ JSON 文件写入 `docs/_extracted/.design/` 目录，每类文档对应一个�
 | `proto-<nnn>.json` | 原型数据 | Step 2 |
 | `contract-<nnn>.json` | 交互契约数据 | Step 3 |
 | `rules-<nnn>.json` | 规则摘要数据 | Step 3 |
-| `sprint-<nnn>.json` | 迭代规划数据 | Step 4 |
+| `sprint-<nnn>.json` | 迭代规划数据 | sprint-planning 阶段（复用本表） |
 
 JSON 字段结构与草稿数据块一致（字段定义见 `output-contract.md` 第 4 节），字段值为已格式化的 Markdown 片段（表格/代码块/列表字符串），字段名与 `render-doc.sh` 渲染函数提取的 key 一一对应。
 
@@ -165,9 +165,9 @@ JSON 字段结构与草稿数据块一致（字段定义见 `output-contract.md`
 | ---- | ---- | ---- | ---- |
 | Step 2 原型 | 原型 | `proto-*.json` | `详细设计/原型/` |
 | Step 3 交互契约+规则 | 交互契约 + 规则摘要 | `contract-*.json`、`rules-*.json` | `详细设计/交互契约/`、`详细设计/规则摘要/` |
-| Step 4 Sprint | 迭代规划 | `sprint-*.json` | `详细设计/迭代规划/` |
+| Sprint（sprint-planning 阶段复用） | 迭代规划 | `sprint-*.json` | `详细设计/迭代规划/` |
 
-**修订场景**：用户要求修正已落盘的 Step 2-4 文档时，直接重新调用 `render-doc.sh` 即可--脚本通过中文文件名定位目标文件，从该文件 frontmatter `id` 字段读取已有 ID 并沿用，覆盖更新。无需在 JSON 中传 `existing_id` 字段。
+**修订场景**：用户要求修正已落盘的 Step 2-3 文档时，直接重新调用 `render-doc.sh` 即可--脚本通过中文文件名定位目标文件，从该文件 frontmatter `id` 字段读取已有 ID 并沿用，覆盖更新。无需在 JSON 中传 `existing_id` 字段（sprint-planning 阶段落盘迭代规划传 `existing_id`，见 `sprint-planning/workflow.md` 第 6 节）。
 
 ---
 
@@ -177,9 +177,9 @@ JSON 字段结构与草稿数据块一致（字段定义见 `output-contract.md`
 
 - `refs.json` -- 注册新文档节点（含产品库 `libraryId`/`path`/`contentHash`）和引用边
 - `facts.json` -- 记录已确认事实（页面映射、系统边界、交互规则、规则编号）
-- `decision-log.md` -- 记录设计决策及理由（页面归类、原型方式、布局方案、异常兜底、Sprint 分解）
+- `decision-log.md` -- 记录设计决策及理由（页面归类、原型方式、布局方案、异常兜底）；Sprint 分解决策由 sprint-planning 阶段记录
 - `tracking-log.md` -- 记录风险/假设/未决问题（依赖关系、规则编号待确认项）
-- `phase-summary.md` -- 追加本轮摘要（产物、关键设计决策、遗留问题）
+- `phase-summary.md` -- 追加本轮摘要（产物、关键设计决策、遗留问题），随写 `phase_status`（供 `references/phase-navigator.md` 读取：Step 1-2 落盘后 `draft`，Step 3 全部落盘后 `persisted`）
 
 ---
 
@@ -187,7 +187,7 @@ JSON 字段结构与草稿数据块一致（字段定义见 `output-contract.md`
 
 | 脚本 | 作用 | 适用轨道 |
 | ---- | ---- | ---- |
-| `render-doc.sh` | 单文件渲染设计 JSON 为产品库 Markdown，分配继承式 ID，渲染后自动运行 `validate-paradigm.sh` | 仅 Step 2-4 |
-| `validate-paradigm.sh` | 校验写作规范（加粗领条、表格、流程图等，按 frontmatter type 路由） | 两条轨道（Step 1 定稿时对两份 md 手动运行；Step 2-4 由 render-doc.sh 自动运行） |
+| `render-doc.sh` | 单文件渲染设计 JSON 为产品库 Markdown，分配继承式 ID，渲染后自动运行 `validate-paradigm.sh` | Step 2-3 与迭代规划（sprint-planning 复用） |
+| `validate-paradigm.sh` | 校验写作规范（加粗领条、表格、流程图等，按 frontmatter type 路由） | 两条轨道（Step 1 定稿时对两份 md 手动运行；Step 2-3 与迭代规划由 render-doc.sh 自动运行） |
 
-**脚本使用铁律**：Step 2-4 的 Markdown 落盘用脚本，不用 AI 逐行 Write；Step 1 的三份产物是唯一例外，按第 2 节用 Write 直写。
+**脚本使用铁律**：Step 2-3 与迭代规划的 Markdown 落盘用脚本（sprint-planning 复用），不用 AI 逐行 Write；Step 1 的三份产物是唯一例外，按第 2 节用 Write 直写。

@@ -102,6 +102,7 @@ normalize_user_roles() {
   printf '%s' "$value"
 }
 # priority_reason 只应含排序依据正文；兼容旧输入中的"排序依据：..."前缀，使渲染保持幂等。
+# 注：Feature 已删除「优先级」字段，本函数不再被调用，保留仅用于读取旧版字段文件的幂等渲染。
 normalize_priority_reason() {
   local value="$1"
   value="${value#$'\357\273\277'}"
@@ -161,18 +162,16 @@ print_flowchart() {
   printf '```\n'
   printf '需求卡片 ──────────────→ Epic ──────────────→ Feature\n'
   printf '%s\n' "$local_arrow"
-  printf '  │ 5 个字段                │ 9 个字段             │ 12 个字段\n'
+  printf '  │ 5 个字段                │ 9 个字段             │ 5 个字段\n'
   printf '  │                        │                     │\n'
-  printf '  ├ 需求基本信息             ├ 产品名称             ├ 能力名称\n'
-  printf '  ├ 现状描述                ├ 产品定位             ├ 能力描述\n'
-  printf '  ├ 痛点                   ├ 产品目标             ├ 能力目标\n'
-  printf '  ├ 问题本质还原             ├ 用户角色             ├ 业务价值\n'
-  printf '  └ 需求评估结果             ├ 核心场景             ├ 业务场景\n'
-  printf '                           ├ 产品价值             ├ 业务流程\n'
-  printf '                           ├ 范围边界             ├ 业务规则\n'
-  printf '                           └ 建设思路             ├ 技术可行性\n'
-  printf '                                                  ├ 资源投入\n'
-  printf '                                                  └ 优先级\n'
+  printf '  ├ 需求基本信息             ├ 产品名称             ├ 需求背景\n'
+  printf '  ├ 现状描述                ├ 产品定位             ├ 能力名称\n'
+  printf '  ├ 痛点                   ├ 产品目标             ├ 能力描述\n'
+  printf '  ├ 问题本质还原             ├ 用户角色             ├ 能力目标\n'
+  printf '  └ 需求评估结果             ├ 核心场景             └ 用户角色\n'
+  printf '                           ├ 产品价值\n'
+  printf '                           ├ 范围边界\n'
+  printf '                           └ 建设思路\n'
   printf '```\n'
 }
 
@@ -315,13 +314,10 @@ render_epic() {
 render_feature() {
   check_fields \
     requirement_bg capability_name capability_description capability_goal \
-    user_roles business_value business_scenarios business_process business_rules \
-    tech_feasibility resource_investment priority priority_reason || true
+    user_roles || true
 
   local req_id epic_id requirement_bg capability_name capability_description
-  local capability_goal user_roles business_value business_scenarios
-  local business_process business_rules tech_feasibility resource_investment
-  local priority priority_reason
+  local capability_goal user_roles biz_doc_name
 
   req_id=$(meta_val "req_id")
   epic_id=$(meta_val "epic_id")
@@ -332,15 +328,12 @@ render_feature() {
   capability_goal=$(field_val "capability_goal")
   user_roles=$(field_val "user_roles")
   user_roles=$(normalize_user_roles "$user_roles" "$epic_id")
-  business_value=$(field_val "business_value")
-  business_scenarios=$(field_val "business_scenarios")
-  business_process=$(field_val "business_process")
-  business_rules=$(field_val "business_rules")
-  tech_feasibility=$(field_val "tech_feasibility")
-  resource_investment=$(field_val "resource_investment")
-  priority=$(field_val "priority")
-  priority_reason=$(field_val "priority_reason")
-  priority_reason=$(normalize_priority_reason "$priority_reason")
+  # 业务文档链接：优先用输出目录中实际存在的业务文档文件名，否则用通称
+  biz_doc_name="业务文档"
+  existing_biz_doc=$(ls "$output_dir_abs"/*-业务文档.md 2>/dev/null | head -1) || true
+  if [ -n "$existing_biz_doc" ]; then
+    biz_doc_name="$(basename "$existing_biz_doc" .md)"
+  fi
 
   {
     printf '%s\n' '---' \
@@ -360,6 +353,7 @@ render_feature() {
       ''
     print_flowchart '  │                        │                     ▲'
     printf '%s\n' '' \
+      '> 业务价值、业务场景、业务流程、业务规则由《业务文档》按扁平 4 字段承载；技术可行性、资源投入已删除；优先级唯一来源为需求台账条目优先级。' '' \
       '## 需求背景' '' \
       "本 Feature 回应 [[$req_id]] 中的需求：$requirement_bg" '' \
       '## 能力名称' '' \
@@ -370,20 +364,8 @@ render_feature() {
       "$capability_goal" '' \
       '## 用户角色' '' \
       "引用 [[$epic_id]] 中的角色：$user_roles" '' \
-      '## 业务价值' '' \
-      "$business_value" '' \
-      '## 业务场景' '' \
-      "$business_scenarios" '' \
-      '## 业务流程' '' \
-      "$business_process" '' \
-      '## 业务规则' '' \
-      "$business_rules" '' \
-      '## 技术可行性' '' \
-      "$tech_feasibility" '' \
-      '## 资源投入' '' \
-      "$resource_investment" '' \
-      '## 优先级' '' \
-      "$priority（排序依据：$priority_reason）"
+      '## 关联业务文档' '' \
+      "本 Feature 的业务价值、业务场景、业务流程、业务规则见 [[$biz_doc_name]]（业务场景与业务规则表按「所属能力」列定位本能力）。"
   } > "$output_file"
 }
 

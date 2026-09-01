@@ -1,6 +1,6 @@
 # 上游质量门
 
-本文件定义详细设计阶段的上游文档读取顺序和设计前质量门检查项。四个 Step 开始前均按本文件读取上游。仅在执行设计动作时读取。
+本文件定义详细设计阶段的上游文档读取顺序和设计前质量门检查项。三个 Step 开始前均按本文件读取上游。仅在执行设计动作时读取。
 
 **职责边界**：本文件只管上游读取与质量门。各 Step 执行流程见对应 step 文件夹的 `workflow.md`；产出契约见 `output-contract.md`。
 
@@ -11,10 +11,10 @@
 subagent 进入详细设计阶段时，按以下顺序读取上游文档：
 
 1. 读取 `refs.json`，获取已有文档节点列表，筛选出 `type=user-story` 和 `type=traceability-matrix` 的节点
-2. 读取所有 User Story 文档的 frontmatter（id、title、status、refs）和正文（尤其三段式描述、GWT 验收标准、优先级、Story Points 字段）
+2. 读取所有 User Story 文档的 frontmatter（id、title、status、refs）和正文（尤其三段式描述、GWT 验收标准、优先级、Story Points、`journey_stage`、`requirementEntryId` 字段）
 3. 读取溯源矩阵文档，确认 Story-Feature 映射关系和覆盖度
-4. 通过 `refs.json` 的 `implements` 边追溯到 Feature，读取 Feature 文档的业务流程、业务规则、用户角色字段（作为规则摘要和页面映射的素材来源）
-5. 检查上游文档是否已确认（`status=approved` 或 `status=review`）；若有 User Story 仍为 `draft`，向主调度器报告 `needs-input`，要求先完成需求拆解阶段确认
+4. 通过 `refs.json` 的 `implements` 边追溯到 Feature，读取 Feature 的能力描述、能力目标、用户角色字段；业务价值、业务场景、业务流程、业务规则改从业务文档（`<简称>-业务文档.md`）读取（业务场景/规则表按「所属能力」列对应本 Feature，作为规则摘要和页面映射的素材来源）
+5. 检查上游文档是否已确认（`status=approved` 或 `status=review`）；若有 User Story 仍为 `draft`，向主调度器报告 `needs-input`，要求先完成用户故事（story-map）阶段确认
 6. 读取 `productArchitectureDesignPath`，提取产品事实和总体设计约束
 7. Step 1 额外参考产品库用户故事地图：扫描 `<产品库产品目录>/用户故事地图/`（如存在），提取用户旅程叙事线、P0 主干行走路径、各旅程节点的故事分布
 

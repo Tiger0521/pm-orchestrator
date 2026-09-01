@@ -1,4 +1,4 @@
-#requires -version 5.1
+﻿#requires -version 5.1
 <#
 .SYNOPSIS
     Validate pm-orchestrator phase artifacts and traceability metadata.
@@ -12,31 +12,51 @@ param(
     [string]$projectPath,
 
     [Parameter(Mandatory = $true)]
-    [ValidateSet("requirement-analysis", "user-story-breakdown", "detailed-design")]
+    [ValidateSet("requirement-analysis", "story-map", "user-story-breakdown", "detailed-design", "sprint-planning")]
     [string]$phase
 )
 
 $ErrorActionPreference = "Stop"
+# 旧别名归一：user-story-breakdown 已改名为 story-map，读取端兼容旧值。
+if ($phase -eq "user-story-breakdown") { $phase = "story-map" }
+
 $allowedStatuses = @("draft", "review", "approved")
-$allowedRelations = @("derived-from", "belongs-to", "implements", "contains", "references")
+$allowedRelations = @("derived-from", "belongs-to", "implements", "contains", "references", "addresses")
 $requiredFields = @("id", "type", "projectId", "title", "status", "refs")
 
-$phaseExpectations = @{
-    "requirement-analysis" = @(
+# V4.1.0 起正式需求卡/Epic/Feature 直接落产品库；仅当过程空间仍存旧布局产物时才机械校验。
+$legacyRALayout = $false
+foreach ($legacyPattern in @("req-*.md", "epic-*.md", "feature-*.md")) {
+    if (Get-ChildItem -Path (Join-Path $projectPath "docs\requirement-analysis") -Filter $legacyPattern -ErrorAction SilentlyContinue) {
+        $legacyRALayout = $true
+        break
+    }
+}
+$raExpectations = @()
+if ($legacyRALayout) {
+    $raExpectations = @(
         @{ Pattern = "requirement-analysis/req-*.md"; Type = "requirement-card"; Prefix = "req-" },
         @{ Pattern = "requirement-analysis/epic-*.md"; Type = "epic"; Prefix = "epic-" },
         @{ Pattern = "requirement-analysis/feature-*.md"; Type = "feature"; Prefix = "feature-" }
     )
-    "user-story-breakdown" = @(
-        @{ Pattern = "requirement-analysis/feature-*/story-*.md"; Type = "user-story"; Prefix = "story-" },
+}
+
+$phaseExpectations = @{
+    "requirement-analysis" = $raExpectations
+    "story-map" = @(
+        # User Story 正文落在产品库 <能力路径>/用户故事/；过程空间只留存溯源矩阵渲染件
         @{ Pattern = "requirement-analysis/matrix-*.md"; Type = "traceability-matrix"; Prefix = "matrix-" }
     )
     "detailed-design" = @(
+        # Sprint 分解已独立为 sprint-planning 阶段，不再属于 detailed-design 产物
         @{ Pattern = "design/flow-*.md"; Type = "structure-flow"; Prefix = "flow-" },
         @{ Pattern = "design/proto-*.md"; Type = "prototype"; Prefix = "proto-" },
         @{ Pattern = "design/contract-*.md"; Type = "interaction-contract"; Prefix = "contract-" },
-        @{ Pattern = "execution/rules-*.md"; Type = "rules-summary"; Prefix = "rules-" },
-        @{ Pattern = "execution/sprint-*.md"; Type = "sprint"; Prefix = "sprint-" }
+        @{ Pattern = "execution/rules-*.md"; Type = "rules-summary"; Prefix = "rules-" }
+    )
+    "sprint-planning" = @(
+        # 迭代规划落在产品库 详细设计/迭代规划/；过程空间无正式 frontmatter 文档，
+        # 质量门由 references/sprint-planning/workflow.md 第 7 节与 refs.json 一致性检查承担
     )
 }
 
@@ -183,16 +203,6 @@ foreach ($expected in $phaseExpectations[$phase]) {
             }
         }
 
-        if ($phase -eq "user-story-breakdown" -and $type -eq "user-story") {
-            $featureRefs = @($frontmatter.Refs | Where-Object {
-                (Remove-YamlQuotes $_.relation) -eq "implements" -and (Remove-YamlQuotes $_.id) -match '^feature-\d{3,}$'
-            })
-            if ($featureRefs.Count -ne 1) {
-                $issues += "[placement] $($file.Name): expected one implements reference to feature-<nnn>"
-            } elseif ($file.Directory.Name -ne (Remove-YamlQuotes $featureRefs[0].id)) {
-                $issues += "[placement] $($file.Name): must be stored in requirement-analysis/$(Remove-YamlQuotes $featureRefs[0].id)/"
-            }
-        }
         $relativePath = $file.FullName.Substring($project.Length).TrimStart('\', '/').Replace('\', '/')
         $documents += [PSCustomObject]@{
             Id = $id
@@ -215,7 +225,7 @@ if ($phase -eq "requirement-analysis") {
         }
     }
 }
-if ($phase -eq "user-story-breakdown") {
+if ($phase -eq "story-map") {
     foreach ($legacyPattern in @("design/story-*.md", "design/matrix-*.md", "requirement-analysis/story-*.md")) {
         if (Get-ChildItem -Path (Join-Path $docsPath $legacyPattern) -File -ErrorAction SilentlyContinue) {
             $issues += "[directory] legacy artifact found: $legacyPattern"

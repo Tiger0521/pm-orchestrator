@@ -12,6 +12,8 @@
 | `diagnostic-report` | 诊断报告：四个核心判断 + 证据缺口 + 成熟度 | `diagnostic-` |
 | `epic` | Epic：战略层能力单元 | `epic-` |
 | `feature` | Feature：需求层能力单元 | `feature-` |
+| `requirement-ledger` | 需求台账：按小功能登记的表格台账，条目归属 Feature，供 Story 落实 | `ledger-` |
+| `business-doc` | 业务文档：按扁平 4 业务字段组织的业务价值/场景/流程/规则，场景与规则行带「所属能力」列 | `biz-` |
 | `user-story` | User Story：用户价值单元 | `story-` |
 | `traceability-matrix` | Story-Feature 溯源矩阵 | `matrix-` |
 | `structure-flow` | 结构与流程图文档 | `flow-` |
@@ -31,14 +33,18 @@
 | `implements` | 实现 | 实现文档 → 被实现文档 |
 | `contains` | 包含 | 容器文档 → 成员文档 |
 | `references` | 一般引用 | 任意 → 任意 |
+| `addresses` | 落实需求条目（条目级） | User Story → 需求台账具体条目 |
 
 标准追溯链：
 
 ```
+需求台账(条目) ──belongs-to──▶ Feature
 Epic ──derived-from──▶ 需求卡片
 Feature ──belongs-to────▶ Epic
 Feature ──references────▶ 需求卡片
+Feature ──references────▶ 业务文档
 User Story ──implements──▶ Feature
+User Story ──addresses──▶ 需求台账.具体条目
 原型/契约 ──implements──▶ User Story
 Sprint   ──contains─────▶ User Story
 ```
@@ -101,7 +107,7 @@ refs:
 ---
 ```
 
-需求卡片是追溯链起点，允许 `refs: []`。Epic 必须通过 `derived-from` 引用需求卡片；Feature 必须通过 `belongs-to` 引用 Epic，并可通过 `references` 回引需求卡片。
+需求卡片是追溯链起点，允许 `refs: []`。Epic 必须通过 `derived-from` 引用需求卡片；Feature 必须通过 `belongs-to` 引用 Epic，并可通过 `references` 回引需求卡片、`references` 关联业务文档；User Story 必须通过 `implements` 引用所属 Feature、通过 `addresses` 引用其落实的需求台账条目（refs 中 `id` 为条目级 ID `<简称>-REQ-<序号>`，正文配合文件链接 wikilink）。
 
 ### 产品库 frontmatter
 
@@ -111,7 +117,7 @@ refs:
 ---
 id: "<继承式产品库ID>"
 product: "<产品全名>"
-type: "<需求卡片 | 设计文档 | 能力文档 | 用户故事 | 结构流程图 | 原型 | 交互契约 | 规则摘要 | 迭代规划>"
+type: "<需求卡片 | 设计文档 | 能力文档 | 需求台账 | 业务文档 | 用户故事 | 结构流程图 | 原型 | 交互契约 | 规则摘要 | 迭代规划>"
 capability: "<能力路径>"
 aliases:
   - <别名>
@@ -122,10 +128,10 @@ tags:
 
 - `id`：继承式产品库 ID（格式见下文"产品库 ID"章节），不是过程 ID。
 - `product`：产品全名。
-- `type`：`需求卡片 | 设计文档 | 能力文档 | 用户故事 | 结构流程图 | 原型 | 交互契约 | 规则摘要 | 迭代规划`。
-- `capability`：能力文档和用户故事必填，需求卡片、设计文档和详细设计五类（结构流程图/原型/交互契约/规则摘要/迭代规划）无此字段。
+- `type`：`需求卡片 | 设计文档 | 能力文档 | 需求台账 | 业务文档 | 用户故事 | 结构流程图 | 原型 | 交互契约 | 规则摘要 | 迭代规划`。
+- `capability`：能力文档和用户故事必填；需求卡片、设计文档、需求台账、业务文档和详细设计五类（结构流程图/原型/交互契约/规则摘要/迭代规划）无此字段。
 - `aliases`/`tags`：YAML 列表，由渲染脚本注入。
-- 产品库不得保留过程空间的 `projectId`、`refs` 或 `status`。
+- 产品库不得保留过程空间的 `projectId`、`status`。`refs` 一般也不保留，唯一例外是**用户故事**：用户故事文档必须携带 `refs` 中的 `implements`（`id` 为所属能力文档的产品库 ID，如 `网资-EPIC-F01`）与 `addresses`（`id` 为需求台账条目 ID，如 `网资-REQ-001`），作为机器追溯链中"实现 Feature / 落实台账条目"的关联，且 `addresses` 与正文 wikilink 一致。
 
 ## ID 分配规则
 
@@ -143,7 +149,13 @@ tags:
 本 Epic 派生自 [[网资-需求卡片]]，见 [[网资-设计文档]]。
 ```
 
-禁止用过程 ID、英文编号或相对路径作为链接文案（错误示例 `[[epic-001]]`、`[[req-001]]`）；英文 ID 只出现在 frontmatter `id` 字段或正文业务/规则编号上。机器溯源链仍由 frontmatter `refs` + `refs.json` 维护，与正文 Obsidian 链接解耦。
+引用需求台账的具体条目时，使用文件链接 + 条目ID 显示文案 `[[<简称>-需求台账|<条目ID>]]`（条目是台账表格中的一行、不是独立文件，不能使用块锚点）：
+
+```markdown
+本故事落实 [[网资-需求台账|网资-REQ-001]]。
+```
+
+禁止用过程 ID、英文编号或相对路径作为链接文案（错误示例 `[[epic-001]]`、`[[req-001]]`、`[[网资-REQ-001]]`）；英文 ID 只出现在 frontmatter `id` 字段或正文业务/规则编号上。机器溯源链仍由 frontmatter `refs` + `refs.json` 维护，与正文 Obsidian 链接解耦。
 
 ---
 
@@ -158,6 +170,8 @@ tags:
 | 需求卡片 | `<简称>-REQ` | `网资-REQ` |
 | 设计文档(Epic) | `<简称>-EPIC` | `网资-EPIC` |
 | 能力文档(Feature) | `<简称>-EPIC-F<nnn>` | `网资-EPIC-F01` |
+| 需求台账 | `<简称>-REQ-LEDGER` | `网资-REQ-LEDGER` |
+| 业务文档 | `<简称>-BIZ-DOC` | `网资-BIZ-DOC` |
 | 用户故事 | `<简称>-EPIC-F<nnn>-S<nnn>` | `网资-EPIC-F01-S01` |
 | 结构与流程图 | `<简称>-DF-FLOW<nnn>` | `网资-DF-FLOW01` |
 | 原型 | `<简称>-DF-PROTO<nnn>` | `网资-DF-PROTO01` |
@@ -183,6 +197,8 @@ tags:
 | 需求卡片 | `<简称>-需求卡片.md` | `网资-需求卡片.md` |
 | 设计文档(Epic) | `<简称>-设计文档.md` | `网资-设计文档.md` |
 | 能力文档(Feature) | `<简称>-<能力路径>-能力文档.md` | `网资-设备管理能力-能力文档.md` |
+| 需求台账 | `<简称>-需求台账.md` | `网资-需求台账.md` |
+| 业务文档 | `<简称>-业务文档.md` | `网资-业务文档.md` |
 | 结构与流程图 | `<简称>-结构与流程图.md` | `网资-结构与流程图.md` |
 | 原型交互说明 | `<简称>-原型交互说明.md` | `网资-原型交互说明.md` |
 | 交互契约 | `<简称>-交互契约.md` | `网资-交互契约.md` |

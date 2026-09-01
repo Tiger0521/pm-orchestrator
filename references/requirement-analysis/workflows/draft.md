@@ -4,7 +4,7 @@
 
 **按需读取**：本文件所列步骤对应的 `../guides/question-bank.md`、`../guides/quality-and-interaction.md`、模板、写作范式和 `references/shared/traceability-model.md`；不读取过程项目写入和校验详情。
 
-**允许写入**：仅 `docs/_extracted/.fields/fields-*.json`。不得写正式 Markdown、项目记忆或 `workflow.state`。
+**允许写入**：仅 `docs/_extracted/.fields/` 下的草稿文件——`fields-*.json`、业务文档草稿 `business-doc-draft.md`、需求台账草稿 `requirement-ledger-draft.md`。不得写正式 Markdown、项目记忆或 `workflow.state`。
 
 **用户问题**：每轮只提出一个问题；每次问题前按 `../guides/quality-and-interaction.md` 输出理解回执，并完整执行 `../guides/question-bank.md` 的“盘问式决策澄清协议”。
 
@@ -236,16 +236,23 @@ JSON 的字段名和结构见"写入产品库"章节。`mode=draft` 时必须创
   - 能力描述
   - 能力目标
   - 用户角色（引用 Epic，从 `docs/_extracted/.fields/fields-epic-<nnn>.json` 自动填入）
-  - 业务价值
-  - 业务场景
-  - 业务流程
-  - 业务规则
-  - 技术可行性
-  - 资源投入
-  - 优先级
 - 每轮只问一个字段。用户回答后，立即更新对应字段 JSON 和对话内字段草稿。
-- 业务流程、业务规则、资源投入、优先级必须直接问用户，不靠 AI 推导。
-- 全部 12 个字段填写完毕后，做一次字段覆盖回执（列出完整内容和状态），并执行 `../guides/question-bank.md` 的共同理解门禁；未获用户明确确认不得进入第 9 步。
+- 业务价值、业务场景、业务流程、业务规则照常追问（见 `../guides/question-bank.md` 对应小节），但**答案收集到业务文档草稿对应字段，不写入 Feature 字段 JSON**：
+  - 业务文档草稿统一存放在 `docs/_extracted/.fields/business-doc-draft.md`，按扁平 4 字段组织（业务价值 / 业务场景表 / 业务流程 / 业务规则表），不按能力分章节
+  - 采用「有添加就直接重构」策略：把新增业务内容并入草稿对应字段，场景行、规则行都标注「所属能力」列（与产品库 Feature 能力名一致）；业务价值在首个能力确认时一并收齐，之后保持稳定不随迭代重写
+  - 场景编号（SC-XX）、规则编号（BR-XX）、流程编号（FL-XX）在产品内唯一、持续累加
+  - 追问 4 个业务字段的 Q&A 追加到现有 Feature 字段 JSON 的 `qa_log`或业务文档草稿内的问答记录，保证信息可追溯
+- 业务流程、业务规则必须直接问用户，不靠 AI 推导。
+- 全部 5 个字段填写完毕（业务 4 字段进入业务文档草稿）后，做一次字段覆盖回执（列出完整内容和状态），并执行 `../guides/question-bank.md` 的共同理解门禁；未获用户明确确认不得进入第 8.5 步。
+
+**第 8.5 步：按 Feature 拆解需求条目**
+
+每个 Feature 字段确认后，即按该能力拆解需求台账条目（小功能清单），逐能力推进，不跨能力混拆：
+
+- 去 `../guides/question-bank.md` → “Feature 小功能拆解追问”，按粒度阶梯（**能力 > 条目 > 故事**）追问：该能力拆成哪几个小功能（通常 2-N 条）、每条的需求内容与优先级建议。粒度判断：一条目要能被多条故事落实、又不能再拆出独立功能点；"整能力"不是一条条目。
+- 每条生成一行台账草稿，写入 `docs/_extracted/.fields/requirement-ledger-draft.md`（表格行：条目ID / 登记日期 / 登记人 / 所属Feature / 优先级 / 需求内容，六列格式见 `../writing-paradigm/requirement-ledger.md`）；条目 ID 从产品库现有台账取最大序号 +1，登记人默认需求卡片"提出人/角色"（用户可改）。
+- 需求内容按 `../writing-paradigm/requirement-ledger.md` 的需求内容写作规范：`**功能名**：做什么 + 给谁用/场景 + 关键组成或边界`，2-4 句自包含可读；不用三段式、不写验收要点。
+- 同一 Feature 的条目需求内容与优先级逐条与用户确认；全部能力拆完后，汇总为完整台账表草稿，随 Feature 批次预览一起展示确认。
 
 **第 9 步：输出 Feature 交互草稿**
 
@@ -259,6 +266,22 @@ JSON 的字段名和结构见"写入产品库"章节。`mode=draft` 时必须创
 
 仅当至少一个 Feature 且能力清单中的全部 Feature 均已完成时，才返回 `draft-ready`、`artifactScope=features`。主调度器展示 Feature 批次预览并请求确认；用户确认后，下一轮以 `mode=persist`、`artifactScope=features` 进入 `persist.md`。
 
+返回 `draft-ready` 同时附草稿状态：已按扁平 4 字段更新的 `business-doc-draft.md`（场景/规则行带「所属能力」列）与按能力拆解的 `requirement-ledger-draft.md`（台账表草稿）将随 Feature persist 一起向用户展示确认。
+
 **注意**：能力分类已在第 7.5 步确认，此步骤无需再次判断分类。
+
+---
+
+### 附加段：需求台账变更条目草稿
+
+需求台账的**条目生成**（从 0 到 1）在 features 批次拆解 Feature 时完成（见第 8.5 步），随 features 批次确认后落盘。本附加段负责**后续需求迭代**（用户要求新增/修改/废弃需求）时的变更条目草稿，交互式引导，不是自动追加。
+
+当用户在本阶段提出需求变更时（如"这条需求范围要调整""新增一个需求""这个需求不做了"）：
+
+1. **读取台账现状**：读取产品库 `<简称>-需求台账.md`（若尚无台账则按第 8.5 步先拆解落盘）。
+2. **追问变更条目**：按 `../guides/question-bank.md` → “需求台账条目追问”逐项追问：条目类型（新增/修改/废弃）、变更触发原因、影响范围、所属 Feature、优先级。
+   - 修改/废弃时必须确认被修改条目的 ID（`<简称>-REQ-<序号>`）。
+3. **生成变更条目草稿**：写入 `docs/_extracted/.fields/requirement-ledger-draft.md`（追加式，与正式台账同表结构：条目ID / 登记日期 / 登记人 / 所属Feature / 优先级 / 需求内容；修改/废弃行在需求内容中注明被修改条目 ID）。
+4. **展示草稿并确认**：向用户展示变更条目行，确认所属 Feature、需求内容与优先级。确认后返回 `draft-ready`（携带 `artifactScope=requirement-ledger` 标记），下一轮 `mode=persist` 时追加写入产品库台账。
 
 ---

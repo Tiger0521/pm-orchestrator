@@ -1,6 +1,6 @@
 # 详细设计阶段质量门
 
-本文件是详细设计阶段（`detailed-design`）质量门校验的**唯一来源**。`mode=validate` 时加载本文件，逐项检查已有产物是否满足以下九类校验。
+本文件是详细设计阶段（`detailed-design`）质量门校验的**唯一来源**。`mode=validate` 时加载本文件，逐项检查已有产物是否满足以下八类校验（第 7 节迭代规划质量由 `sprint-planning` 阶段独立校验，不属本阶段质量门）。
 
 **校验依据**：
 
@@ -24,7 +24,6 @@
 - [ ] 至少一个产品库 `详细设计/原型/*-DF-PROTO*.md` 存在
 - [ ] 至少一个产品库 `详细设计/交互契约/*-DF-CONTRACT*.md` 存在
 - [ ] 至少一个产品库 `详细设计/规则摘要/*-DF-RULES*.md` 存在
-- [ ] 至少一个产品库 `详细设计/迭代规划/*-DF-SPRINT*.md` 存在
 - [ ] 详细设计阶段正式产物未分散写入过程项目 `docs/` 或其他目录（含 sourceProduct 直启项目，设计产物一律在产品库）
 
 ---
@@ -39,7 +38,6 @@
 - [ ] 原型文档的 `refs` 包含 `implements` 关系指向 User Story 和 `references` 指向业务流、页面映射
 - [ ] 交互契约的 `refs` 包含 `implements` 关系指向 User Story 和 `references` 指向原型文档
 - [ ] 规则摘要的 `refs` 包含 `references` 关系指向 Feature 和交互契约
-- [ ] 迭代规划的 `refs` 包含 `contains` 关系指向 User Story
 
 ---
 
@@ -95,7 +93,9 @@
 
 ---
 
-## 7. 迭代规划质量（Step 4）
+## 7. 迭代规划质量（sprint-planning 阶段校验）
+
+> 本节由 `sprint-planning` 阶段（`sprint-planner`）承担，不属于 detailed-design 阶段质量门；detailed-design 的 `mode=validate` 跳过本节。迭代规划的 `refs` 含 `contains` 关系指向 User Story 的检查同样由该阶段执行。
 
 - [ ] Sprint 目标明确（每个 Sprint 一句话目标）
 - [ ] 每个 Sprint 包含的 Story 已列出
@@ -111,13 +111,12 @@
 - [ ] Step 1 Phase 1 业务流文档经用户看改后确认（用户明确说"没问题"）
 - [ ] Step 1 Phase 2 页面映射文档经用户看改后确认
 - [ ] Step 1 Phase 3 两张 HTML 图经用户确认后才定稿注册
-- [ ] 各 Step 决策域均经 grilling 用户裁决（见 `grilling-protocol.md` 第 3 节）：Step 2 含核心页面布局模式与组件复用，Step 3 含状态机关键流转与高风险兜底策略，Step 4 含团队产能、风险容忍度与首 Sprint 目标
+- [ ] 各 Step 决策域均经 grilling 用户裁决（见 `grilling-protocol.md` 第 3 节）：Step 2 含核心页面布局模式与组件复用，Step 3 含状态机关键流转与高风险兜底策略（Sprint 分解决策域由 `sprint-planning` 阶段 grilling 裁决）
 - [ ] 用户已确认原型方案（含布局、交互说明、异常状态）
 - [ ] 用户已确认目标平台（六选一，见 `../step2-原型设计与规范对齐/ui-design-style.md` 第 3.1 节）与 UI 风格预设（原型生成方式固定为交互式 HTML，无需用户确认）
 - [ ] 用户已确认交互契约（含交互规则、异常兜底、错误提示）
 - [ ] 用户已确认规则摘要
-- [ ] 用户已确认 Sprint 分解方案
-- [ ] Step 2-4 每步草稿经用户确认后步级落盘，用户确认的不是摘要草稿
+- [ ] Step 2-3 每步草稿经用户确认后步级落盘，用户确认的不是摘要草稿
 
 ---
 
@@ -125,8 +124,8 @@
 
 - [ ] `refs.json` 已注册所有新文档节点（含产品库 `libraryId`/`path`/`contentHash`）和引用边
 - [ ] `facts.json` 已记录已确认事实（页面映射、系统边界、交互规则、规则编号）
-- [ ] `decision-log.md` 已记录设计决策（页面层级、页面归类、原型方式、布局方案、异常兜底、Sprint 分解及理由）
+- [ ] `decision-log.md` 已记录设计决策（页面层级、页面归类、原型方式、布局方案、异常兜底及理由）
 - [ ] `tracking-log.md` 已记录新发现的风险/假设/未决问题（依赖关系、规则编号待确认项）
 - [ ] `phase-summary.md` 已追加本阶段摘要（产物清单、关键设计决策、遗留问题）
 - [ ] `progress.json` 已更新当前阶段和顶层 `lastUpdated`；`workflow.state` 和阶段状态由主调度器在校验通过后更新
-- [ ] Step 1 定稿时对两份 md 运行过 `validate-paradigm.sh` 且零警告；Step 2-4 落盘由 `render-doc.sh` 自动校验且零警告
+- [ ] Step 1 定稿时对两份 md 运行过 `validate-paradigm.sh` 且零警告；Step 2-3 落盘由 `render-doc.sh` 自动校验且零警告

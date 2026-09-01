@@ -19,9 +19,9 @@ subagent 定义位于本 skill 文件夹内 `agents/*.md`（claude 版平铺在 
 以 Claude Code 的命名子 agent（Task）机制委派，subagent 名 **必须带插件命名空间** `pm-orchestrator:` 前缀：
 
 - `pm-orchestrator:requirement-analyst`
-- `pm-orchestrator:story-breakdown-analyst`
-- `pm-orchestrator:detailed-design-designer`
 - `pm-orchestrator:story-map-designer`
+- `pm-orchestrator:detailed-design-designer`
+- `pm-orchestrator:sprint-planner`
 
 ## 文件路径
 
@@ -36,8 +36,8 @@ Claude 版 agent frontmatter 的 `tools` 含 `LS`（部分含 `Bash`）：
 | agent | tools |
 | --- | --- |
 | `requirement-analyst` | `["Read","Write","Grep","Glob","LS","Bash"]` |
-| `story-breakdown-analyst` | `["Read","Write","Grep","Glob","LS"]` |
-| `detailed-design-designer` | `["Read","Write","Grep","Glob","LS","Bash"]` |
 | `story-map-designer` | `["Read","Write","Grep","Glob","LS","Bash"]` |
+| `detailed-design-designer` | `["Read","Write","Grep","Glob","LS","Bash"]` |
+| `sprint-planner` | `["Read","Write","Grep","Glob","LS","Bash"]` |
 
 每个 agent 文件的 frontmatter 带 `runtime: claude`，正文以 `references/...` 相对路径引用方法论。

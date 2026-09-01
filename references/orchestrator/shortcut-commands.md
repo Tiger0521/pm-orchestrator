@@ -40,4 +40,4 @@
 
 ### `!back`
 
-验证当前项目并展示当前状态、目标回退状态和影响，等待用户确认。确认后读取 `references/orchestrator/phase-transition.md` 并调用状态迁移脚本。只允许 `user-story-breakdown -> requirement-analysis` 和 `detailed-design -> user-story-breakdown`。不得从 `completed` 自动回退。
+验证当前项目并展示当前状态、目标回退状态和影响，等待用户确认。确认后读取 `references/orchestrator/phase-transition.md` 并调用状态迁移脚本。只允许 `story-map -> requirement-analysis`、`detailed-design -> story-map`、`sprint-planning -> detailed-design` 和 `sprint-planning -> story-map`。不得从 `completed` 自动回退。

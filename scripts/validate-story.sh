@@ -17,6 +17,8 @@
 #   4. 角色具名：角色不是笼统的"用户"
 #   5. 提示语引号：Then 含引号标注的提示语
 #   6. AC 数量：3-8 条
+#   7. 旅程阶段：Story 含 journey_stage（正文渲染为 ## 旅程阶段）；缺失或为空输出 [WARN]
+#   8. 关联需求：Story 含 requirementEntryId（正文渲染为 ## 关联需求 的块引用 wikilink）；缺失或为空输出 [WARN]
 #
 # 退出码：0 全部通过；1 有警告；2 文件问题。
 #
@@ -191,9 +193,40 @@ check_ac_count() {
   fi
 }
 
+# ---- 检查 7: 旅程阶段（journey_stage）----
+check_journey_stage() {
+  local section
+  section=$(get_section "旅程阶段")
+  local value
+  # 去掉章节标题行后取非空内容，避免 ## 旅程阶段 标题本身误判
+  value=$(echo "$section" | grep -v '^## ' | tr -d '[:space:]' || true)
+
+  if [ -z "$value" ]; then
+    echo "[WARN] 旅程阶段: journey_stage 缺失或为空，Story 无法在故事地图中定位旅程节点"
+    warnings=$((warnings + 1))
+  else
+    echo "[PASS] 旅程阶段: journey_stage 已提供"
+    passes=$((passes + 1))
+  fi
+}
+
+# ---- 检查 8: 关联需求（requirementEntryId）----
+check_requirement_entry() {
+  local section
+  section=$(get_section "关联需求")
+
+  if echo "$section" | grep -q '\[\[.*\]\]'; then
+    echo "[PASS] 关联需求: requirementEntryId 已提供需求台账条目引用"
+    passes=$((passes + 1))
+  else
+    echo "[WARN] 关联需求: requirementEntryId 缺失或为空，Story 未关联需求台账条目（优先级无法溯源）"
+    warnings=$((warnings + 1))
+  fi
+}
+
 # ---- 按文档类型路由校验 ----
 case "$doc_type" in
-  user-story)
+  user-story|用户故事)
     echo "--- User Story 写作规范校验 ---"
     check_three_part
     check_role_specific
@@ -201,9 +234,11 @@ case "$doc_type" in
     check_gwt
     check_quoted_prompt
     check_ac_count
+    check_journey_stage
+    check_requirement_entry
     ;;
   *)
-    echo "ERROR: unknown document type: $doc_type (expected: user-story)" >&2
+    echo "ERROR: unknown document type: $doc_type (expected: user-story / 用户故事)" >&2
     exit 2
     ;;
 esac

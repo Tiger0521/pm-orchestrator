@@ -48,9 +48,11 @@ done
 [ -n "$phase" ] || { usage; fail "missing --phase"; }
 
 case "$phase" in
-  requirement-analysis|user-story-breakdown|detailed-design) ;;
+  requirement-analysis|story-map|user-story-breakdown|detailed-design|sprint-planning) ;;
   *) fail "invalid phase: $phase" ;;
 esac
+# 旧别名归一：user-story-breakdown 按 story-map 处理（旧项目无需机械迁移）
+[ "$phase" = "user-story-breakdown" ] && phase="story-map"
 
 canonical_dir() {
   [ -d "$1" ] || fail "$2 does not exist: $1"
@@ -227,13 +229,29 @@ project_id=$(json_string_value "$progress_path" "projectId")
 
 case "$phase" in
   requirement-analysis)
-    expectations=$'requirement-analysis/req-*.md|requirement-card|req-\nrequirement-analysis/epic-*.md|epic|epic-\nrequirement-analysis/feature-*.md|feature|feature-'
+    # V4.1.0 起正式需求卡/Epic/Feature 直接落产品库，过程空间不再落这三类正式文档。
+    # 仅当仍可探测到旧布局产物（过程空间存在 req-*/epic-*/feature-*.md）时执行机械校验，
+    # 新布局的产物校验由 validate-product-library.sh 承担。
+    if [ -n "$(find "$project/docs/requirement-analysis" -maxdepth 1 -type f \( -name 'req-*.md' -o -name 'epic-*.md' -o -name 'feature-*.md' \) -print -quit 2>/dev/null)" ]; then
+      expectations=$'requirement-analysis/req-*.md|requirement-card|req-\nrequirement-analysis/epic-*.md|epic|epic-\nrequirement-analysis/feature-*.md|feature|feature-'
+    else
+      expectations=''
+    fi
     ;;
-  user-story-breakdown)
-    expectations=$'requirement-analysis/feature-*/story-*.md|user-story|story-\nrequirement-analysis/matrix-*.md|traceability-matrix|matrix-'
+  story-map)
+    # User Story 正文落在产品库 <能力路径>/用户故事/，过程空间只留存溯源矩阵渲染件；
+    # Story/矩阵草稿 JSON 位于 docs/_extracted/.stories/（无 frontmatter，此处不校验）。
+    expectations=$'requirement-analysis/matrix-*.md|traceability-matrix|matrix-'
     ;;
   detailed-design)
-    expectations=$'design/flow-*.md|structure-flow|flow-\ndesign/proto-*.md|prototype|proto-\ndesign/contract-*.md|interaction-contract|contract-\nexecution/rules-*.md|rules-summary|rules-\nexecution/sprint-*.md|sprint|sprint-'
+    # 正式设计文档落在产品库 详细设计/；草稿 JSON 位于 docs/_extracted/.design/（无 frontmatter，此处不校验）。
+    # Sprint 分解已独立为 sprint-planning 阶段，不再属于 detailed-design 产物。
+    expectations=$'design/flow-*.md|structure-flow|flow-\ndesign/proto-*.md|prototype|proto-\ndesign/contract-*.md|interaction-contract|contract-\nexecution/rules-*.md|rules-summary|rules-'
+    ;;
+  sprint-planning)
+    # 迭代规划落在产品库 详细设计/迭代规划/；过程空间无正式 frontmatter 文档，
+    # 质量门由 references/sprint-planning/workflow.md 第 7 节与 refs.json 一致性检查承担。
+    expectations=''
     ;;
 esac
 
@@ -244,7 +262,7 @@ DOC_REF_IDS=()
 DOC_REF_RELS=()
 DOC_REF_DOCS=()
 allowed_statuses=(draft review approved)
-allowed_relations=(derived-from belongs-to implements contains references)
+allowed_relations=(derived-from belongs-to implements contains references addresses)
 
 docs_path="$project/docs"
 shopt -s nullglob
@@ -299,17 +317,6 @@ while IFS='|' read -r pattern expected_type expected_prefix; do
       DOC_REF_RELS+=("$relation")
     done
 
-    if [ "$phase" = "user-story-breakdown" ] && [ "$doc_type" = "user-story" ]; then
-      feature_refs=()
-      for index in "${!REF_IDS[@]}"; do
-        [ "${REF_RELS[$index]}" = "implements" ] && feature_refs+=("${REF_IDS[$index]}")
-      done
-      if [ "${#feature_refs[@]}" -ne 1 ] || [[ ! "${feature_refs[0]:-}" =~ ^feature-[0-9]{3,}$ ]]; then
-        add_issue "[placement] $filename: expected one implements reference to feature-<nnn>"
-      elif [ "$(dirname "$file")" != "$docs_path/requirement-analysis/${feature_refs[0]}" ]; then
-        add_issue "[placement] $filename: must be stored in requirement-analysis/${feature_refs[0]}/"
-      fi
-    fi
     rel_path="${file#$project/}"
     DOC_IDS+=("$doc_id")
     DOC_PATHS+=("$rel_path")
@@ -334,7 +341,7 @@ if [ "$phase" = "requirement-analysis" ]; then
     done
   done
   shopt -u nullglob
-elif [ "$phase" = "user-story-breakdown" ]; then
+elif [ "$phase" = "story-map" ]; then
   shopt -s nullglob
   for legacy_pattern in "design/story-*.md" "design/matrix-*.md" "requirement-analysis/story-*.md"; do
     legacy_found=( "$docs_path"/$legacy_pattern )

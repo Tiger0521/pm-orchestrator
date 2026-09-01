@@ -19,7 +19,9 @@
 #   2. 扫描 用户故事 目录中已有的故事文档，取最大序号
 #   3. 遍历 stories_json_dir 中的 story-*.json（按文件名排序）
 #   4. 为每个 JSON 分配下一个可用 ID（<简称>-EPIC-F<nnn>-S<nnn>）
-#   5. 读取 JSON 字段，渲染 Markdown，写入产品库 用户故事 目录
+#   5. 读取 JSON 字段（含旅程阶段 journey_stage 与需求台账条目 ID requirementEntryId），
+#      渲染 Markdown 写入产品库 用户故事 目录；requirementEntryId 推导为
+#      Obsidian 文件链接（[[<简称>-需求台账|<条目ID>]]）并写入 frontmatter refs
 #   6. 对每个渲染结果运行 validate-story.sh 做写作规范校验
 #
 set -euo pipefail
@@ -116,6 +118,7 @@ render_one_story() {
   local out_file="$3"
 
   local title role goal value priority sp ac_count
+  local journey_stage req_entry req_seq req_link
 
   title=$(json_val "title" "$json_file")
   role=$(json_val "role" "$json_file")
@@ -124,6 +127,21 @@ render_one_story() {
   priority=$(json_val "priority" "$json_file")
   sp=$(json_val "storyPoints" "$json_file")
   ac_count=$(json_val "acCount" "$json_file")
+  journey_stage=$(json_val "journey_stage" "$json_file")
+  req_entry=$(json_val "requirementEntryId" "$json_file")
+
+  # 从 requirementEntryId 生成 Obsidian 文件链接（条目是台账表格中的一行，不使用块锚点）
+  # 输出 [[<简称>-需求台账|<条目ID>]]（<简称> 复用产品简称参数）
+  req_seq=""
+  if [[ "$req_entry" =~ -REQ-([0-9]+)$ ]]; then
+    req_seq="${BASH_REMATCH[1]}"
+  fi
+  if [ -n "$req_entry" ] && [ -n "$product_short" ]; then
+    req_link="[[${product_short}-需求台账|${req_entry}]]"
+  else
+    # 无法取得产品简称，回退为纯条目 ID 链接
+    req_link="[[${req_entry}]]"
+  fi
 
   if [ -z "$ac_count" ]; then
     ac_count=0
@@ -144,6 +162,14 @@ render_one_story() {
     printf '  - %s\n' "$product_short"
     printf '%s\n' '  - 用户故事'
     printf '  - %s\n' "$capability_path"
+    # refs: implements 指向所属能力文档（Feature 产品库 ID）+ addresses 关联需求台账条目（条目级 ID）
+    printf '%s\n' 'refs:'
+    printf '  - id: "%s"\n' "$feature_library_id"
+    printf '%s\n' '    relation: "implements"'
+    if [ -n "$req_entry" ]; then
+      printf '  - id: "%s"\n' "$req_entry"
+      printf '%s\n' '    relation: "addresses"'
+    fi
     printf '%s\n' '---'
     printf '\n'
     printf '<!-- ID: %s -->\n' "$story_id"
@@ -152,6 +178,16 @@ render_one_story() {
     printf '\n'
     printf '## 用户故事\n\n'
     printf '作为 **%s**，我想要 **%s**，以便于 **%s**。\n' "$role" "$goal" "$value"
+    printf '\n## 旅程阶段\n\n%s\n' "$journey_stage"
+    printf '\n## 关联需求\n\n'
+    if [ -n "$req_entry" ]; then
+      printf '%s\n' "$req_link"
+      if [ -z "$product_short" ]; then
+        printf '<!-- 注意: 缺少产品简称，无法生成台账文件链接，已回退为纯条目 ID 链接，请人工核对需求台账条目 -->\n' "$req_entry"
+      fi
+    else
+      printf '%s\n' '待关联需求台账条目'
+    fi
     printf '\n## 优先级\n\n%s\n' "$priority"
     printf '\n## Story Points 建议\n\n%s（建议值，待团队确认）\n' "$sp"
     printf '\n## 验收标准\n\n'
@@ -202,6 +238,12 @@ validation_failed=0
 for json_file in "${sorted_files[@]}"; do
   # 读取标题
   title=$(json_val "title" "$json_file")
+
+  # 轻校验：featureId 必须为规范格式（feature-<nnn>），缺失/畸形时告警以便人工核对能力归属
+  feature_id=$(json_val "featureId" "$json_file")
+  if [ -z "$feature_id" ] || ! printf '%s' "$feature_id" | grep -qE '^feature-[0-9]+$'; then
+    echo "WARN: $(basename "$json_file") 缺少规范 featureId（应为 feature-<nnn>），无法核对能力归属，请确认该 Story 属于能力 $capability_path" >&2
+  fi
 
   # 计算文件名
   filename_stem=$(story_filename_stem "$title")

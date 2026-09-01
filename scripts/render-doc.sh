@@ -93,6 +93,7 @@ normalize_user_roles() {
   printf '%s' "$value"
 }
 # priority_reason 只应含排序依据正文；兼容旧输入中的"排序依据：..."前缀，使渲染保持幂等。
+# 注：Feature 已删除「优先级」字段，本函数不再被调用，保留仅用于读取旧版字段 JSON 的幂等渲染。
 normalize_priority_reason() {
   local value="$1"
   value="${value#$'\357\273\277'}"
@@ -321,18 +322,16 @@ render_requirement_card() {
     '```' \
     '需求卡片 ──────────────→ Epic ──────────────→ Feature' \
     '  ▲                        │                     │' \
-    '  │ 5 个字段                │ 9 个字段             │ 12 个字段' \
+    '  │ 5 个字段                │ 9 个字段             │ 5 个字段' \
     '  │                        │                     │' \
-    '  ├ 需求基本信息             ├ 产品名称             ├ 能力名称' \
-    '  ├ 现状描述                ├ 产品定位             ├ 能力描述' \
-    '  ├ 痛点                   ├ 产品目标             ├ 能力目标' \
-    '  ├ 问题本质还原             ├ 用户角色             ├ 业务价值' \
-    '  └ 需求评估结果             ├ 核心场景             ├ 业务场景' \
-    '                           ├ 产品价值             ├ 业务流程' \
-    '                           ├ 范围边界             ├ 业务规则' \
-    '                           └ 建设思路             ├ 技术可行性' \
-    '                                                  ├ 资源投入' \
-    '                                                  └ 优先级' \
+    '  ├ 需求基本信息             ├ 产品名称             ├ 需求背景' \
+    '  ├ 现状描述                ├ 产品定位             ├ 能力名称' \
+    '  ├ 痛点                   ├ 产品目标             ├ 能力描述' \
+    '  ├ 问题本质还原             ├ 用户角色             ├ 能力目标' \
+    '  └ 需求评估结果             ├ 核心场景             └ 用户角色' \
+    '                           ├ 产品价值' \
+    '                           ├ 范围边界' \
+    '                           └ 建设思路' \
     '```' \
     '' \
     '## 需求基本信息' \
@@ -395,18 +394,16 @@ render_epic() {
     '```' \
     '需求卡片 ──────────────→ Epic ──────────────→ Feature' \
     '  │                        ▲                     │' \
-    '  │ 5 个字段                │ 9 个字段             │ 12 个字段' \
+    '  │ 5 个字段                │ 9 个字段             │ 5 个字段' \
     '  │                        │                     │' \
-    '  ├ 需求基本信息             ├ 产品名称             ├ 能力名称' \
-    '  ├ 现状描述                ├ 产品定位             ├ 能力描述' \
-    '  ├ 痛点                   ├ 产品目标             ├ 能力目标' \
-    '  ├ 问题本质还原             ├ 用户角色             ├ 业务价值' \
-    '  └ 需求评估结果             ├ 核心场景             ├ 业务场景' \
-    '                           ├ 产品价值             ├ 业务流程' \
-    '                           ├ 范围边界             ├ 业务规则' \
-    '                           └ 建设思路             ├ 技术可行性' \
-    '                                                  ├ 资源投入' \
-    '                                                  └ 优先级' \
+    '  ├ 需求基本信息             ├ 产品名称             ├ 需求背景' \
+    '  ├ 现状描述                ├ 产品定位             ├ 能力名称' \
+    '  ├ 痛点                   ├ 产品目标             ├ 能力描述' \
+    '  ├ 问题本质还原             ├ 用户角色             ├ 能力目标' \
+    '  └ 需求评估结果             ├ 核心场景             └ 用户角色' \
+    '                           ├ 产品价值' \
+    '                           ├ 范围边界' \
+    '                           └ 建设思路' \
     '```' \
     '' \
     '## 需求背景' \
@@ -455,9 +452,7 @@ render_epic() {
 
 render_feature() {
   local req_id epic_id requirement_bg capability_name capability_description
-  local capability_goal user_roles business_value business_scenarios
-  local business_process business_rules tech_feasibility resource_investment
-  local priority priority_reason
+  local capability_goal user_roles
 
   req_id=$(json_val "req_id")
   epic_id=$(json_val "epic_id")
@@ -468,15 +463,6 @@ render_feature() {
   capability_goal=$(json_val "capability_goal")
   user_roles=$(json_val "user_roles")
   user_roles=$(normalize_user_roles "$user_roles" "$epic_id")
-  business_value=$(json_val "business_value")
-  business_scenarios=$(json_val "business_scenarios")
-  business_process=$(json_val "business_process")
-  business_rules=$(json_val "business_rules")
-  tech_feasibility=$(json_val "tech_feasibility")
-  resource_investment=$(json_val "resource_investment")
-  priority=$(json_val "priority")
-  priority_reason=$(json_val "priority_reason")
-  priority_reason=$(normalize_priority_reason "$priority_reason")
 
   {
     generate_frontmatter "$capability_path"
@@ -487,19 +473,19 @@ render_feature() {
     '```' \
     '需求卡片 ──────────────→ Epic ──────────────→ Feature' \
     '  │                        │                     ▲' \
-    '  │ 5 个字段                │ 9 个字段             │ 12 个字段' \
+    '  │ 5 个字段                │ 9 个字段             │ 5 个字段' \
     '  │                        │                     │' \
-    '  ├ 需求基本信息             ├ 产品名称             ├ 能力名称' \
-    '  ├ 现状描述                ├ 产品定位             ├ 能力描述' \
-    '  ├ 痛点                   ├ 产品目标             ├ 能力目标' \
-    '  ├ 问题本质还原             ├ 用户角色             ├ 业务价值' \
-    '  └ 需求评估结果             ├ 核心场景             ├ 业务场景' \
-    '                           ├ 产品价值             ├ 业务流程' \
-    '                           ├ 范围边界             ├ 业务规则' \
-    '                           └ 建设思路             ├ 技术可行性' \
-    '                                                  ├ 资源投入' \
-    '                                                  └ 优先级' \
+    '  ├ 需求基本信息             ├ 产品名称             ├ 需求背景' \
+    '  ├ 现状描述                ├ 产品定位             ├ 能力名称' \
+    '  ├ 痛点                   ├ 产品目标             ├ 能力描述' \
+    '  ├ 问题本质还原             ├ 用户角色             ├ 能力目标' \
+    '  └ 需求评估结果             ├ 核心场景             └ 用户角色' \
+    '                           ├ 产品价值' \
+    '                           ├ 范围边界' \
+    '                           └ 建设思路' \
     '```' \
+    '' \
+    '> 业务价值、业务场景、业务流程、业务规则由《业务文档》按扁平 4 字段承载；技术可行性、资源投入已删除；优先级唯一来源为需求台账条目优先级。' \
     '' \
     '## 需求背景' \
     '' \
@@ -521,33 +507,9 @@ render_feature() {
     '' \
     "引用 [[${product_short}-设计文档]] 中的角色：$user_roles" \
     '' \
-    '## 业务价值' \
+    '## 关联业务文档' \
     '' \
-    "$business_value" \
-    '' \
-    '## 业务场景' \
-    '' \
-    "$business_scenarios" \
-    '' \
-    '## 业务流程' \
-    '' \
-    "$business_process" \
-    '' \
-    '## 业务规则' \
-    '' \
-    "$business_rules" \
-    '' \
-    '## 技术可行性' \
-    '' \
-    "$tech_feasibility" \
-    '' \
-    '## 资源投入' \
-    '' \
-    "$resource_investment" \
-    '' \
-    '## 优先级' \
-    '' \
-    "$priority（排序依据：$priority_reason）"
+    "本 Feature 的业务价值、业务场景、业务流程、业务规则见 [[${product_short}-业务文档]]（业务场景与业务规则表按「所属能力」列定位本能力）。"
   } > "$output_file"
 }
 

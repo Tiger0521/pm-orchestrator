@@ -26,6 +26,18 @@ event="${4:-}"
 
 # ---- 读取当前状态 ----
 
+# 旧值别名规范化：user-story-breakdown 已改名为 story-map；旧项目 progress.json
+# 仍可能存旧值，读取端统一按 story-map 处理，旧项目无需机械迁移。
+normalize_state() {
+  case "$1" in
+    user-story-breakdown) printf 'story-map' ;;
+    *) printf '%s' "$1" ;;
+  esac
+}
+
+from_state=$(normalize_state "$from_state")
+to_state=$(normalize_state "$to_state")
+
 # 读取 workflow.state（v2 schema）
 current_state=$(sed -n 's/.*"state"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$progress_path" | head -n 1)
 
@@ -42,8 +54,11 @@ fi
 
 # 防并发：当前状态必须与 from_state 匹配
 if [ "$current_state" != "$from_state" ]; then
-  echo "ERROR: state mismatch. Expected $from_state, got $current_state" >&2
-  exit 3
+  current_state=$(normalize_state "$current_state")
+  if [ "$current_state" != "$from_state" ]; then
+    echo "ERROR: state mismatch. Expected $from_state, got $current_state" >&2
+    exit 3
+  fi
 fi
 
 # ---- 校验合法迁移边 ----
@@ -54,13 +69,18 @@ valid_edge() {
   local to="$2"
   case "$from->$to" in
     # intake 在 requirement-analyst 的 mode=intake 内完成；正式初始化由 init-project.sh 直接建立 requirement-analysis 状态。
-    # 阶段转换
-    "requirement-analysis->user-story-breakdown") return 0 ;;
-    "user-story-breakdown->detailed-design") return 0 ;;
+    # 阶段转换（前行）
+    "requirement-analysis->story-map") return 0 ;;
+    "story-map->detailed-design") return 0 ;;
+    "story-map->sprint-planning") return 0 ;;
+    "detailed-design->sprint-planning") return 0 ;;
     "detailed-design->completed") return 0 ;;
+    "sprint-planning->completed") return 0 ;;
     # 回退（!back）
-    "user-story-breakdown->requirement-analysis") return 0 ;;
-    "detailed-design->user-story-breakdown") return 0 ;;
+    "story-map->requirement-analysis") return 0 ;;
+    "detailed-design->story-map") return 0 ;;
+    "sprint-planning->detailed-design") return 0 ;;
+    "sprint-planning->story-map") return 0 ;;
     *) return 1 ;;
   esac
 }

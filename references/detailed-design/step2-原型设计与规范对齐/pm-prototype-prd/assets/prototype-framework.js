@@ -1632,6 +1632,7 @@
   // ============================================================
   let _selStartX = 0, _selStartY = 0;
   let _selEl = null, _selOverlay = null, _selPopup = null;
+  let _selDragging = false; // 拖拽中标记：鼠标松开后矩形锁定，不再跟随移动
 
   function toggleSelectionTool() {
     _selectionActive = !_selectionActive;
@@ -1678,6 +1679,7 @@
     _selOverlay.onmousedown = function (e) {
       _selStartX = e.clientX;
       _selStartY = e.clientY;
+      _selDragging = true;
       _selEl.style.left = _selStartX + 'px';
       _selEl.style.top = _selStartY + 'px';
       _selEl.style.width = '0px';
@@ -1686,7 +1688,7 @@
       _selPopup.classList.remove('visible');
     };
     _selOverlay.onmousemove = function (e) {
-      if (!_selEl.classList.contains('visible')) return;
+      if (!_selDragging) return;
       const x = Math.min(_selStartX, e.clientX);
       const y = Math.min(_selStartY, e.clientY);
       const w = Math.abs(e.clientX - _selStartX);
@@ -1697,7 +1699,8 @@
       _selEl.style.height = h + 'px';
     };
     _selOverlay.onmouseup = function (e) {
-      if (!_selEl.classList.contains('visible')) return;
+      if (!_selDragging) return;
+      _selDragging = false;
       const w = parseInt(_selEl.style.width);
       const h = parseInt(_selEl.style.height);
       if (w < 20 && h < 20) {
@@ -1712,6 +1715,8 @@
       _selPopup.classList.add('visible');
       document.getElementById('aptModifyDesc').focus();
     };
+    // 兜底：鼠标意外在窗口外松开时释放拖拽状态，避免矩形卡住
+    document.addEventListener('mouseup', function () { _selDragging = false; });
     document.getElementById('aptSelCancel').onclick = function () {
       _selPopup.classList.remove('visible');
       _selEl.classList.remove('visible');
