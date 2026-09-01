@@ -73,9 +73,9 @@
 
 **结束标志**：能力分类修补完成。不涉及过程项目，不改变阶段状态。
 
-### 无明确意图时：阶段导航
+### 无明确意图时：引导、安抚与进度展示
 
-用户进入 skill 但**没有明确阶段意图**时，主调度器读取 `references/phase-navigator.md`，展示全局阶段地图（需求分析 → 能力划分 → 用户故事+故事地图 → 详细设计 → Sprint 分解）、当前进度与可选操作，并推荐从当前阶段继续。每次委派前，主调度器把「当前阶段 + 进度」注入 handoff context；各阶段开始时输出阶段简介与预期产出，结束时输出完成确认与下一步建议。
+每次会话开场，主调度器先按 `SKILL.md`「用户引导与安抚（开场协议）」执行：用大白话介绍它能做什么（全流程：需求分析 → 能力划分 → 用户故事+故事地图 → 详细设计 → Sprint 分解，以及单独任务：更新架构设计文档 / 修补能力分类 / 修改原型），安抚用户"流程不用记、每次只说想做什么、可随时打断追问、写库/建项目/切阶段前必先确认"，再给出三入口菜单（新想法 / 继续以前的工作 / 单独做一件事）；用户**没有明确阶段意图**时，主调度器读取 `references/phase-navigator.md`，在介绍与菜单之后展示全局阶段地图、当前进度与可选操作，并推荐从当前阶段继续。每次委派前，主调度器把「当前阶段 + 进度」注入 handoff context；各阶段开始时输出阶段简介与预期产出（附"每一步会说明要确认什么"），结束时输出完成确认与下一步建议。
 
 ---
 
@@ -114,7 +114,8 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 -Target claude   # 或 -T
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
-| V4.1.0 | 2026-08-27 | 阶段重构：`user-story-breakdown` 更名 `story-map` 并合并地图生成；Sprint 分解独立为 `sprint-planning` 阶段（新增 `sprint-planner`）；需求台账 + 业务文档 + Feature 12→5 字段；新增阶段导航器与 `phase_status` |
+| V4.0.3 | 2026-09-01 | 移除用户故事地图总览产物；story-map 合并需求拆解、新增 sprint-planner 与 phase-navigator；需求台账 + 业务文档 + Feature 12→5 字段；修复原型框选拖拽锁定与迭代规划表格 wikilink 转义 |
+| V4.1.0 | 2026-09-01 | 新增独立架构设计文档更新 agent（update-index 增量同步产品矩阵，可单独调用）与用户引导与安抚开场协议（介绍 / 安抚 / 三入口菜单）；需求分析与故事地图完成汇报自动提醒同步架构设计文档 |
 | V4.0.2 | 2026-08-21 | 更新 README：补充完整调用关系流程图 |
 | V4.0.1 | 2026-08-21 | 修复产品库命名和 obsidian 引用格式 |
 | V4.0.0 | 2026-08-21 | 支持 zcode 使用，完成详细设计 step1+step2，可生成原型 |
@@ -126,7 +127,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 -Target claude   # 或 -T
 ```
 pm-orchestrator/                          ← git 仓库根 = skill 本体
 │
-├── SKILL.md                              ← 主调度入口 + 运行时识别门 + 阶段导航
+├── SKILL.md                              ← 主调度入口 + 运行时识别门 + 用户引导与安抚开场协议
 ├── README.md
 ├── .gitignore
 ├── install.ps1                           ← 统一安装脚本（可选）
@@ -142,11 +143,13 @@ pm-orchestrator/                          ← git 仓库根 = skill 本体
 │   ├── story-map-designer.md             ← 旅程 + User Story + 故事地图（一次完成）
 │   ├── detailed-design-designer.md       ← Step 1-3 详细设计（Sprint 分解不在此）
 │   ├── sprint-planner.md                 ← Sprint 分解（独立阶段）
+│   ├── architecture-updater.md           ← 架构设计文档产品矩阵维护（独立模式）
 │   └── zcode/                            ← ZCode 版（分发副本）
 │       ├── requirement-analyst.md
 │       ├── story-map-designer.md
 │       ├── detailed-design-designer.md
-│       └── sprint-planner.md
+│       ├── sprint-planner.md
+│       └── architecture-updater.md
 │
 ├── references/                           ← 方法论、模板、质量门（双平台共用）
 │   │
@@ -310,7 +313,7 @@ pm-orchestrator/                          ← git 仓库根 = skill 本体
 │   │
 │   ├── 产品库管理
 │   │   ├── acquire-product-library.sh    ← Git 克隆/更新产品库
-│   │   ├── product-library-tools.mjs     ← 对账工具（reconcile）
+│   │   ├── product-library-tools.mjs     ← 对账工具（reconcile / sync-index）
 │   │   ├── backfill-library-ids.mjs      ← 回填继承式 ID
 │   │   └── rename-product.sh             ← 产品简称变更
 │   │
@@ -351,8 +354,10 @@ flowchart TD
     RuntimeDetect -->|具备 Agent 工具 + ZCode 解析能力| ZCode[固化 RUNTIME=zcode<br/>运行 subagent 自检自举]
     RuntimeDetect -->|插件命名空间解析能力| Claude[固化 RUNTIME=claude<br/>插件自动注册 pm-orchestrator: 前缀]
 
-    ZCode --> Nav{无明确阶段意图？}
-    Claude --> Nav
+    ZCode --> Intro[用户引导与安抚开场协议<br/>介绍能力/安抚/三入口菜单]
+    Claude --> Intro
+
+    Intro --> Nav{无明确阶段意图？}
 
     Nav -- 是 --> Navigate[读取 phase-navigator.md<br/>展示全局阶段地图/进度/可选操作]
     Navigate --> Library
@@ -601,7 +606,7 @@ product-library/
 - 产品目录使用全名，文件使用 2–6 个汉字的唯一简称前缀
 - 正文使用 Wiki 链接 `[[文件名]]` 引用其他文档（兼容 Obsidian）；引用台账条目用 `[[<简称>-需求台账|<条目ID>]]` 文件链接（条目是台账表格中的一行，不使用块锚点）
 - 所有文档带 frontmatter（`id`、`product`、`type`、`capability`、`aliases`、`tags`）
-- 架构设计文档是根标识和最高产品设计标准
+- 架构设计文档是根标识和最高产品设计标准；产品矩阵（简称/能力索引/故事索引）由 `architecture-updater` 独立维护（`update-index` 模式，可单独调用），标记块外的标题与概述由用户手动维护
 
 ---
 

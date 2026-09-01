@@ -6,8 +6,8 @@
 
 `type` / `subagent_type` 的命名随 `RUNTIME` 分支确定（本文件不再写死单一前缀）。会话开头由 `SKILL.md` 的"运行时识别"门固化 `RUNTIME` 后，按 `runtime/<RUNTIME>.md` 采用对应命名：
 
-- `RUNTIME=claude`：命名子 agent 带插件命名空间，`pm-orchestrator:requirement-analyst`、`pm-orchestrator:story-map-designer`、`pm-orchestrator:detailed-design-designer`、`pm-orchestrator:sprint-planner`。
-- `RUNTIME=zcode`：用 `Agent` 工具的 `subagent_type` 裸名，`requirement-analyst`、`story-map-designer`、`detailed-design-designer`、`sprint-planner`。
+- `RUNTIME=claude`：命名子 agent 带插件命名空间，`pm-orchestrator:requirement-analyst`、`pm-orchestrator:story-map-designer`、`pm-orchestrator:detailed-design-designer`、`pm-orchestrator:sprint-planner`、`pm-orchestrator:architecture-updater`。
+- `RUNTIME=zcode`：用 `Agent` 工具的 `subagent_type` 裸名，`requirement-analyst`、`story-map-designer`、`detailed-design-designer`、`sprint-planner`、`architecture-updater`。
 
 两运行时的过程项目根统一为 `<workspace>/.claude/product-design-projects/`（与 `projectRoot` 一致）；reference 解析按 `runtime/<RUNTIME>.md` 分支执行：`claude` 相对 skillPath 解析，`zcode` 经 `${skillPath}` 前缀解析。
 
@@ -19,7 +19,7 @@ progressPath: <projectPath>/progress.json（首次新需求 mode=intake 时省�
 phaseSummaryPath: <projectPath>/phase-summary.md（首次新需求 mode=intake 时省略）
 workflowState: 'collect-background | requirement-analysis | story-map | detailed-design | sprint-planning | completed'（首次新需求为 collect-background；旧项目 `user-story-breakdown` 值按 `story-map` 处理）
 projectType: 'pending | new | iteration | refactor'（首次新需求为 pending）
-mode: 'intake | draft | persist | validate'
+mode: 'intake | draft | persist | validate | update-index'
 task: <本轮明确任务>
 artifactScope: 'requirement-epic | features | requirement-ledger'（需求分析产品资产的 draft/persist 必填；业务文档草稿随 features 批次处理，不单独作 scope；恢复旧项目时可由正式产物推断后补入；其他路由省略）
 upstreamDocs: [<doc-id-or-relative-path>]
@@ -52,7 +52,7 @@ interactionContract:
 
 ### 委派前的阶段注入
 
-每次委派 subagent 前，按 `references/phase-navigator.md` 的状态检测逻辑确定「当前阶段 + 进度」，注入 handoff 的 `navigationContext`；有无明确阶段意图时先向用户展示阶段地图。委派返回后，按 `persisted`/`validation-pass`/`draft-ready` 对照 `phase-summary.md` 与产品库扫描结果更新进度认知，供下一轮注入与阶段导航使用。
+每次委派 subagent 前，按 `references/phase-navigator.md` 的状态检测逻辑确定「当前阶段 + 进度」，注入 handoff 的 `navigationContext`；有无明确阶段意图时先向用户展示阶段地图（展示前按 `SKILL.md`「用户引导与安抚（开场协议）」完成介绍与安抚，无明确意图时按 phase-navigator「无明确意图时」模板输出）。委派返回后，按 `persisted`/`validation-pass`/`draft-ready` 对照 `phase-summary.md` 与产品库扫描结果更新进度认知，供下一轮注入与阶段导航使用。
 
 ## Mode 与安全规则
 
@@ -62,6 +62,7 @@ interactionContract:
 | `draft` | 产出问题、诊断、草稿或建议，不写过程项目正式文档 |
 | `persist` | 用户确认完整草稿后，直接写入产品库正式文档并更新 `refs.json` |
 | `validate` | 对照 checklist 校验现有产物，不创建产出 |
+| `update-index` | 仅由 `architecture-updater` 处理：扫描产品库、预览架构设计文档产品矩阵差异、确认后写回；不涉及过程项目，不修改 `workflow.state` |
 
 默认使用 `draft`，一次委派只使用一个 mode。除首次新需求 `mode=intake` 外，规范化 `projectRoot`、`projectPath` 和所有 `outputTargets`；项目必须是当前工作区项目根的直接子目录，草稿态数据和项目记忆在过程项目内，正式文档直接写入产品库，否则返回 `blocked`。首次新需求只校验 `projectRoot`，由 `requirement-analyst` 通过 `prepare-intake.sh` 创建项目后再派生并校验其余路径。
 
@@ -99,6 +100,8 @@ subagent 的返回只回到主调度器，不会自动展示给用户。**用户
 `intake-initialized` 只用于 requirement-analyst 已完成项目初始化的结果。需求分析产品资产的 `draft-ready` 和 `persisted` 必须携带 `artifactScope`：`requirement-epic` 表示需求卡片 + Epic 批次，`features` 表示 Feature + 业务文档 + 需求台账条目批次（台账条目随 Feature 拆解生成，见 `requirement-analysis/workflows/draft.md` 第 8.5 步），`requirement-ledger` 表示需求台账变更条目追加批次。`persisted(requirement-epic)` 后不得报告阶段完成（对外措辞为"需求卡片、Epic 已写入产品库，接下来继续拆解 Feature（拆解时产出需求台账条目）"）；下一轮必须以 `mode=draft`、`artifactScope=features` 重新委派 requirement-analyst。`persisted(requirement-ledger)` 表示台账变更条目已追加落盘（对外措辞为"需求台账条目已写入产品库"），主调度器展示结果后回到原任务推进。`persisted(features)` 必须携带 `nextAction=phase-complete`；主调度器确认需求卡片、Epic、需求台账和能力清单中的全部 Feature 均已写入产品库后，需求分析阶段即完成，可直接进入下一阶段或等待用户指令。输出不符合交互契约时，要求原 subagent 修正。
 
 `story-map` 阶段的 `persisted` 表示本批 Story、溯源矩阵与用户故事地图已写入（阶段内由 `story-map-designer` 一次完成旅程提取 → Story 拆解 → 溯源矩阵 → 能力地图，不再分拆为两次委派、无独立 generate 模式）。主调度器收到后不得报告阶段完成、不得自动迁移 `workflow.state`；可进入**详细设计**或**Sprint 分解**（两者前置依赖均为用户故事阶段产物），按用户意图经 `references/orchestrator/phase-transition.md` 执行校验和用户确认后迁移。`sprint-planning` 阶段的 `persisted` 表示迭代规划已写入产品库 `详细设计/迭代规划/`，同样按阶段转换协议推进。
+
+需求分析阶段完成（`persisted(artifactScope=features)`）与 story-map 阶段 `persisted` 的对外汇报，按 SKILL.md 追加架构设计文档同步提醒（新能力文档/User Story 已写入产品库，产品矩阵未自动同步）。用户同意同步时，以 `mode=update-index` 委派 `architecture-updater`：只传 `selectedProductLibraryPath`、`productArchitectureDesignPath`、可选 `productFullNames` 与交互契约，不传过程项目路径；按其返回状态推进（`draft-ready` 展示预览请求确认 → `persisted` 汇报变更摘要）。
 
 ## 正式输出规范
 
@@ -151,6 +154,6 @@ ID 前缀使用继承式产品库格式：`<简称>-REQ`、`<简称>-EPIC`、`<�
 
 ## 共享辅助脚本
 
-按需使用 `render-doc.sh`、`quick-persist.sh`、`render-story.sh`、`render-matrix.sh`、`validate-paradigm.sh`、`validate-story.sh`、`convert-document.py`、`export-doc-index.sh`、`product-library-tools.mjs`（含 `reconcile` 命令）、`acquire-product-library.sh`、`validate-product-library-lite.sh`（快速身份确认）、`validate-product-library.sh`（全量校验，按需手动执行）和 `rename-product.sh`。
+按需使用 `render-doc.sh`、`quick-persist.sh`、`render-story.sh`、`render-matrix.sh`、`validate-paradigm.sh`、`validate-story.sh`、`convert-document.py`、`export-doc-index.sh`、`product-library-tools.mjs`（含 `reconcile`、`sync-index` 命令）、`acquire-product-library.sh`、`validate-product-library-lite.sh`（快速身份确认）、`validate-product-library.sh`（全量校验，按需手动执行）和 `rename-product.sh`。
 
 创建 intake、初始化项目、产品库处理和状态迁移脚本的参数只在对应 `references/orchestrator/` 文件中定义。

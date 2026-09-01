@@ -161,6 +161,7 @@ tags:
 - `export-to-library.sh`：已废弃。persist 直接写入产品库，不再需要导出步骤。旧项目迁移使用 `backfill-library-ids.mjs`。
 - `render-doc.sh`：把字段 JSON 渲染为 Markdown 写入产品库产品目录；支持需求卡片/Epic/Feature 与详细设计五类（结构流程图/原型/交互契约/规则摘要/迭代规划），按继承式产品库 ID 规则分配或复用 ID，渲染后自动运行 `validate-paradigm.sh`。详细设计五类写入 `详细设计/<类型子目录>/`。
 - `product-library-tools.mjs reconcile`：扫描产品库、计算 SHA-256 哈希、比对 `refs.json`、输出变更报告、更新哈希。
+- `product-library-tools.mjs sync-index`：独立维护架构设计文档产品矩阵——扫描产品库实际内容（能力文档、`用户故事/` 或 `UserStory/` 下的用户故事），增量同步各产品标记块内的能力索引与故事索引（保留现有条目顺序与别名，仅追加新条目、移除目标文件不存在的失效条目），未登记产品自动生成产品块（概述从设计文档/需求卡片提取或占位）。dry-run 默认只预览，追加 `--apply` 才写入；写入前自动备份、失败回滚。由 `architecture-updater` 在 `update-index` 模式调用。
 - `rename-product.sh`：预览简称变更，确认后批量改名、更新链接和产品矩阵标记区域，失败时回滚。
 
 改简称默认只预览；只有用户确认后才使用 `--apply`。写入后必须校验。简称变更前校验格式与唯一性，`product` 始终保存产品全名。

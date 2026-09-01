@@ -258,6 +258,234 @@ function updateArchitecture(archPath, product, short, plans, epicSource, idLinks
   fs.writeFileSync(archPath, `${lines.join('\n').trimEnd()}\n`, 'utf8');
 }
 
+// ---- sync-index：独立扫描产品库，增量同步架构设计根文档的产品矩阵 ----
+
+function collectProductIndex(productDir) {
+  const caps = new Map(); // category -> Map<capName, stem>（无类别时 category=capName）
+  const stories = new Map(); // `${category}/${capName}` -> stem[]（按文件名排序；无类别时 key=capName）
+  const warnings = [];
+  for (const file of walkFiles(productDir, (f) => f.endsWith('.md'))) {
+    const rel = path.relative(productDir, file);
+    const seg = rel.split(path.sep);
+    const stem = path.parse(file).name;
+    let classified = false;
+    if (file.endsWith('-能力文档.md')) {
+      if (seg.length === 3 && seg[1] !== '用户故事地图') {
+        const [category, capName] = seg;
+        if (!caps.has(category)) caps.set(category, new Map());
+        caps.get(category).set(capName, stem);
+        classified = true;
+      } else if (seg.length === 2) {
+        const capName = seg[0];
+        if (!caps.has(capName)) caps.set(capName, new Map());
+        caps.get(capName).set(capName, stem);
+        classified = true;
+      }
+    } else if (file.endsWith('故事.md')) {
+      if (seg.length === 4 && (seg[2] === '用户故事' || seg[2] === 'UserStory')) {
+        const [category, capName] = seg;
+        const key = `${category}/${capName}`;
+        if (!stories.has(key)) stories.set(key, []);
+        stories.get(key).push(stem);
+        classified = true;
+      } else if (seg.length === 3 && (seg[1] === '用户故事' || seg[1] === 'UserStory')) {
+        const capName = seg[0];
+        if (!stories.has(capName)) stories.set(capName, []);
+        stories.get(capName).push(stem);
+        classified = true;
+      }
+    }
+    if (!classified && seg.length > 1 && seg[0] !== '详细设计' && seg[0] !== '用户故事地图') {
+      warnings.push(rel);
+    }
+  }
+  for (const list of stories.values()) list.sort((a, b) => a.localeCompare(b, 'zh-CN'));
+  return { caps, stories, warnings };
+}
+
+function parseIndexSection(lines) {
+  const result = { short: '', caps: [], stories: [] };
+  let section = null;
+  let group = null;
+  for (const line of lines) {
+    const t = line.trim();
+    if (!t) continue;
+    if (t.startsWith('### 能力索引')) { section = 'caps'; group = null; continue; }
+    if (t.startsWith('### 故事索引')) { section = 'stories'; group = null; continue; }
+    if (section && t.startsWith('#### ')) {
+      group = { title: t.slice(5).trim(), items: [] };
+      (section === 'caps' ? result.caps : result.stories).push(group);
+      continue;
+    }
+    const m = t.match(/^- \[\[([^\]|]+)(?:\|([^\]]+))?\]\]$/);
+    if (section && group && m) {
+      group.items.push({ target: m[1].trim().replaceAll('\\|', '|'), line: t });
+    } else if (section && group && t.startsWith('- ')) {
+      group.items.push({ target: '', line: t });
+    }
+    if (t.startsWith('**简称**：')) result.short = t.replace('**简称**：', '').trim();
+  }
+  return result;
+}
+
+function mergeIndexSection(parsed, caps, stories, scannedStems, short) {
+  const cloneGroups = (list) => list.map((g) => ({ title: g.title, items: [...g.items] }));
+  const capsOut = cloneGroups(parsed.caps);
+  const storiesOut = cloneGroups(parsed.stories);
+  const knownCaps = new Set(parsed.caps.flatMap((g) => g.items.map((i) => i.target)).filter(Boolean));
+  const knownStories = new Set(parsed.stories.flatMap((g) => g.items.map((i) => i.target)).filter(Boolean));
+  const changes = { capAdded: 0, capRemoved: 0, storyAdded: 0, storyRemoved: 0, lines: [] };
+
+  const prune = (groupsOut, counter) => {
+    for (const g of groupsOut) {
+      const kept = [];
+      for (const item of g.items) {
+        if (
+          item.target
+          && (item.target.endsWith('能力文档') || item.target.endsWith('故事'))
+          && !scannedStems.has(item.target)
+        ) {
+          changes[counter] += 1;
+          changes.lines.push(`- ${item.line}`);
+        } else {
+          kept.push(item);
+        }
+      }
+      g.items = kept;
+    }
+  };
+  prune(capsOut, 'capRemoved');
+  prune(storiesOut, 'storyRemoved');
+
+  const catOrder = [...caps.keys()].sort((a, b) => a.localeCompare(b, 'zh-CN'));
+  for (const category of catOrder) {
+    const capNames = [...caps.get(category).keys()].sort((a, b) => a.localeCompare(b, 'zh-CN'));
+    for (const capName of capNames) {
+      const stem = caps.get(category).get(capName);
+      if (knownCaps.has(stem)) continue;
+      const line = `- [[${stem}|${capName}]]`;
+      let group = capsOut.find((g) => g.title === category);
+      if (!group) { group = { title: category, items: [] }; capsOut.push(group); }
+      group.items.push({ target: stem, line });
+      changes.lines.push(`+ ${line}`);
+      changes.capAdded += 1;
+    }
+  }
+
+  const storyKeys = [...stories.keys()].sort((a, b) => a.localeCompare(b, 'zh-CN'));
+  for (const key of storyKeys) {
+    const capName = key.split('/')[1];
+    let group = storiesOut.find((g) => g.title === capName);
+    if (!group) { group = { title: capName, items: [] }; storiesOut.push(group); }
+    let count = group.items.filter((i) => i.target).length;
+    for (const stem of stories.get(key)) {
+      if (knownStories.has(stem)) continue;
+      const label = `${capName}-${String(count + 1).padStart(2, '0')}`;
+      const line = `- [[${stem}|${label}]]`;
+      group.items.push({ target: stem, line });
+      changes.lines.push(`+ ${line}`);
+      changes.storyAdded += 1;
+      count += 1;
+    }
+  }
+
+  const parts = [`**简称**：${short}`, '', '### 能力索引', ''];
+  for (const g of capsOut) {
+    parts.push(`#### ${g.title}`);
+    if (g.items.length) parts.push(...g.items.map((i) => i.line));
+    parts.push('');
+  }
+  parts.push('### 故事索引', '');
+  for (const g of storiesOut) {
+    parts.push(`#### ${g.title}`);
+    if (g.items.length) parts.push(...g.items.map((i) => i.line));
+    parts.push('');
+  }
+  const inner = parts.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  return { ...changes, inner };
+}
+
+function extractProductOverview(productDir, short) {
+  for (const name of [`${short}-设计文档.md`, `${short}-需求卡片.md`]) {
+    const source = path.join(productDir, name);
+    if (!fs.existsSync(source)) continue;
+    const { body } = parseFrontmatter(fs.readFileSync(source, 'utf8'));
+    const match = body.match(/^##\s+产品定位\s*\n+([\s\S]+?)(?=\n##\s|$)/m);
+    const text = (match ? match[1] : body.split(/\n{2,}/).find((s) => s.trim() && !/^[#>\-]/.test(s.trim())) || '').trim();
+    if (text) return text.length > 200 ? `${text.slice(0, 200)}…` : text;
+  }
+  return '（产品概述待维护）';
+}
+
+function syncProductIndex(args) {
+  const applyChanges = args.includes('--apply');
+  const positional = args.filter((a) => a !== '--apply');
+  if (positional.length < 1) fail('用法: sync-index <产品库目录> [产品全名...] [--apply]');
+  const libraryDir = path.resolve(positional[0]);
+  const requested = positional.slice(1);
+  if (!fs.statSync(libraryDir, { throwIfNoEntry: false })?.isDirectory()) fail(`产品库目录不存在: ${libraryDir}`);
+  const archPath = architecturePath(libraryDir);
+  const lines = fs.readFileSync(archPath, 'utf8').split(/\r?\n/);
+  const { matrixEnd, products } = parseProductMatrix(lines);
+  const registered = new Set(products.map((p) => p.full));
+  const dirNames = fs.readdirSync(libraryDir, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && !e.name.startsWith('.'))
+    .map((e) => e.name);
+  const candidateDirs = dirNames.filter((d) => /^[\u4e00-\u9fff]{2,6}：[\u4e00-\u9fff]+$/u.test(d));
+  const targets = requested.length
+    ? requested.map((name) => {
+        if (!dirNames.includes(name)) fail(`产品目录不存在: ${name}`);
+        return name;
+      })
+    : [...new Set([...registered, ...candidateDirs])];
+
+  const edits = [];
+  const newBlocks = [];
+  for (const product of targets) {
+    const productDir = path.join(libraryDir, product);
+    if (!fs.statSync(productDir, { throwIfNoEntry: false })?.isDirectory()) fail(`产品目录不存在: ${product}`);
+    const scan = collectProductIndex(productDir);
+    const scannedStems = new Set();
+    for (const m of scan.caps.values()) for (const s of m.values()) scannedStems.add(s);
+    for (const list of scan.stories.values()) for (const s of list) scannedStems.add(s);
+    const reg = products.find((p) => p.full === product);
+    const short = reg?.short || product.split('：')[0];
+    if (!/^[\u4e00-\u9fff]{2,6}$/u.test(short)) fail(`无法从产品全名解析简称: ${product}`);
+    for (const w of scan.warnings) console.log(`WARN\t${product}\t${w}`);
+    let merged;
+    if (reg) {
+      const parsed = parseIndexSection(lines.slice(reg.startIdx + 1, reg.endIdx));
+      merged = mergeIndexSection(parsed, scan.caps, scan.stories, scannedStems, short);
+      edits.push({ pos: reg.startIdx + 1, del: reg.endIdx - reg.startIdx - 1, text: `\n${merged.inner}\n` });
+    } else {
+      merged = mergeIndexSection({ short, caps: [], stories: [] }, scan.caps, scan.stories, scannedStems, short);
+      const overview = extractProductOverview(productDir, short);
+      newBlocks.push(`## ${product}\n\n${overview}\n\n<!-- product:${product}:start -->\n\n${merged.inner}\n\n<!-- product:${product}:end -->`);
+    }
+    const total = merged.capAdded + merged.capRemoved + merged.storyAdded + merged.storyRemoved;
+    const stats = `能力 +${merged.capAdded}/-${merged.capRemoved}\t故事 +${merged.storyAdded}/-${merged.storyRemoved}`;
+    console.log(`PRODUCT\t${product}\t${stats}${total ? '' : '\t无变更'}`);
+    for (const c of merged.lines) console.log(`CHANGE\t${product}\t${c}`);
+  }
+  if (newBlocks.length) edits.push({ pos: matrixEnd, del: 0, text: `${newBlocks.join('\n')}\n` });
+  edits.sort((a, b) => b.pos - a.pos);
+
+  if (!applyChanges) {
+    console.log('SYNC_STATUS=PREVIEW');
+    console.log('确认以上清单后，以相同参数追加 --apply 执行写入。');
+    return;
+  }
+  const backupArch = fs.readFileSync(archPath);
+  try {
+    for (const e of edits) lines.splice(e.pos, e.del, ...e.text.split('\n'));
+    fs.writeFileSync(archPath, `${lines.join('\n').trimEnd()}\n`, 'utf8');
+    console.log('SYNC_STATUS=APPLIED');
+  } catch (error) {
+    fs.writeFileSync(archPath, backupArch);
+    fail(`同步失败，已回滚: ${error.message}`);
+  }
+}
+
 function reconcileLibrary(args) {
   if (args.length !== 3) {
     fail('用法: reconcile <产品库目录> <产品全名> <refs.json路径>');
@@ -669,4 +897,5 @@ const [command, ...args] = process.argv.slice(2);
 if (command === 'export') exportProduct(args);
 else if (command === 'rename') renameProduct(args);
 else if (command === 'reconcile') reconcileLibrary(args);
-else fail('未知命令。可用命令: export, rename, reconcile');
+else if (command === 'sync-index') syncProductIndex(args);
+else fail('未知命令。可用命令: export, rename, reconcile, sync-index');

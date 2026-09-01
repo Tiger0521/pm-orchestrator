@@ -12,7 +12,7 @@
 
 ## Subagent 定义位置
 
-subagent 定义位于本 skill 文件夹内 `agents/*.md`（claude 版平铺在 `agents/` 根，随"一份 skill"分发）。本 skill 根携带 `.claude-plugin/plugin.json`，Claude Code 会把 skill 目录自动识别为名为 `pm-orchestrator` 的插件，`agents/` 下的四个 subagent 因此自动获得 `pm-orchestrator:` 命名空间，**无需任何插件注册**。安装只需把整个 skill 文件夹拷入 `~/.claude/skills/pm-orchestrator` 后重启 Claude Code（`install.ps1` 为可选便捷工具）。主调度器无需关心其存放，只用下方"命名子 agent"方式引用。
+subagent 定义位于本 skill 文件夹内 `agents/*.md`（claude 版平铺在 `agents/` 根，随"一份 skill"分发）。本 skill 根携带 `.claude-plugin/plugin.json`，Claude Code 会把 skill 目录自动识别为名为 `pm-orchestrator` 的插件，`agents/` 下的五个 subagent 因此自动获得 `pm-orchestrator:` 命名空间，**无需任何插件注册**。安装只需把整个 skill 文件夹拷入 `~/.claude/skills/pm-orchestrator` 后重启 Claude Code（`install.ps1` 为可选便捷工具）。主调度器无需关心其存放，只用下方"命名子 agent"方式引用。
 
 ## 主 agent 调用方式
 
@@ -22,6 +22,7 @@ subagent 定义位于本 skill 文件夹内 `agents/*.md`（claude 版平铺在 
 - `pm-orchestrator:story-map-designer`
 - `pm-orchestrator:detailed-design-designer`
 - `pm-orchestrator:sprint-planner`
+- `pm-orchestrator:architecture-updater`
 
 ## 文件路径
 
@@ -39,5 +40,6 @@ Claude 版 agent frontmatter 的 `tools` 含 `LS`（部分含 `Bash`）：
 | `story-map-designer` | `["Read","Write","Grep","Glob","LS","Bash"]` |
 | `detailed-design-designer` | `["Read","Write","Grep","Glob","LS","Bash"]` |
 | `sprint-planner` | `["Read","Write","Grep","Glob","LS","Bash"]` |
+| `architecture-updater` | `["Read","Write","Grep","Glob","LS","Bash"]` |
 
 每个 agent 文件的 frontmatter 带 `runtime: claude`，正文以 `references/...` 相对路径引用方法论。

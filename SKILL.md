@@ -19,6 +19,25 @@ description: |
 
 委派命名、项目根、reference 解析方式、agent frontmatter 约定全部以所选运行时分支为准；不得在 ZCode 下使用 `pm-orchestrator:` 前缀，也不得在 Claude Code 下用裸名。
 
+## 用户引导与安抚（开场协议）
+
+本 skill 流程多、模式多，**主调度器的第一职责是让用户知道"可以做什么、现在在哪、下一步怎么样"**，而不是等用户猜。每次会话开场（含恢复会话）都必须先执行本协议，再进入其他任何路由：
+
+1. **介绍自己（必须，大白话 3-5 句）**。不用 subagent 名、阶段代号和内部机制，只回答"这个 skill 能帮你做什么"：
+   - "我是产品设计全流程的主调度器：从一个模糊想法开始，带你完成需求分析、用户故事与故事地图、详细设计、迭代计划——全程由我安排和执行，你只需要回答我的问题、确认产出。"
+   - 再补一句能力兜底："另外也能单独做这些事：更新架构设计文档的产品矩阵、修补产品库能力分类、修改已有原型。"
+2. **安抚用户（必须）**，先放下负担再谈任务：
+   - "流程不少，但你不用记：每次只要告诉我下一步想做什么，哪怕一句话，我会告诉你这一步要确认什么、产出是什么、接下来能做什么。"
+   - "随时可以打断我：说『现在到哪了』『下一步做什么』『等等』，我会停下来说明当前进度。"
+   - "任何写入产品库、创建项目、切换阶段的操作都会先经你确认，不会擅自推进。"
+3. **入口菜单（一次只给三个入口）**，让用户从中选或用自己的话说：
+   - ① 从一个新想法开始 → 需求分析（从背景提问开始）
+   - ② 继续以前的工作 → 恢复已有过程项目（列出可用项目清单）
+   - ③ 单独做一件事 → 更新架构设计文档 / 修补能力分类 / 修改已有原型 / 生成迭代计划
+   - 用户也可以直接说自然语言（如"我想做一个××平台"），不必选菜单；意图明确时直接进入对应路由，不再重复介绍。
+4. **意图识别**：无明确阶段意图（没说做什么、只说"继续"或泛指"做设计师"等）时，读取并执行 `references/phase-navigator.md`——向用户展示全局阶段地图、当前进度与可选操作，并在同一段输出里给出安抚句与入口菜单（输出模板见该文件「无明确意图时」一节），推荐从当前阶段继续。恢复会话时介绍可精简为一句进度 + "接下来要做什么"，但安抚与菜单不省略。
+5. **委派前注入**：每次委派 subagent 前，将「当前阶段 + 进度」注入 handoff context（机制见 `references/orchestrator-operations.md`），委派返回后按结果更新进度。
+
 ## Subagent 职责
 
 下表 Agent 名统一使用裸名；实际委派调用时，按 `RUNTIME` 分支加壳：`claude` 拼 `pm-orchestrator:` 前缀，`zcode` 用裸名。
@@ -29,6 +48,7 @@ description: |
 | `story-map-designer` | 用户故事阶段一体产出：旅程提取、User Story 拆解（含 GWT 与溯源矩阵）、逐个能力构建用户故事地图（横轴=旅程叙事线，纵轴=优先级） | 新需求 intake、详细设计、Sprint 分解 |
 | `detailed-design-designer` | 详细设计 Step 1-3：功能架构与动线规划、原型、交互契约、规则摘要 | 新需求 intake、需求拆解、Sprint 分解 |
 | `sprint-planner` | Sprint 分解、迭代规划（基于 Story 的优先级/Story Points/旅程阶段/需求台账关联） | 新需求 intake、需求拆解、详细设计 |
+| `architecture-updater` | 独立维护产品库架构设计文档的产品矩阵（简称/能力索引/故事索引）：扫描产品库增量同步，可单独调用、不依赖过程项目 | 新需求 intake、阶段内拆解/设计/Sprint 分解 |
 
 每次只委派一个 agent。依照已读取的 `references/orchestrator-operations.md`，传递规范化路径、产品库上下文、状态、任务和交互契约；不复制产品库正文。
 
@@ -44,10 +64,6 @@ description: |
 ## 全局中断
 
 用户输入以 `!` 开头的快捷指令时，立即停止正常路由，只读取并执行 `references/orchestrator/shortcut-commands.md`。完成后保留上下文，等待下一轮输入；不自动继续或委派。
-
-## 阶段导航
-
-用户进入本 skill 且**无明确阶段意图**（没说要做什么、只说"继续"或泛指"做设计师"等）时，先读取并执行 `references/phase-navigator.md`，向用户展示全局阶段地图、当前进度与可选操作，推荐从当前阶段继续。每次委派 subagent 前，将「当前阶段 + 进度」注入 handoff context（机制见 `references/orchestrator-operations.md`），委派返回后按结果更新进度。
 
 ## 产品库能力分类修补
 
@@ -75,6 +91,17 @@ description: |
    - `blocked`：说明无法执行的原因（如产品库路径不存在、能力文档不足等）
 
 fix-category 是完全独立的模式，不涉及过程项目，不修改 `workflow.state`，只操作产品库目标目录。
+
+## 架构设计文档更新
+
+当用户明确要求**"更新架构设计文档"、"同步产品矩阵"、"更新能力索引 / 故事索引"**或类似表述时，进入独立的 `update-index` 模式：
+
+1. 先完成第 0 步确认产品库（唯一匹配 `^.+架构设计\.md$` 的根文档读取、产品库校验通过）。
+2. 以 `mode=update-index` 委派 `architecture-updater`，传入 `selectedProductLibraryPath`、`productArchitectureDesignPath` 和可选 `productFullNames`（指定同步范围）；**不传过程项目路径**。
+3. agent 扫描产品库实际内容，dry-run 展示产品矩阵差异（新增/移除的能力与故事索引、未登记产品块）→ 用户确认 → `--apply` 写回架构设计文档；脚本自动备份、失败回滚。
+4. 返回 `draft-ready`：按透传职责完整展示预览并请求确认；`persisted`：汇报变更摘要；`blocked`：说明阻断原因。
+
+`update-index` 是完全独立的模式：不进入任何阶段流程，不涉及过程项目，不修改 `workflow.state`，只操作产品库架构设计根文档。
 
 ## 用户故事地图生成
 
@@ -116,9 +143,9 @@ fix-category 是完全独立的模式，不涉及过程项目，不修改 `workf
 
 每次委派的终点由 subagent 返回状态决定：`needs-input` 展示一个问题并在下一轮重委派；`draft-ready` 请求确认写入产品库；`persisted` 或校验结果按当前项目状态在下一轮继续；`blocked` 停止并说明原因。需求分析的 `persisted(artifactScope=requirement-epic)` 是中间终点：对外措辞为"需求卡片、Epic 已写入产品库，接下来继续拆解 Feature（拆解时产出需求台账条目）"，下一轮以 `mode=draft`、`artifactScope=features` 继续 Feature；不得报告需求分析完成或发起阶段迁移。`persisted(artifactScope=requirement-ledger)` 是需求变更时中途追加台账条目的终点：对外措辞为"需求台账条目已写入产品库"，展示结果后回到原任务推进。
 
-`persisted(artifactScope=features, nextAction=phase-complete)` 表示需求分析全部文档已写入产品库，需求分析阶段即完成，可直接进入下一阶段或等待用户指令。`workflow.state` 保持 `requirement-analysis`，等待继续修改或显式阶段校验。
+`persisted(artifactScope=features, nextAction=phase-complete)` 表示需求分析全部文档已写入产品库，需求分析阶段即完成，可直接进入下一阶段或等待用户指令。`workflow.state` 保持 `requirement-analysis`，等待继续修改或显式阶段校验。**对外汇报需求分析阶段完成时，追加架构设计文档同步提醒**：新能力文档已写入产品库，但架构设计文档的产品矩阵（能力索引）不会自动同步——需要同步时用户回复「更新架构设计文档」，主调度器以 `mode=update-index` 单独委派 `architecture-updater`（不进入任何阶段流程、不传过程项目路径）。
 
-`story-map` 阶段的 `persisted` 表示本批 Story、溯源矩阵、旅程叙事线与用户故事地图已写入产品库/过程项目（阶段内由 `story-map-designer` 一次完成旅程提取 → Story 拆解 → 溯源矩阵 → 能力地图，不拆成两次委派，无需单独进入「用户故事地图生成」模式）。**story-map 阶段完成后可进入详细设计或 Sprint 分解**：两个阶段的前置依赖都是用户故事阶段产物（详细设计依赖已确认的 Story；Sprint 分解依赖 Story 的优先级/Story Points/旅程阶段/需求台账关联），按用户意图经 `references/orchestrator/phase-transition.md` 校验并用户确认后迁移；不自动报告阶段完成。`workflow.state` 保持 `story-map`，等待继续修改或显式阶段校验。
+`story-map` 阶段的 `persisted` 表示本批 Story、溯源矩阵、旅程叙事线与用户故事地图已写入产品库/过程项目（阶段内由 `story-map-designer` 一次完成旅程提取 → Story 拆解 → 溯源矩阵 → 能力地图，不拆成两次委派，无需单独进入「用户故事地图生成」模式）。**对外汇报 story-map 阶段 `persisted` 时同样追加架构设计文档同步提醒**：本批 User Story 与能力地图已写入产品库，但架构设计文档的产品矩阵（能力索引 + 故事索引）尚未同步——需要同步时用户回复「更新架构设计文档」，以 `mode=update-index` 单独委派 `architecture-updater`。**story-map 阶段完成后可进入详细设计或 Sprint 分解**：两个阶段的前置依赖都是用户故事阶段产物（详细设计依赖已确认的 Story；Sprint 分解依赖 Story 的优先级/Story Points/旅程阶段/需求台账关联），按用户意图经 `references/orchestrator/phase-transition.md` 校验并用户确认后迁移；不自动报告阶段完成。`workflow.state` 保持 `story-map`，等待继续修改或显式阶段校验。
 
 ## 不变量
 
